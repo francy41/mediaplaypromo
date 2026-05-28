@@ -46,9 +46,9 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Sidebar */}
+      {/* Sidebar — hidden on mobile (use bottom nav + drawer hamburger instead) */}
       <aside className={cn(
-        "sticky top-0 h-screen bg-[#0c0e14] border-r border-white/8 flex flex-col z-40 transition-all duration-300 overflow-hidden flex-shrink-0",
+        "hidden md:flex sticky top-0 h-screen bg-[#0c0e14] border-r border-white/8 flex-col z-40 transition-all duration-300 overflow-hidden flex-shrink-0",
         sidebarWidth
       )}>
 

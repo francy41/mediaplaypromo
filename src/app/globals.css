@@ -366,3 +366,66 @@ html[data-theme="light"] .category-sidebar-nav a:hover {
   transition: opacity 0.4s;
 }
 .icon-ring:hover::before { opacity: 0.85; }
+
+/* ─────────────────────────────────────────────
+   MOBILE FIRST — Responsive utilities
+   ───────────────────────────────────────────── */
+
+/* Smooth scroll + touch behaviors */
+html { scroll-behavior: smooth; }
+body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: contain; }
+
+/* Tap-target minimum (iOS HIG: 44px) */
+@media (max-width: 768px) {
+  button, a, [role="button"] { min-height: 36px; }
+  input, select, textarea { font-size: 16px !important; } /* avoid iOS auto-zoom */
+}
+
+/* Stackable table → card on mobile (opt-in via .responsive-table) */
+@media (max-width: 768px) {
+  .responsive-table thead { display: none; }
+  .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td {
+    display: block;
+    width: 100%;
+  }
+  .responsive-table tr {
+    margin-bottom: 12px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 12px;
+  }
+  .responsive-table td {
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    position: relative;
+    padding-left: 42%;
+    text-align: right;
+  }
+  .responsive-table td:last-child { border-bottom: 0; }
+  .responsive-table td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 0;
+    width: 38%;
+    text-align: left;
+    color: rgba(255,255,255,0.4);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+}
+
+/* Hide scrollbar on horizontal scrollers (used for category strips) */
+.scroll-x-hide { overflow-x: auto; }
+.scroll-x-hide::-webkit-scrollbar { display: none; }
+.scroll-x-hide { scrollbar-width: none; }
+
+/* Snap-scrolling for swipeable mobile sections */
+.snap-x-mandatory { scroll-snap-type: x mandatory; }
+.snap-center { scroll-snap-align: center; }
+
+/* Safe-area insets helper */
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0); }
+.safe-top    { padding-top: env(safe-area-inset-top, 0); }

@@ -6,6 +6,7 @@ import { CATEGORIES } from "@/lib/categories";
 import HeroBannerSlider from "@/components/HeroBannerSlider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTheme } from "@/lib/theme-context";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 
 function CategorySidebar({ onItemClick }: { onItemClick?: () => void }) {
   const cats = CATEGORIES.filter((c) => c.enabled);
@@ -144,16 +145,16 @@ export default function LandingPage() {
             <div className="text-cyan-400 text-[9px] font-semibold tracking-widest">PLAY PROMO</div>
           </div>
         </div>
-        <div className="ml-auto flex items-center gap-2 sm:gap-3">
+        <div className="ml-auto flex items-center gap-1.5 sm:gap-3">
           <ThemeToggle compact />
-          <Link href="/login" className="hidden sm:inline text-white/60 hover:text-white text-sm transition-colors">
+          <Link href="/login" className="hidden sm:inline-flex items-center text-white/60 hover:text-white text-sm transition-colors px-2">
             Iniciar sesión
           </Link>
           <Link
             href="/register"
-            className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-xs sm:text-sm px-3 sm:px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
+            className="bg-cyan-500 hover:bg-cyan-400 text-black font-semibold text-[11px] sm:text-sm px-3 sm:px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
           >
-            Ver Productos
+            Registrarse
           </Link>
         </div>
       </nav>
@@ -344,6 +345,9 @@ export default function LandingPage() {
           <p className="text-white/30 text-xs">© 2025 MediaPlayPromo.com — Todos los derechos reservados</p>
         </footer>
       </div>
+
+      {/* Mobile bottom navigation */}
+      <MobileBottomNav onOpenCategories={() => setMenuOpen(true)} variant="public" />
     </div>
   );
 }

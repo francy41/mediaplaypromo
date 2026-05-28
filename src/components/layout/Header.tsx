@@ -1,6 +1,6 @@
 "use client";
 import { usePathname, useRouter } from "next/navigation";
-import { Search, Bell, ChevronRight, Plus, FileText, LogOut, Crown, Settings, LayoutDashboard } from "lucide-react";
+import { Search, Bell, ChevronRight, Plus, FileText, LogOut, Crown, Settings, LayoutDashboard, Menu, X } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { getCategoryBySlug } from "@/lib/categories";
@@ -50,6 +50,7 @@ export function Header() {
   const { user, logout } = useAuth();
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [navDrawerOpen, setNavDrawerOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { title, crumbs } = getBreadcrumb(pathname);
   const actions = pageActions[pathname] ?? [];
@@ -66,7 +67,16 @@ export function Header() {
   const initials = user?.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0,2) ?? "SM";
 
   return (
-    <header className="sticky top-0 w-full h-16 bg-[#0c0e14]/95 backdrop-blur-md border-b border-white/8 flex items-center px-5 gap-3 z-30 flex-shrink-0">
+    <header className="sticky top-0 w-full h-16 bg-[#0c0e14]/95 backdrop-blur-md border-b border-white/8 flex items-center px-3 sm:px-5 gap-2 sm:gap-3 z-30 flex-shrink-0">
+
+      {/* Mobile hamburger */}
+      <button
+        onClick={() => setNavDrawerOpen(true)}
+        aria-label="Abrir menú"
+        className="md:hidden w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors flex-shrink-0"
+      >
+        <Menu className="w-4 h-4 text-white" />
+      </button>
 
       {/* Title + breadcrumb */}
       <div className="flex-1 min-w-0">
@@ -174,6 +184,71 @@ export function Header() {
           </div>
         )}
       </div>
+
+      {/* Mobile nav drawer (replaces sidebar on mobile) */}
+      {navDrawerOpen && (
+        <>
+          <div className="md:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50" onClick={() => setNavDrawerOpen(false)} />
+          <aside className="md:hidden fixed top-0 left-0 w-72 max-w-[85vw] h-full bg-[#0c0e14] border-r border-white/10 z-50 flex flex-col overflow-y-auto scrollbar-hide animate-in slide-in-from-left duration-200">
+            <div className="flex items-center justify-between px-4 h-16 border-b border-white/8 flex-shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center font-black text-white text-xs shadow-lg shadow-orange-500/30">M</div>
+                <div>
+                  <div className="text-white font-bold text-sm leading-none">MEDIAPLAY</div>
+                  <div className="text-orange-400 text-[9px] font-semibold tracking-widest">PROMO.COM</div>
+                </div>
+              </div>
+              <button onClick={() => setNavDrawerOpen(false)} className="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center" aria-label="Cerrar">
+                <X className="w-4 h-4 text-white" />
+              </button>
+            </div>
+            <nav className="flex-1 px-2 py-3 space-y-0.5">
+              {[
+                { label: "Dashboard", href: "/dashboard" },
+                { label: "Analíticas", href: "/analytics" },
+                { label: "Clientes", href: "/clients" },
+                { label: "Afiliados", href: "/affiliate" },
+                { label: "Facturación", href: "/billing/invoices" },
+                { label: "Marketplace", href: "/marketplace" },
+                { label: "Licencias", href: "/licenses" },
+                { label: "Notificaciones", href: "/notifications" },
+                { label: "Ajustes", href: "/settings" },
+              ].map((it) => (
+                <button
+                  key={it.href}
+                  onClick={() => { setNavDrawerOpen(false); router.push(it.href); }}
+                  className={cn("w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all", pathname === it.href ? "bg-white/8 text-white" : "text-white/55 hover:bg-white/5 hover:text-white")}
+                >
+                  {it.label}
+                </button>
+              ))}
+              <p className="text-white/25 text-[9px] font-bold uppercase tracking-[0.15em] px-3 py-2 mt-3">SuperAdmin</p>
+              {[
+                { label: "Control Hub", href: "/admin" },
+                { label: "Categorías", href: "/admin/categories" },
+                { label: "Banners", href: "/admin/banners" },
+                { label: "Usuarios", href: "/admin/users" },
+                { label: "Afiliados", href: "/admin/affiliates" },
+                { label: "White Label", href: "/admin/whitelabel" },
+                { label: "Pagos", href: "/admin/payments" },
+              ].map((it) => (
+                <button
+                  key={it.href}
+                  onClick={() => { setNavDrawerOpen(false); router.push(it.href); }}
+                  className={cn("w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all", pathname === it.href ? "bg-fuchsia-500/15 text-fuchsia-300" : "text-white/55 hover:bg-white/5 hover:text-white")}
+                >
+                  {it.label}
+                </button>
+              ))}
+            </nav>
+            <div className="p-3 border-t border-white/8 flex-shrink-0">
+              <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-400 hover:bg-red-500/10 transition-all text-sm">
+                <LogOut className="w-4 h-4" /> Cerrar sesión
+              </button>
+            </div>
+          </aside>
+        </>
+      )}
     </header>
   );
 }
