@@ -1,7 +1,26 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Sparkles, Download, AlertCircle, RefreshCw, Image as ImageIcon, Video as VideoIcon } from "lucide-react";
+import Link from "next/link";
+import { Loader2, Sparkles, Download, AlertCircle, RefreshCw, Image as ImageIcon, Video as VideoIcon, Zap, Crown, Wand2 } from "lucide-react";
 import { MUAPI_MODELS } from "@/lib/ai/muapi";
+import { getCost } from "@/lib/pricing";
+
+const SAMPLE_PROMPTS: Record<"image" | "video", string[]> = {
+  image: [
+    "Astronauta corriendo en Marte, cinematic, golden hour, 4K, photorealistic",
+    "Logotipo minimalista para startup tech, vector, blanco sobre fondo negro",
+    "Café gourmet en mesa de mármol, luz natural, estilo Instagram food",
+    "Retrato cyberpunk, neón rosa y cyan, lluvia, alta detalle",
+    "Producto cosmético sobre fondo dorado, e-commerce, studio lighting",
+  ],
+  video: [
+    "Time-lapse aéreo de ciudad futurista al atardecer, motion blur",
+    "Producto rotando sobre mármol blanco, e-commerce, 360°",
+    "Persona caminando en bosque otoñal, cámara siguiendo, slow motion",
+    "Olas rompiendo en playa tropical, golden hour, drone shot",
+    "Robot humanoide presentando producto, futuristic studio",
+  ],
+};
 
 type Kind = "image" | "video";
 
@@ -111,15 +130,54 @@ export function AIPlayground({
   const isWorking = status === "queued" || status === "processing";
   const Icon = kind === "image" ? ImageIcon : VideoIcon;
 
+  const cost = getCost(model);
+  // Mock: credits del usuario (cuando esté Supabase vendrá de DB)
+  const userCredits = 10;
+  const isFreePlan = true;
+
   return (
     <div className="glass-card rounded-3xl border border-white/10 p-5 sm:p-6 space-y-4">
-      <div className="flex items-center gap-3">
-        <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg ring-1 ring-white/20`}>
-          <Icon className="w-5 h-5 text-white" />
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg ring-1 ring-white/20 flex-shrink-0`}>
+            <Icon className="w-5 h-5 text-white" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-white font-bold text-base">Playground · {kind === "image" ? "Imagen" : "Video"}</h3>
+            <p className="text-white/45 text-xs">Prueba gratis · Muapi.ai</p>
+          </div>
         </div>
-        <div>
-          <h3 className="text-white font-bold text-base">Playground · {kind === "image" ? "Imagen" : "Video"}</h3>
-          <p className="text-white/45 text-xs">Genera con IA en tiempo real · powered by Muapi</p>
+
+        {/* Credits badge */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 bg-yellow-500/10 border border-yellow-500/25 rounded-full px-2.5 py-1">
+            <Zap className="w-3 h-3 text-yellow-400" />
+            <span className="text-yellow-300 text-[11px] font-bold">{userCredits} créditos</span>
+          </div>
+          {isFreePlan && (
+            <Link href="/pricing" className="inline-flex items-center gap-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-95 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow shadow-cyan-500/30 transition-all">
+              <Crown className="w-3 h-3" /> Pro
+            </Link>
+          )}
+        </div>
+      </div>
+
+      {/* Sample prompts strip — para probar rápido */}
+      <div>
+        <p className="text-white/45 text-[10px] font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <Wand2 className="w-3 h-3" /> Prompts de ejemplo — un click para probar
+        </p>
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1 -mx-1 px-1">
+          {SAMPLE_PROMPTS[kind].map((p, i) => (
+            <button
+              key={i}
+              onClick={() => setPrompt(p)}
+              disabled={isWorking}
+              className="flex-shrink-0 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-cyan-500/40 text-white/75 hover:text-white text-[11px] px-3 py-1.5 rounded-full transition-all disabled:opacity-50 max-w-[220px] truncate"
+            >
+              {p.slice(0, 40)}{p.length > 40 ? "..." : ""}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -197,7 +255,7 @@ export function AIPlayground({
       {/* CTA */}
       <button
         onClick={handleGenerate}
-        disabled={!prompt.trim() || isWorking}
+        disabled={!prompt.trim() || isWorking || userCredits < cost}
         className={`shine-btn w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r ${gradient} hover:opacity-95 text-white font-bold text-sm px-5 py-3 rounded-xl shadow-lg transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
       >
         {isWorking ? (
@@ -207,10 +265,33 @@ export function AIPlayground({
           </>
         ) : (
           <>
-            <Sparkles className="w-4 h-4" /> Generar {kind === "image" ? "imagen" : "video"}
+            <Sparkles className="w-4 h-4" />
+            Generar {kind === "image" ? "imagen" : "video"}
+            <span className="bg-black/20 backdrop-blur px-2 py-0.5 rounded-md text-[11px] font-mono ml-1">
+              <Zap className="w-2.5 h-2.5 inline -mt-0.5" /> {cost}
+            </span>
           </>
         )}
       </button>
+
+      {/* Out of credits banner */}
+      {userCredits < cost && !isWorking && (
+        <div className="bg-gradient-to-br from-orange-500/15 to-yellow-500/10 border border-orange-500/30 rounded-2xl p-4">
+          <div className="flex items-start gap-3">
+            <Crown className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-white font-bold text-sm">Necesitas {cost - userCredits} créditos más</p>
+              <p className="text-white/55 text-xs mt-0.5 mb-3">Sube a Pro y obtén 500 créditos/mes + todos los modelos premium.</p>
+              <Link
+                href="/pricing"
+                className="shine-btn inline-flex items-center gap-1.5 bg-gradient-to-r from-orange-500 to-yellow-500 hover:opacity-95 text-black font-bold text-xs px-4 py-2 rounded-xl shadow-lg shadow-orange-500/30 transition-all"
+              >
+                Ver planes <Crown className="w-3 h-3" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Error */}
       {error && (

@@ -134,6 +134,9 @@ export default function LandingPage() {
           </div>
         </div>
         <div className="ml-auto flex items-center gap-1.5 sm:gap-3">
+          <Link href="/pricing" className="hidden sm:inline-flex items-center text-white/60 hover:text-white text-sm transition-colors px-2 font-medium">
+            Precios
+          </Link>
           <ThemeToggle compact />
           <Link href="/login" className="hidden sm:inline-flex items-center text-white/60 hover:text-white text-sm transition-colors px-2">
             Iniciar sesión
