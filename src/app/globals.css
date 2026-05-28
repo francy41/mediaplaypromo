@@ -76,6 +76,35 @@ body {
   background-color: #ffffff !important;
 }
 
+/* Gradient stops on the sidebar / cards — flip the dark hexes to white */
+:root[data-theme="light"] .from-\[\#0b0d12\],
+:root[data-theme="light"] .via-\[\#0a0c10\],
+:root[data-theme="light"] .to-\[\#080a0e\],
+:root[data-theme="light"] .from-\[\#070809\],
+:root[data-theme="light"] .from-\[\#080a0f\],
+:root[data-theme="light"] .from-\[\#0a0b10\],
+:root[data-theme="light"] .from-\[\#0a0c0f\],
+:root[data-theme="light"] .from-\[\#0a0c10\],
+:root[data-theme="light"] .from-\[\#0c0e14\],
+:root[data-theme="light"] .from-\[\#0f1219\],
+:root[data-theme="light"] .to-\[\#070809\],
+:root[data-theme="light"] .to-\[\#080a0f\],
+:root[data-theme="light"] .to-\[\#0a0b10\],
+:root[data-theme="light"] .to-\[\#0a0c0f\],
+:root[data-theme="light"] .to-\[\#0a0c10\],
+:root[data-theme="light"] .to-\[\#0c0e14\],
+:root[data-theme="light"] .to-\[\#0f1219\],
+:root[data-theme="light"] .via-\[\#070809\],
+:root[data-theme="light"] .via-\[\#080a0f\],
+:root[data-theme="light"] .via-\[\#0a0b10\],
+:root[data-theme="light"] .via-\[\#0c0e14\],
+:root[data-theme="light"] .via-\[\#0f1219\] {
+  --tw-gradient-from: #ffffff !important;
+  --tw-gradient-via: #fafbfc !important;
+  --tw-gradient-to: #f4f6fa !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-via, transparent), var(--tw-gradient-to) !important;
+}
+
 /* Borders: white/8, white/10, white/15 → slate */
 :root[data-theme="light"] .border-white\/5,
 :root[data-theme="light"] .border-white\/6,
