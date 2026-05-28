@@ -56,10 +56,20 @@ export default function HeroBannerSlider() {
         </Link>
       )}
 
-      <div className={`relative overflow-hidden rounded-3xl border ${g.border} bg-gradient-to-br ${g.bg} bg-[#0a0c10] min-h-[420px] sm:min-h-[460px]`}>
-        {/* Decorative orbs */}
-        <div className={`absolute -top-24 -right-24 w-80 h-80 ${g.orb} rounded-full blur-3xl pointer-events-none`} />
-        <div className={`absolute -bottom-24 -left-24 w-72 h-72 ${g.orb} rounded-full blur-3xl pointer-events-none opacity-60`} />
+      <div className={`relative overflow-hidden rounded-3xl border ${g.border} bg-gradient-to-br ${g.bg} bg-[#0a0c10] min-h-[420px] sm:min-h-[460px] shadow-2xl shadow-black/40`}>
+        {/* Animated decorative orbs */}
+        <div className={`absolute -top-24 -right-24 w-80 h-80 ${g.orb} rounded-full blur-3xl pointer-events-none float-slow glow-pulse`} />
+        <div className={`absolute -bottom-24 -left-24 w-72 h-72 ${g.orb} rounded-full blur-3xl pointer-events-none opacity-60 float-soft`} />
+        <div className={`absolute top-1/3 left-1/2 w-40 h-40 ${g.orb} rounded-full blur-2xl opacity-30 pointer-events-none float-slow`} />
+
+        {/* Subtle particle starfield */}
+        <div className="particles-bg" />
+
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{
+          backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
+          backgroundSize: "40px 40px"
+        }} />
 
         {/* Prev / Next */}
         {total > 1 && (
@@ -100,14 +110,16 @@ export default function HeroBannerSlider() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
             <Link
               href={b.ctaHref}
-              className={`w-full sm:w-auto bg-gradient-to-r ${g.btn} hover:opacity-90 text-white font-bold px-6 py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 text-sm sm:text-base hover:-translate-y-0.5`}
+              className={`shine-btn w-full sm:w-auto bg-gradient-to-r ${g.btn} gradient-anim hover:opacity-95 text-white font-bold px-7 py-3.5 rounded-2xl transition-all shadow-xl flex items-center justify-center gap-2 text-sm sm:text-base hover:-translate-y-0.5 hover:scale-[1.02] ring-1 ring-white/20`}
             >
-              {b.ctaLabel} <ArrowRight className="w-4 h-4" />
+              <span className="relative z-10 flex items-center gap-2">
+                {b.ctaLabel} <ArrowRight className="w-4 h-4" />
+              </span>
             </Link>
             {b.secondaryLabel && b.secondaryHref && (
               <Link
                 href={b.secondaryHref}
-                className="w-full sm:w-auto border border-white/20 hover:border-white/40 hover:bg-white/5 text-white px-6 py-3 rounded-xl transition-all text-center text-sm sm:text-base"
+                className="glass-card w-full sm:w-auto hover:border-white/30 text-white px-6 py-3.5 rounded-2xl transition-all text-center text-sm sm:text-base hover:-translate-y-0.5"
               >
                 {b.secondaryLabel}
               </Link>

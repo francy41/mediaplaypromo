@@ -208,25 +208,33 @@ export default function LandingPage() {
             </h2>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
-            {CATEGORIES.filter((c) => c.enabled).map((cat) => {
+            {CATEGORIES.filter((c) => c.enabled).map((cat, i) => {
               const Icon = cat.icon;
               return (
                 <Link
                   key={cat.slug}
                   href={`/categories/${cat.slug}`}
-                  className="group flex flex-col items-center gap-3 bg-white/3 border border-white/8 hover:border-cyan-500/40 rounded-2xl p-4 sm:p-5 transition-all hover:-translate-y-0.5 hover:bg-white/5 relative"
+                  className="glass-card hover-lift group flex flex-col items-center gap-3 rounded-2xl p-4 sm:p-5 relative overflow-hidden"
+                  style={{ animationDelay: `${(i % 5) * 100}ms` }}
                 >
+                  {/* Hover gradient overlay */}
+                  <div className={`absolute inset-0 bg-gradient-to-br ${cat.bgCard} opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`} />
+                  {/* Orb on hover */}
+                  <div className={`absolute -top-6 -right-6 w-24 h-24 bg-gradient-to-br ${cat.gradient} opacity-0 group-hover:opacity-30 blur-2xl transition-opacity duration-500 pointer-events-none`} />
+
                   {cat.premium && (
-                    <span className="absolute top-2 right-2 text-[8px] font-bold bg-gradient-to-r from-yellow-400 to-orange-500 text-black rounded-full px-1.5 py-0.5">
+                    <span className="absolute top-2 right-2 z-10 text-[8px] font-black bg-gradient-to-r from-yellow-400 to-orange-500 text-black rounded-full px-1.5 py-0.5 shadow-lg shadow-orange-500/40">
                       PRO
                     </span>
                   )}
-                  <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br ${cat.gradient} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
-                    <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+
+                  <div className={`icon-ring relative w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br ${cat.gradient} flex items-center justify-center shadow-lg ${cat.glowColor} group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 ring-1 ring-white/20`}>
+                    <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white drop-shadow" />
                   </div>
-                  <div className="text-center">
-                    <h3 className="text-white font-semibold text-xs leading-tight mb-1">{cat.title}</h3>
-                    <p className="text-white/40 text-[10px] leading-tight">{cat.subtitle}</p>
+
+                  <div className="text-center relative z-10">
+                    <h3 className="text-white font-bold text-xs leading-tight mb-1">{cat.title}</h3>
+                    <p className="text-white/45 text-[10px] leading-tight">{cat.subtitle}</p>
                   </div>
                 </Link>
               );
@@ -246,13 +254,13 @@ export default function LandingPage() {
             {CATEGORIES.filter((c) => c.enabled).slice(0, 4).map((cat) => {
               const Icon = cat.icon;
               return (
-                <Link key={cat.slug} href={`/categories/${cat.slug}`} className={`group relative overflow-hidden rounded-2xl border ${cat.borderColor} bg-gradient-to-br ${cat.bgCard} p-5 hover:-translate-y-1 transition-all`}>
-                  <div className={`absolute -top-6 -right-6 w-28 h-28 bg-gradient-to-br ${cat.gradient} opacity-20 rounded-full blur-2xl group-hover:opacity-40 transition-opacity`} />
-                  <div className={`relative w-12 h-12 rounded-2xl bg-gradient-to-br ${cat.gradient} flex items-center justify-center shadow-lg ${cat.glowColor} mb-3`}>
-                    <Icon className="w-6 h-6 text-white" />
+                <Link key={cat.slug} href={`/categories/${cat.slug}`} className={`glass-card hover-lift group relative overflow-hidden rounded-2xl p-5`}>
+                  <div className={`absolute -top-6 -right-6 w-32 h-32 bg-gradient-to-br ${cat.gradient} opacity-20 rounded-full blur-3xl group-hover:opacity-50 transition-opacity duration-500 float-soft`} />
+                  <div className={`icon-ring relative w-14 h-14 rounded-2xl bg-gradient-to-br ${cat.gradient} flex items-center justify-center shadow-xl ${cat.glowColor} mb-4 ring-1 ring-white/20 group-hover:scale-105 transition-transform`}>
+                    <Icon className="w-7 h-7 text-white drop-shadow" />
                   </div>
-                  <h3 className="relative text-white font-bold text-sm mb-1">{cat.title}</h3>
-                  <p className="relative text-white/50 text-xs leading-relaxed">{cat.subtitle}</p>
+                  <h3 className="relative text-white font-bold text-base mb-1">{cat.title}</h3>
+                  <p className="relative text-white/55 text-xs leading-relaxed">{cat.subtitle}</p>
                   <p className={`relative text-[11px] font-bold mt-3 ${cat.textAccent} flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity`}>Explorar <ArrowRight className="w-3 h-3" /></p>
                 </Link>
               );

@@ -230,3 +230,139 @@ html[data-theme="light"] .category-sidebar-nav a:hover {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ─────────────────────────────────────────────
+   FUTURISTIC SaaS UI — Glass, Neon, Float, Motion
+   ───────────────────────────────────────────── */
+
+/* Glassmorphism card */
+.glass-card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.35),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+}
+:root[data-theme="light"] .glass-card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.7));
+  border-color: rgba(15,23,42,0.08);
+  box-shadow:
+    0 8px 32px rgba(15,23,42,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.9);
+}
+
+/* Neon glow ring (use with text-accent color) */
+.neon-ring {
+  position: relative;
+}
+.neon-ring::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(255,255,255,0));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Floating animation */
+@keyframes float-soft {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  33%      { transform: translateY(-8px) translateX(4px); }
+  66%      { transform: translateY(4px) translateX(-3px); }
+}
+.float-soft { animation: float-soft 4s ease-in-out infinite; }
+.float-slow { animation: float-slow 7s ease-in-out infinite; }
+
+/* Glow pulse */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%      { opacity: 0.85; transform: scale(1.08); }
+}
+.glow-pulse { animation: glow-pulse 3.5s ease-in-out infinite; }
+
+/* Animated gradient (use as bg-anim on gradient elements) */
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+.gradient-anim {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease-in-out infinite;
+}
+
+/* Shine sweep on hover (for premium buttons) */
+@keyframes shine-sweep {
+  0%   { transform: translateX(-100%) skewX(-15deg); }
+  100% { transform: translateX(250%) skewX(-15deg); }
+}
+.shine-btn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.shine-btn::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0;
+  width: 50%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+  transform: translateX(-100%) skewX(-15deg);
+  pointer-events: none;
+  z-index: 1;
+}
+.shine-btn:hover::after {
+  animation: shine-sweep 0.9s ease-out;
+}
+
+/* Particle dots backdrop (subtle starfield) */
+.particles-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 60% 70%, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1px 1px at 80% 20%, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 30% 80%, rgba(255,255,255,0.3), transparent),
+    radial-gradient(1px 1px at 90% 50%, rgba(255,255,255,0.4), transparent),
+    radial-gradient(1px 1px at 10% 60%, rgba(255,255,255,0.3), transparent);
+  background-repeat: repeat;
+  background-size: 220px 220px;
+  opacity: 0.5;
+}
+
+/* Hover lift effect for cards */
+.hover-lift {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-4px) scale(1.012);
+  box-shadow: 0 20px 50px -10px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08) inset;
+}
+
+/* Conic gradient ring for category icons */
+.icon-ring {
+  position: relative;
+}
+.icon-ring::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: conic-gradient(from 0deg, transparent, rgba(255,255,255,0.4), transparent 60%);
+  filter: blur(6px);
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+.icon-ring:hover::before { opacity: 0.85; }
