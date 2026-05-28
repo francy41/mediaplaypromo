@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ArrowRight, Menu, X, Sparkles, ChevronRight } from "lucide-react";
 import { CATEGORIES } from "@/lib/categories";
 import HeroBannerSlider from "@/components/HeroBannerSlider";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 function CategorySidebar({ onItemClick }: { onItemClick?: () => void }) {
   const cats = CATEGORIES.filter((c) => c.enabled);
@@ -114,6 +115,7 @@ export default function LandingPage() {
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          <ThemeToggle compact />
           <Link href="/login" className="hidden sm:inline text-white/60 hover:text-white text-sm transition-colors">
             Iniciar sesión
           </Link>

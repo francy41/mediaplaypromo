@@ -4,6 +4,7 @@ import { Search, Bell, ChevronRight, Plus, FileText, LogOut, Crown, Settings, La
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { getCategoryBySlug } from "@/lib/categories";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 function getBreadcrumb(pathname: string) {
   const staticMap: Record<string, { title: string; crumbs: string[] }> = {
@@ -101,6 +102,9 @@ export function Header() {
           {a.label}
         </button>
       ))}
+
+      {/* Theme toggle */}
+      <ThemeToggle compact />
 
       {/* Bell */}
       <button className="relative w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors flex-shrink-0">
