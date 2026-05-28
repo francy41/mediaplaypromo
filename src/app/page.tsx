@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowRight, Menu, X, Sparkles, ChevronRight, Sun, Moon } from "lucide-react";
+import { ArrowRight, Menu, X, Sparkles, Sun, Moon } from "lucide-react";
 import { CATEGORIES } from "@/lib/categories";
 import HeroBannerSlider from "@/components/HeroBannerSlider";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -16,24 +16,23 @@ function CategorySidebar({ onItemClick }: { onItemClick?: () => void }) {
       <div className="pointer-events-none absolute -top-24 -left-10 w-56 h-56 bg-cyan-500/10 rounded-full blur-3xl" />
       <div className="pointer-events-none absolute bottom-24 -right-10 w-48 h-48 bg-fuchsia-500/10 rounded-full blur-3xl" />
 
-      {/* Header */}
-      <div className="relative px-5 py-5 border-b border-white/10 bg-gradient-to-br from-cyan-500/5 via-transparent to-fuchsia-500/5">
-        <div className="flex items-center gap-2 mb-1.5">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/30">
-            <Sparkles className="w-3.5 h-3.5 text-white" />
+      {/* Header — compact */}
+      <div className="relative px-3.5 py-3 border-b border-white/10 bg-gradient-to-br from-cyan-500/5 via-transparent to-fuchsia-500/5 flex-shrink-0">
+        <div className="flex items-center gap-1.5 mb-1">
+          <div className="w-5 h-5 rounded-md bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow shadow-cyan-500/30">
+            <Sparkles className="w-2.5 h-2.5 text-white" />
           </div>
-          <p className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-400 text-[11px] font-black uppercase tracking-[0.22em]">
-            Categorías IA
+          <p className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-400 text-[10px] font-black uppercase tracking-[0.18em]">
+            Categorías
           </p>
         </div>
-        <p className="text-white/85 text-sm font-bold leading-tight">
-          10 herramientas <span className="text-cyan-400">PRO</span>
+        <p className="text-white/85 text-[12px] font-bold leading-tight">
+          18 herramientas <span className="text-cyan-400">IA</span>
         </p>
-        <p className="text-white/40 text-[11px] mt-0.5">Suite completa de IA</p>
       </div>
 
-      {/* Items */}
-      <div className="relative flex-1 overflow-y-auto py-3 px-2.5 space-y-1.5 scrollbar-hide">
+      {/* Items — compact rows */}
+      <div className="relative flex-1 overflow-y-auto py-2 px-1.5 space-y-0.5 scrollbar-hide">
         {cats.map((cat) => {
           const Icon = cat.icon;
           return (
@@ -41,54 +40,43 @@ function CategorySidebar({ onItemClick }: { onItemClick?: () => void }) {
               key={cat.slug}
               href={`/categories/${cat.slug}`}
               onClick={onItemClick}
-              className="relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/70 hover:text-white bg-white/[0.02] border border-white/5 hover:border-white/15 hover:bg-white/[0.06] transition-all duration-200 group overflow-hidden"
+              className="relative flex items-center gap-2 px-2 py-1.5 rounded-lg text-white/65 hover:text-white hover:bg-white/[0.06] transition-all duration-200 group overflow-hidden"
             >
               {/* Hover gradient accent */}
-              <div className={`absolute inset-0 bg-gradient-to-r ${cat.bgCard} opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none`} />
+              <div className={`absolute inset-0 bg-gradient-to-r ${cat.bgCard} opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-lg`} />
               {/* Left active bar */}
-              <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-0 group-hover:h-8 w-[3px] rounded-r-full bg-gradient-to-b ${cat.gradient} transition-all duration-300`} />
+              <div className={`absolute left-0 top-1/2 -translate-y-1/2 h-0 group-hover:h-5 w-[2px] rounded-r-full bg-gradient-to-b ${cat.gradient} transition-all duration-300`} />
 
-              <div
-                className={`relative w-10 h-10 rounded-xl bg-gradient-to-br ${cat.gradient} flex items-center justify-center flex-shrink-0 shadow-lg ${cat.glowColor} group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}
-              >
-                <Icon className="w-4.5 h-4.5 text-white drop-shadow" />
-                <div className="absolute inset-0 rounded-xl ring-1 ring-white/20" />
+              <div className={`relative w-7 h-7 rounded-lg bg-gradient-to-br ${cat.gradient} flex items-center justify-center flex-shrink-0 shadow-md ${cat.glowColor} group-hover:scale-105 transition-transform duration-300 ring-1 ring-white/15`}>
+                <Icon className="w-3.5 h-3.5 text-white drop-shadow" />
               </div>
 
-              <div className="relative min-w-0 flex-1">
-                <p className="text-[13px] font-bold leading-tight truncate text-white group-hover:text-white">
-                  {cat.title}
-                </p>
-                <p className="text-[10.5px] text-white/45 group-hover:text-white/65 truncate mt-0.5 transition-colors">
-                  {cat.subtitle}
-                </p>
-              </div>
+              <span className="relative text-[12px] font-semibold leading-tight truncate flex-1 text-white/85 group-hover:text-white">
+                {cat.title}
+              </span>
 
-              {cat.premium ? (
-                <span className="relative text-[8px] font-black bg-gradient-to-r from-yellow-400 to-orange-500 text-black rounded-full px-2 py-0.5 flex-shrink-0 shadow-md shadow-orange-500/30">
+              {cat.premium && (
+                <span className="relative text-[8px] font-black bg-gradient-to-r from-yellow-400 to-orange-500 text-black rounded-full px-1.5 py-px flex-shrink-0 shadow shadow-orange-500/30">
                   PRO
                 </span>
-              ) : (
-                <ChevronRight className="relative w-3.5 h-3.5 text-white/20 group-hover:text-white/60 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
               )}
             </Link>
           );
         })}
       </div>
 
-      {/* Footer CTA + Theme */}
-      <div className="relative p-3 border-t border-white/10 bg-gradient-to-t from-cyan-500/5 to-transparent space-y-2.5">
+      {/* Footer CTA + Theme — compact */}
+      <div className="relative px-2.5 pt-2 pb-3 border-t border-white/10 bg-gradient-to-t from-cyan-500/5 to-transparent space-y-2 flex-shrink-0">
         <Link
           href="/register"
           onClick={onItemClick}
-          className="group flex items-center justify-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-[12px] px-4 py-3 rounded-xl transition-all shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:-translate-y-0.5"
+          className="group flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-[11px] px-3 py-2 rounded-lg transition-all shadow-md shadow-cyan-500/30 hover:shadow-cyan-500/50 hover:-translate-y-0.5"
         >
-          <Sparkles className="w-3.5 h-3.5" />
-          Crear cuenta gratis
-          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+          <Sparkles className="w-3 h-3" />
+          Crear cuenta
+          <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
         </Link>
         <SidebarThemeSwitcher />
-        <p className="text-center text-white/30 text-[10px]">Sin tarjeta · Cancela cuando quieras</p>
       </div>
     </nav>
   );
@@ -159,8 +147,8 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* Desktop sidebar */}
-      <aside className="hidden lg:flex fixed top-16 left-0 w-72 h-[calc(100vh-4rem)] border-r border-white/10 shadow-2xl shadow-black/60 z-40">
+      {/* Desktop sidebar — narrower so it doesn't overlap hero content */}
+      <aside className="hidden lg:flex fixed top-16 left-0 w-56 xl:w-60 h-[calc(100vh-4rem)] border-r border-white/10 shadow-2xl shadow-black/60 z-40">
         <CategorySidebar />
       </aside>
 
@@ -195,7 +183,7 @@ export default function LandingPage() {
       )}
 
       {/* Main content (pushed right on desktop) */}
-      <div className="lg:pl-72">
+      <div className="lg:pl-56 xl:pl-60">
         {/* Hero Slider — editable desde SuperAdmin */}
         <HeroBannerSlider />
 
