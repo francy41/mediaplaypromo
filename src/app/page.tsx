@@ -1,10 +1,11 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowRight, Menu, X, Sparkles, ChevronRight } from "lucide-react";
+import { ArrowRight, Menu, X, Sparkles, ChevronRight, Sun, Moon } from "lucide-react";
 import { CATEGORIES } from "@/lib/categories";
 import HeroBannerSlider from "@/components/HeroBannerSlider";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useTheme } from "@/lib/theme-context";
 
 function CategorySidebar({ onItemClick }: { onItemClick?: () => void }) {
   const cats = CATEGORIES.filter((c) => c.enabled);
@@ -74,8 +75,8 @@ function CategorySidebar({ onItemClick }: { onItemClick?: () => void }) {
         })}
       </div>
 
-      {/* Footer CTA */}
-      <div className="relative p-3 border-t border-white/10 bg-gradient-to-t from-cyan-500/5 to-transparent">
+      {/* Footer CTA + Theme */}
+      <div className="relative p-3 border-t border-white/10 bg-gradient-to-t from-cyan-500/5 to-transparent space-y-2.5">
         <Link
           href="/register"
           onClick={onItemClick}
@@ -85,9 +86,38 @@ function CategorySidebar({ onItemClick }: { onItemClick?: () => void }) {
           Crear cuenta gratis
           <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
         </Link>
-        <p className="text-center text-white/30 text-[10px] mt-2">Sin tarjeta · Cancela cuando quieras</p>
+        <SidebarThemeSwitcher />
+        <p className="text-center text-white/30 text-[10px]">Sin tarjeta · Cancela cuando quieras</p>
       </div>
     </nav>
+  );
+}
+
+function SidebarThemeSwitcher() {
+  const { theme, setTheme } = useTheme();
+  return (
+    <div className="flex items-center gap-1 bg-white/[0.04] border border-white/10 rounded-xl p-1 theme-toggle-btn">
+      <button
+        onClick={() => setTheme("light")}
+        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
+          theme === "light"
+            ? "bg-gradient-to-r from-yellow-300 to-orange-400 text-black shadow-md"
+            : "text-white/55 hover:text-white"
+        }`}
+      >
+        <Sun className="w-3.5 h-3.5" /> Claro
+      </button>
+      <button
+        onClick={() => setTheme("dark")}
+        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
+          theme === "dark"
+            ? "bg-gradient-to-r from-indigo-500 to-blue-600 text-white shadow-md"
+            : "text-white/55 hover:text-white"
+        }`}
+      >
+        <Moon className="w-3.5 h-3.5" /> Oscuro
+      </button>
+    </div>
   );
 }
 
