@@ -234,6 +234,89 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* Trending Tools Strip */}
+        <section className="px-4 sm:px-6 lg:px-8 pb-12 sm:pb-16 lg:pb-20 max-w-6xl mx-auto">
+          <div className="flex items-end justify-between mb-6 sm:mb-8">
+            <div>
+              <p className="text-pink-400 text-xs sm:text-sm font-semibold tracking-wider mb-1">🔥 TRENDING ESTA SEMANA</p>
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold">Las herramientas que <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-fuchsia-500">todos están usando</span></h2>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {CATEGORIES.filter((c) => c.enabled).slice(0, 4).map((cat) => {
+              const Icon = cat.icon;
+              return (
+                <Link key={cat.slug} href={`/categories/${cat.slug}`} className={`group relative overflow-hidden rounded-2xl border ${cat.borderColor} bg-gradient-to-br ${cat.bgCard} p-5 hover:-translate-y-1 transition-all`}>
+                  <div className={`absolute -top-6 -right-6 w-28 h-28 bg-gradient-to-br ${cat.gradient} opacity-20 rounded-full blur-2xl group-hover:opacity-40 transition-opacity`} />
+                  <div className={`relative w-12 h-12 rounded-2xl bg-gradient-to-br ${cat.gradient} flex items-center justify-center shadow-lg ${cat.glowColor} mb-3`}>
+                    <Icon className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="relative text-white font-bold text-sm mb-1">{cat.title}</h3>
+                  <p className="relative text-white/50 text-xs leading-relaxed">{cat.subtitle}</p>
+                  <p className={`relative text-[11px] font-bold mt-3 ${cat.textAccent} flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity`}>Explorar <ArrowRight className="w-3 h-3" /></p>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* White Label Promo */}
+        <section className="px-4 sm:px-6 lg:px-8 pb-12 sm:pb-16 lg:pb-20 max-w-6xl mx-auto">
+          <div className="relative overflow-hidden rounded-3xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-600/15 via-purple-600/10 to-transparent p-8 sm:p-12">
+            <div className="absolute -top-20 -right-20 w-80 h-80 bg-fuchsia-500/20 rounded-full blur-3xl" />
+            <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl" />
+            <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+              <div>
+                <p className="text-fuchsia-400 text-xs font-bold tracking-[0.2em] mb-3">🏷️ MARCA BLANCA SAAS</p>
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight mb-4">
+                  Vende nuestra plataforma{" "}
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 to-purple-500">bajo TU marca</span>
+                </h2>
+                <p className="text-white/60 text-base mb-6">Dominio propio, logo, colores, panel branded. Tú vendes — nosotros operamos la infra.</p>
+                <ul className="space-y-2 mb-6 text-sm">
+                  {["Dominio + SSL automático", "Branding 100% personalizable", "Clientes y suscripciones propios", "Sin límite de usuarios"].map((f) => (
+                    <li key={f} className="flex items-center gap-2 text-white/75">
+                      <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400" /> {f}
+                    </li>
+                  ))}
+                </ul>
+                <Link href="/categories/marca-blanca" className="inline-flex items-center gap-2 bg-gradient-to-r from-fuchsia-500 to-purple-600 hover:opacity-90 text-white font-bold px-6 py-3 rounded-xl shadow-lg shadow-fuchsia-500/30 transition-all hover:-translate-y-0.5">
+                  Empezar Marca Blanca <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+              <div className="hidden lg:grid grid-cols-3 gap-3">
+                {CATEGORIES.filter((c) => c.enabled).slice(10, 16).map((cat) => {
+                  const Icon = cat.icon;
+                  return (
+                    <div key={cat.slug} className={`bg-[#0f1219]/80 backdrop-blur border ${cat.borderColor} rounded-2xl p-4 aspect-square flex flex-col items-center justify-center gap-2`}>
+                      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${cat.gradient} flex items-center justify-center shadow-md`}>
+                        <Icon className="w-5 h-5 text-white" />
+                      </div>
+                      <p className="text-white text-[10px] font-semibold text-center leading-tight">{cat.title}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Affiliate Promo */}
+        <section className="px-4 sm:px-6 lg:px-8 pb-12 sm:pb-16 lg:pb-20 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            {[
+              { kpi: "30%", label: "Comisión recurrente", color: "from-green-500/20 to-emerald-500/5", text: "text-green-400", border: "border-green-500/20" },
+              { kpi: "De por vida", label: "Pagos garantizados", color: "from-blue-500/20 to-cyan-500/5", text: "text-cyan-400", border: "border-blue-500/20" },
+              { kpi: "Sin límite", label: "Referidos que puedes traer", color: "from-fuchsia-500/20 to-pink-500/5", text: "text-pink-400", border: "border-fuchsia-500/20" },
+            ].map((s) => (
+              <div key={s.label} className={`bg-gradient-to-br ${s.color} border ${s.border} rounded-2xl p-6 text-center`}>
+                <p className={`text-3xl sm:text-4xl font-black ${s.text}`}>{s.kpi}</p>
+                <p className="text-white/60 text-sm mt-1">{s.label}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* CTA */}
         <section className="px-4 sm:px-6 lg:px-8 pb-16 sm:pb-20 lg:pb-24 max-w-3xl mx-auto text-center">
           <div className="bg-gradient-to-br from-cyan-500/10 to-blue-600/10 border border-cyan-500/20 rounded-2xl p-7 sm:p-10">

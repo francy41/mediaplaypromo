@@ -8,7 +8,8 @@ import {
   LayoutDashboard, BarChart2, Users, UserCheck, Receipt,
   ShoppingBag, Zap, Scale, Bell, Settings, ChevronLeft,
   ChevronRight, Globe, MessageSquare, Star, Shield,
-  Video, Film, Mic, Image, BookOpen, Layout, ChevronDown, GalleryHorizontal
+  Video, Film, Mic, Image, BookOpen, Layout, ChevronDown, GalleryHorizontal,
+  Bot, Filter, Mail, CalendarClock, Briefcase, Sparkles, Palette, Radio
 } from "lucide-react";
 
 const mainNav = [
