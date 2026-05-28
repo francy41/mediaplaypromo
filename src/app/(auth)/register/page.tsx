@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { User, Mail, Lock, Eye, EyeOff, Chrome, Check } from "lucide-react";
+import { User, Mail, Lock, Eye, EyeOff, Globe, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function RegisterPage() {
@@ -20,7 +20,7 @@ export default function RegisterPage() {
 
       <div className="bg-[#0f1117] border border-white/10 rounded-2xl p-6 space-y-4">
         <button className="w-full flex items-center justify-center gap-2.5 bg-white/5 border border-white/10 hover:bg-white/10 rounded-lg py-2.5 text-sm text-white transition-all">
-          <Chrome className="w-4 h-4" />
+          <Globe className="w-4 h-4" />
           Continuar con Google
         </button>
 
