@@ -166,12 +166,21 @@ export function Sidebar() {
           {/* ── Admin (SuperAdmin only) ── */}
           <div className="mt-3">
             {!collapsed && (
-              <p className="text-white/25 text-[9px] font-bold uppercase tracking-[0.15em] px-2 py-1.5">SuperAdmin</p>
+              <div className="px-2 py-1.5 flex items-center justify-between">
+                <p className="text-white/25 text-[9px] font-bold uppercase tracking-[0.15em]">SuperAdmin</p>
+                <Link href="/admin" className="text-[9px] text-fuchsia-400 hover:text-fuchsia-300 font-bold uppercase tracking-wider">Hub</Link>
+              </div>
             )}
             {[
-              { label: "Gestión Categorías", href: "/admin/categories", icon: Settings, iconBg: "bg-orange-500/20", iconColor: "text-orange-400" },
-              { label: "Banners Homepage",   href: "/admin/banners",    icon: GalleryHorizontal, iconBg: "bg-cyan-500/20", iconColor: "text-cyan-400" },
-              { label: "Seguridad",           href: "/settings/security", icon: Shield,   iconBg: "bg-red-500/20",    iconColor: "text-red-400" },
+              { label: "Control Hub",        href: "/admin",            icon: Star,    iconBg: "bg-fuchsia-500/20", iconColor: "text-fuchsia-400" },
+              { label: "Categorías",         href: "/admin/categories", icon: Settings, iconBg: "bg-orange-500/20", iconColor: "text-orange-400" },
+              { label: "Banners",            href: "/admin/banners",    icon: GalleryHorizontal, iconBg: "bg-cyan-500/20", iconColor: "text-cyan-400" },
+              { label: "Usuarios",           href: "/admin/users",      icon: Users,    iconBg: "bg-blue-500/20",   iconColor: "text-blue-400" },
+              { label: "Afiliados",          href: "/admin/affiliates", icon: UserCheck, iconBg: "bg-green-500/20", iconColor: "text-green-400" },
+              { label: "White Label",        href: "/admin/whitelabel", icon: Globe,    iconBg: "bg-purple-500/20", iconColor: "text-purple-400" },
+              { label: "Pagos",              href: "/admin/payments",   icon: Receipt,  iconBg: "bg-emerald-500/20", iconColor: "text-emerald-400" },
+              { label: "Analytics",          href: "/admin/analytics",  icon: BarChart2, iconBg: "bg-indigo-500/20", iconColor: "text-indigo-400" },
+              { label: "Seguridad",          href: "/settings/security", icon: Shield,  iconBg: "bg-red-500/20",    iconColor: "text-red-400" },
             ].map((item) => {
               const Icon = item.icon;
               const active = pathname.startsWith(item.href);
