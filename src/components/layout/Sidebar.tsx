@@ -18,7 +18,6 @@ const mainNav = [
   { label: "Clientes",       href: "/clients",            icon: Users,           iconBg: "bg-cyan-500/20",    iconColor: "text-cyan-400" },
   { label: "Afiliados",      href: "/affiliate",          icon: UserCheck,       iconBg: "bg-purple-500/20",  iconColor: "text-purple-400" },
   { label: "Facturación",    href: "/billing/invoices",   icon: Receipt,         iconBg: "bg-green-500/20",   iconColor: "text-green-400" },
-  { label: "Marketplace",    href: "/marketplace",        icon: ShoppingBag,     iconBg: "bg-pink-500/20",    iconColor: "text-pink-400" },
   { label: "Licencias",      href: "/licenses",           icon: Scale,           iconBg: "bg-indigo-500/20",  iconColor: "text-indigo-400" },
   { label: "Notificaciones", href: "/notifications",      icon: Bell,            iconBg: "bg-red-500/20",     iconColor: "text-red-400",   badge: 12 },
   { label: "Ajustes",        href: "/settings",           icon: Settings,        iconBg: "bg-slate-500/20",   iconColor: "text-slate-400" },

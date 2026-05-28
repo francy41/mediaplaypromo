@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, LayoutGrid, LogIn, UserPlus, LayoutDashboard, ShoppingBag } from "lucide-react";
+import { Home, LayoutGrid, LogIn, UserPlus, LayoutDashboard, Sparkles } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +23,7 @@ export function MobileBottomNav({ onOpenCategories, variant = "public" }: Props)
       ? [
           { label: "Inicio", icon: Home, href: "/" },
           { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-          { label: "Marketplace", icon: ShoppingBag, href: "/marketplace" },
+          { label: "Categorías", icon: Sparkles, href: "/admin/categories" },
           { label: "Cuenta", icon: UserPlus, href: "/settings" },
         ]
       : user

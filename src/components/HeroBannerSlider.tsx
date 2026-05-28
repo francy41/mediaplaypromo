@@ -91,39 +91,89 @@ export default function HeroBannerSlider() {
           </>
         )}
 
-        {/* Slide content */}
-        <div className="relative z-10 px-6 sm:px-10 lg:px-14 py-10 sm:py-14 lg:py-16 text-center flex flex-col items-center justify-center min-h-[420px] sm:min-h-[460px]">
-          <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur border border-white/15 rounded-full px-3 py-1 text-[10px] sm:text-xs text-white/85 mb-5 sm:mb-6 font-semibold tracking-wide">
-            <Sparkles className="w-3 h-3 text-yellow-300" />
-            {b.badge}
+        {/* Slide content — split layout: text left, floating constellation right */}
+        <div className="relative z-10 px-6 sm:px-10 lg:px-14 py-10 sm:py-14 lg:py-16 grid lg:grid-cols-[1fr_auto] gap-8 lg:gap-10 items-center min-h-[420px] sm:min-h-[460px]">
+          <div className="text-center lg:text-left">
+            <div className="inline-flex items-center gap-2 glass-card border-white/15 rounded-full px-3 py-1 text-[10px] sm:text-xs text-white/90 mb-5 sm:mb-6 font-semibold tracking-wider uppercase">
+              <Sparkles className="w-3 h-3 text-yellow-300" />
+              {b.badge}
+            </div>
+
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-[1.05] mb-4 text-white tracking-tight">
+              {b.title}{" "}
+              <span className={`text-transparent bg-clip-text bg-gradient-to-r ${g.text} gradient-anim`}>{b.accent}</span>
+            </h1>
+
+            <p className="text-white/60 text-sm sm:text-base lg:text-lg max-w-xl mb-7 sm:mb-8 mx-auto lg:mx-0">
+              {b.subtitle}
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-3 sm:gap-4">
+              <Link
+                href={b.ctaHref}
+                className={`shine-btn w-full sm:w-auto bg-gradient-to-r ${g.btn} gradient-anim hover:opacity-95 text-white font-bold px-7 py-3.5 rounded-2xl transition-all shadow-xl flex items-center justify-center gap-2 text-sm sm:text-base hover:-translate-y-0.5 hover:scale-[1.02] ring-1 ring-white/20`}
+              >
+                <span className="relative z-10 flex items-center gap-2">
+                  {b.ctaLabel} <ArrowRight className="w-4 h-4" />
+                </span>
+              </Link>
+              {b.secondaryLabel && b.secondaryHref && (
+                <Link
+                  href={b.secondaryHref}
+                  className="glass-card w-full sm:w-auto hover:border-white/30 text-white px-6 py-3.5 rounded-2xl transition-all text-center text-sm sm:text-base hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                >
+                  <Play className="w-3.5 h-3.5" /> {b.secondaryLabel}
+                </Link>
+              )}
+            </div>
+
+            {/* Social proof */}
+            <div className="mt-7 sm:mt-8 flex items-center gap-3 justify-center lg:justify-start">
+              <div className="flex -space-x-2">
+                {["from-pink-500 to-rose-600", "from-cyan-400 to-blue-600", "from-violet-500 to-purple-600", "from-amber-400 to-orange-600", "from-green-400 to-emerald-600"].map((c, i) => (
+                  <div key={i} className={`w-8 h-8 rounded-full bg-gradient-to-br ${c} border-2 border-[#0a0c10] shadow-md`} />
+                ))}
+              </div>
+              <div className="text-left">
+                <p className="text-white font-bold text-sm">+12K creadores</p>
+                <p className="text-white/45 text-[11px]">ya usan MediaPlayPromo</p>
+              </div>
+            </div>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-4 max-w-3xl mx-auto text-white">
-            {b.title}{" "}
-            <span className={`text-transparent bg-clip-text bg-gradient-to-r ${g.text}`}>{b.accent}</span>
-          </h1>
+          {/* Floating constellation (desktop only) */}
+          <div className="hidden lg:block relative w-[340px] h-[340px] xl:w-[400px] xl:h-[400px] mx-auto">
+            {/* Orbit ring */}
+            <div className={`absolute inset-0 rounded-full border-2 border-dashed ${g.border} opacity-40`} />
+            <div className={`absolute inset-8 rounded-full border ${g.border} opacity-25`} />
 
-          <p className="text-white/55 text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-7 sm:mb-8 px-2">
-            {b.subtitle}
-          </p>
+            {/* Center node (big icon) */}
+            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-3xl bg-gradient-to-br ${g.btn} flex items-center justify-center shadow-2xl ${g.orb} ring-1 ring-white/30 glow-pulse`}>
+              <Sparkles className="w-12 h-12 text-white drop-shadow" />
+            </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
-            <Link
-              href={b.ctaHref}
-              className={`shine-btn w-full sm:w-auto bg-gradient-to-r ${g.btn} gradient-anim hover:opacity-95 text-white font-bold px-7 py-3.5 rounded-2xl transition-all shadow-xl flex items-center justify-center gap-2 text-sm sm:text-base hover:-translate-y-0.5 hover:scale-[1.02] ring-1 ring-white/20`}
-            >
-              <span className="relative z-10 flex items-center gap-2">
-                {b.ctaLabel} <ArrowRight className="w-4 h-4" />
-              </span>
-            </Link>
-            {b.secondaryLabel && b.secondaryHref && (
-              <Link
-                href={b.secondaryHref}
-                className="glass-card w-full sm:w-auto hover:border-white/30 text-white px-6 py-3.5 rounded-2xl transition-all text-center text-sm sm:text-base hover:-translate-y-0.5"
+            {/* Floating satellites */}
+            {[
+              { top: "8%", left: "50%", grad: "from-pink-500 to-rose-600", size: "w-14 h-14", delay: "0s" },
+              { top: "30%", left: "85%", grad: "from-violet-500 to-purple-600", size: "w-12 h-12", delay: "1s" },
+              { top: "70%", left: "85%", grad: "from-amber-400 to-orange-500", size: "w-12 h-12", delay: "2s" },
+              { top: "92%", left: "50%", grad: "from-cyan-400 to-blue-600", size: "w-14 h-14", delay: "3s" },
+              { top: "70%", left: "15%", grad: "from-emerald-400 to-teal-600", size: "w-12 h-12", delay: "4s" },
+              { top: "30%", left: "15%", grad: "from-fuchsia-500 to-pink-600", size: "w-12 h-12", delay: "5s" },
+            ].map((s, i) => (
+              <div
+                key={i}
+                className={`absolute ${s.size} -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-gradient-to-br ${s.grad} flex items-center justify-center shadow-xl ring-1 ring-white/20 float-soft`}
+                style={{ top: s.top, left: s.left, animationDelay: s.delay }}
               >
-                {b.secondaryLabel}
-              </Link>
-            )}
+                <Sparkles className="w-5 h-5 text-white/90 drop-shadow" />
+              </div>
+            ))}
+
+            {/* Decorative dots */}
+            <div className="absolute top-[20%] left-[40%] w-1.5 h-1.5 rounded-full bg-white/60 glow-pulse" />
+            <div className="absolute top-[55%] left-[60%] w-1 h-1 rounded-full bg-white/40 glow-pulse" style={{ animationDelay: "1.5s" }} />
+            <div className="absolute top-[80%] left-[35%] w-1 h-1 rounded-full bg-white/40 glow-pulse" style={{ animationDelay: "2.5s" }} />
           </div>
         </div>
 

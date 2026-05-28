@@ -2,19 +2,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  ShoppingBag, Search, ChevronRight, ChevronLeft,
+  Search, ChevronRight, ChevronLeft,
   Star, Sparkles, Play, BarChart2
 } from "lucide-react";
 import { CATEGORIES } from "@/lib/categories";
 
-// ── Top pill nav ─────────────────────────────────────────────
-const topPills = [
-  { label: "Video IA",    href: "/categories/generador-video",  color: "bg-pink-500 hover:bg-pink-400",    text: "text-white" },
-  { label: "Playlist",    href: "/categories/editor-video",     color: "bg-fuchsia-500 hover:bg-fuchsia-400", text: "text-white" },
-  { label: "Automatizar", href: "/categories/automatizaciones",  color: "bg-white/10 hover:bg-white/20 border border-white/20", text: "text-white/80" },
-  { label: "Abierto",     href: "/categories/generador-imagen",  color: "bg-green-500 hover:bg-green-400",  text: "text-white" },
-  { label: "En Directo",  href: "/affiliate",                   color: "bg-[#1a1d25] hover:bg-white/10 border border-white/10", text: "text-white/70" },
-];
 
 // ── Hero slides ───────────────────────────────────────────────
 const heroSlides = [
@@ -47,7 +39,6 @@ const heroSlides = [
 // ── Main category grid ────────────────────────────────────────
 const mainGrid = [
   ...CATEGORIES.map(c => ({ slug: `/categories/${c.slug}`, title: c.title, icon: c.icon, gradient: c.gradient, type: "category" as const })),
-  { slug: "/marketplace", title: "Marketplace",  icon: ShoppingBag, gradient: "from-orange-400 to-red-500",    type: "page" as const },
   { slug: "/analytics",   title: "Analytics",    icon: BarChart2,   gradient: "from-blue-400 to-indigo-600",   type: "page" as const },
 ];
 
@@ -61,22 +52,6 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-0 -mt-6 -mx-6">
-
-      {/* ── Top Quick-Nav Pills ── */}
-      <div className="sticky top-0 z-20 bg-[#080a0f]/90 backdrop-blur border-b border-white/6 px-6 py-2.5 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          {topPills.map((p) => (
-            <Link key={p.href} href={p.href}
-              className={`${p.color} ${p.text} text-xs font-semibold px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap`}>
-              {p.label}
-            </Link>
-          ))}
-        </div>
-        <div className="flex items-center gap-1.5 ml-auto">
-          <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-white/40 text-xs">En línea</span>
-        </div>
-      </div>
 
       {/* ── Hero Banner Slider ── */}
       <div className={`relative overflow-hidden min-h-[220px] bg-gradient-to-br ${hero.bg}`}>
