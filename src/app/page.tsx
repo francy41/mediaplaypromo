@@ -10,7 +10,7 @@ import { useTheme } from "@/lib/theme-context";
 function CategorySidebar({ onItemClick }: { onItemClick?: () => void }) {
   const cats = CATEGORIES.filter((c) => c.enabled);
   return (
-    <nav className="h-full flex flex-col bg-gradient-to-b from-[#0b0d12] via-[#0a0c10] to-[#080a0e] relative">
+    <nav className="category-sidebar-nav h-full flex flex-col bg-gradient-to-b from-[#0b0d12] via-[#0a0c10] to-[#080a0e] relative">
       {/* Decorative glow */}
       <div className="pointer-events-none absolute -top-24 -left-10 w-56 h-56 bg-cyan-500/10 rounded-full blur-3xl" />
       <div className="pointer-events-none absolute bottom-24 -right-10 w-48 h-48 bg-fuchsia-500/10 rounded-full blur-3xl" />

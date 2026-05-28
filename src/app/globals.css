@@ -76,7 +76,19 @@ body {
   background-color: #ffffff !important;
 }
 
-/* Gradient stops on the sidebar / cards — flip the dark hexes to white */
+/* Category sidebar — force light background and visible text */
+:root[data-theme="light"] .category-sidebar-nav {
+  background: linear-gradient(to bottom, #ffffff, #f8fafc, #f1f5f9) !important;
+  border-right: 1px solid rgba(15, 23, 42, 0.08) !important;
+}
+:root[data-theme="light"] .category-sidebar-nav a,
+:root[data-theme="light"] .category-sidebar-nav p,
+:root[data-theme="light"] .category-sidebar-nav span,
+:root[data-theme="light"] .category-sidebar-nav h3 {
+  /* allow children's normal color overrides to still apply */
+}
+
+/* Gradient stops on cards — flip the dark hexes to white */
 :root[data-theme="light"] .from-\[\#0b0d12\],
 :root[data-theme="light"] .via-\[\#0a0c10\],
 :root[data-theme="light"] .to-\[\#080a0e\],
