@@ -7,6 +7,14 @@ import {
   Users, ArrowUpRight, Check, Lock, Zap, Shield, Globe, BarChart3
 } from "lucide-react";
 import { CATEGORIES, getCategoryBySlug } from "@/lib/categories";
+import { AIPlayground } from "@/components/ai/AIPlayground";
+
+// Mapa slug → tipo de playground a embeber
+const PLAYGROUND_BY_SLUG: Record<string, "image" | "video"> = {
+  "generador-video":  "video",
+  "editor-video":     "video",
+  "generador-imagen": "image",
+};
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -106,6 +114,14 @@ export default function CategoryPage({ params }: PageProps) {
           </div>
         </div>
       </div>
+
+      {/* ── AI Playground (solo en categorías con generador) ── */}
+      {PLAYGROUND_BY_SLUG[slug] && (
+        <AIPlayground
+          kind={PLAYGROUND_BY_SLUG[slug]}
+          gradient={cat.gradient}
+        />
+      )}
 
       {/* ── Tools Grid ── */}
       <div>
