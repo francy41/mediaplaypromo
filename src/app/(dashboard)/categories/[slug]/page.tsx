@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
   ChevronRight, Sparkles, Play, Star, Clock,
-  Users, ArrowUpRight, Check, Lock, Zap
+  Users, ArrowUpRight, Check, Lock, Zap, Shield, Globe, BarChart3
 } from "lucide-react";
 import { CATEGORIES, getCategoryBySlug } from "@/lib/categories";
 
@@ -16,6 +16,22 @@ const testimonials = [
   { name: "Carlos M.",  text: "Increíble, ahorré 20 horas a la semana.", stars: 5 },
   { name: "Ana R.",     text: "La mejor herramienta que he probado en años.", stars: 5 },
   { name: "Luis G.",    text: "Resultados profesionales desde el primer día.", stars: 5 },
+];
+
+const editorVideoWhy = [
+  { icon: Zap, title: "Ahorra Tiempo", desc: "Automatiza procesos que antes tomaban horas.", color: "text-yellow-400" },
+  { icon: BarChart3, title: "Aumenta Productividad", desc: "Flujos de trabajo más rápidos y eficientes.", color: "text-cyan-400" },
+  { icon: Star, title: "Resultados Profesionales", desc: "Calidad de estudio en cada operación.", color: "text-purple-400" },
+  { icon: Shield, title: "Contenido Visual", desc: "Mejora tu presencia visual en todas las plataformas.", color: "text-green-400" },
+  { icon: Globe, title: "100% Seguro", desc: "Privacidad garantizada en todos tus archivos.", color: "text-blue-400" },
+  { icon: Users, title: "Fácil de Usar", desc: "Interfaz intuitiva para cualquier nivel.", color: "text-orange-400" },
+];
+
+const editorVideoSteps = [
+  { n: "1", title: "Sube tu Video", desc: "Arrastra o selecciona tu archivo de video." },
+  { n: "2", title: "Consulta el Panel", desc: "Elige la herramienta y configura opciones." },
+  { n: "3", title: "Automatiza el Proceso", desc: "El sistema procesa todo automáticamente." },
+  { n: "4", title: "Exporta y Publica", desc: "Descarga el resultado y publícalo directo." },
 ];
 
 export default function CategoryPage({ params }: PageProps) {
@@ -130,6 +146,54 @@ export default function CategoryPage({ params }: PageProps) {
           ))}
         </div>
       </div>
+
+      {/* ── Editor de Video: Why + How (solo en editor-video) ── */}
+      {slug === "editor-video" && (
+        <>
+          <div>
+            <div className="text-center mb-6">
+              <h2 className="text-white font-bold text-2xl sm:text-3xl">
+                POR QUÉ ELEGIR <span className={cat.textAccent}>EDITOR DE VIDEO</span>
+              </h2>
+              <p className="text-white/40 text-sm mt-2 max-w-xl mx-auto">
+                Diseñado para creadores que valoran su tiempo y buscan resultados profesionales sin complicaciones.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {editorVideoWhy.map((item) => {
+                const ItemIcon = item.icon;
+                return (
+                  <div key={item.title} className="bg-[#0f1219] border border-white/8 rounded-xl p-5 hover:bg-white/5 transition-colors">
+                    <ItemIcon className={`w-6 h-6 ${item.color} mb-3`} />
+                    <h3 className="text-white font-semibold mb-1">{item.title}</h3>
+                    <p className="text-white/40 text-sm">{item.desc}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-center mb-6">
+              <h2 className="text-white font-bold text-2xl sm:text-3xl">¿CÓMO FUNCIONA?</h2>
+              <p className="text-white/40 text-sm mt-2 max-w-xl mx-auto">
+                Un flujo de trabajo optimizado para que pases menos tiempo editando y más tiempo creando.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+              {editorVideoSteps.map((step) => (
+                <div key={step.n} className="text-center">
+                  <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${cat.gradient} flex items-center justify-center font-black text-white text-lg mx-auto mb-3 shadow-lg ${cat.glowColor}`}>
+                    {step.n}
+                  </div>
+                  <h3 className="text-white font-semibold text-sm mb-1">{step.title}</h3>
+                  <p className="text-white/40 text-xs">{step.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ── Features + Testimonials ── */}
       <div className="grid grid-cols-2 gap-5">

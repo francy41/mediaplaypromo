@@ -84,6 +84,9 @@ export const CATEGORIES: Category[] = [
       { id: "t4", title: "Efectos Visuales", description: "Filtros, overlays y efectos cinematográficos" },
       { id: "t5", title: "Corrección de Color", description: "LUTs profesionales y corrección automática" },
       { id: "t6", title: "Exportación Multi-plataforma", description: "TikTok, Reels, YouTube, LinkedIn optimizados" },
+      { id: "t7", title: "Audio Replace", description: "Reemplaza el audio de tus videos automáticamente. Importa, sincroniza y exporta en segundos." },
+      { id: "t8", title: "Clip Cutter", description: "Corta, divide y organiza tus proyectos de video. Edición automática al segundo.", badge: "Popular", badgeColor: "bg-pink-500" },
+      { id: "t9", title: "Format Converter", description: "Convierte entre todos los formatos de video optimizados para YouTube, TikTok e Instagram." },
     ],
   },
   {

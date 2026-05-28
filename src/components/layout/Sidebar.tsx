@@ -8,7 +8,7 @@ import {
   LayoutDashboard, BarChart2, Users, UserCheck, Receipt,
   ShoppingBag, Zap, Scale, Bell, Settings, ChevronLeft,
   ChevronRight, Globe, MessageSquare, Star, Shield,
-  Video, Film, Mic, Image, BookOpen, Layout, ChevronDown
+  Video, Film, Mic, Image, BookOpen, Layout, ChevronDown, GalleryHorizontal
 } from "lucide-react";
 
 const mainNav = [
@@ -169,6 +169,7 @@ export function Sidebar() {
             )}
             {[
               { label: "Gestión Categorías", href: "/admin/categories", icon: Settings, iconBg: "bg-orange-500/20", iconColor: "text-orange-400" },
+              { label: "Banners Homepage",   href: "/admin/banners",    icon: GalleryHorizontal, iconBg: "bg-cyan-500/20", iconColor: "text-cyan-400" },
               { label: "Seguridad",           href: "/settings/security", icon: Shield,   iconBg: "bg-red-500/20",    iconColor: "text-red-400" },
             ].map((item) => {
               const Icon = item.icon;

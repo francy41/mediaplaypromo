@@ -1,11 +1,9 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
-  Video, Film, Zap, Mic, Image, BookOpen, ShoppingBag,
-  Layout, Users, Globe, Search, ChevronRight, ChevronLeft,
-  Star, TrendingUp, Sparkles, Play, Award, Crown,
-  BarChart2, MessageSquare, Settings, Download
+  ShoppingBag, Search, ChevronRight, ChevronLeft,
+  Star, Sparkles, Play, BarChart2
 } from "lucide-react";
 import { CATEGORIES } from "@/lib/categories";
 
@@ -16,20 +14,6 @@ const topPills = [
   { label: "Automatizar", href: "/categories/automatizaciones",  color: "bg-white/10 hover:bg-white/20 border border-white/20", text: "text-white/80" },
   { label: "Abierto",     href: "/categories/generador-imagen",  color: "bg-green-500 hover:bg-green-400",  text: "text-white" },
   { label: "En Directo",  href: "/affiliate",                   color: "bg-[#1a1d25] hover:bg-white/10 border border-white/10", text: "text-white/70" },
-];
-
-// ── Ticker items ─────────────────────────────────────────────
-const tickerItems = [
-  { initials: "VG", name: "Video Generator Pro", tag: "IA • Nuevo", color: "from-pink-500 to-rose-600" },
-  { initials: "EV", name: "Editor de Video HD",  tag: "IA • Popular", color: "from-violet-500 to-purple-600" },
-  { initials: "AZ", name: "Auto Clip Suite",     tag: "Herramienta", color: "from-cyan-500 to-blue-600" },
-  { initials: "VX", name: "VoiceClone AI",       tag: "Voz • Beta", color: "from-amber-500 to-orange-600" },
-  { initials: "IM", name: "ImageAI Studio",      tag: "Imágenes",  color: "from-emerald-500 to-teal-600" },
-  { initials: "PM", name: "Prompt Master",       tag: "Cursos",    color: "from-blue-500 to-indigo-600" },
-  { initials: "MB", name: "Marca Blanca Pro",    tag: "SaaS",      color: "from-slate-400 to-gray-500" },
-  { initials: "AF", name: "Afiliados 30%",       tag: "Comisiones",color: "from-green-500 to-emerald-600" },
-  { initials: "CR", name: "Cursos Premium",      tag: "Academia",  color: "from-orange-500 to-red-600" },
-  { initials: "LP", name: "Landing Pages",       tag: "Templates", color: "from-fuchsia-500 to-pink-600" },
 ];
 
 // ── Hero slides ───────────────────────────────────────────────
@@ -60,18 +44,6 @@ const heroSlides = [
   },
 ];
 
-// ── Sponsors/Partners ────────────────────────────────────────
-const sponsors = [
-  { initials: "YF", color: "from-cyan-400 to-blue-600",     name: "YF Auto Clip" },
-  { initials: "MP", color: "from-pink-400 to-rose-600",     name: "MediaPro" },
-  { initials: "AI", color: "from-purple-400 to-violet-600", name: "AI Studio" },
-  { initials: "DM", color: "from-orange-400 to-red-500",    name: "Digital MKT" },
-  { initials: "SB", color: "from-green-400 to-teal-600",    name: "SocialBoost" },
-  { initials: "CP", color: "from-yellow-400 to-orange-500", name: "ClickPro" },
-  { initials: "WL", color: "from-slate-400 to-gray-600",    name: "WhiteLabel" },
-  { initials: "VS", color: "from-fuchsia-400 to-pink-600",  name: "VideoSuite" },
-];
-
 // ── Main category grid ────────────────────────────────────────
 const mainGrid = [
   ...CATEGORIES.map(c => ({ slug: `/categories/${c.slug}`, title: c.title, icon: c.icon, gradient: c.gradient, type: "category" as const })),
@@ -81,15 +53,9 @@ const mainGrid = [
 
 export default function DashboardPage() {
   const [slide, setSlide] = useState(0);
-  const tickerRef = useRef<HTMLDivElement>(null);
 
   const prevSlide = () => setSlide(s => (s - 1 + heroSlides.length) % heroSlides.length);
   const nextSlide = () => setSlide(s => (s + 1) % heroSlides.length);
-
-  const scrollTicker = (dir: "left" | "right") => {
-    if (!tickerRef.current) return;
-    tickerRef.current.scrollBy({ left: dir === "left" ? -240 : 240, behavior: "smooth" });
-  };
 
   const hero = heroSlides[slide];
 
@@ -110,36 +76,6 @@ export default function DashboardPage() {
           <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
           <span className="text-white/40 text-xs">En línea</span>
         </div>
-      </div>
-
-      {/* ── Ticker Strip ── */}
-      <div className="relative border-b border-white/6 bg-[#0a0b10]/60">
-        <button onClick={() => scrollTicker("left")}
-          className="absolute left-0 top-0 bottom-0 z-10 px-2 bg-gradient-to-r from-[#080a0f] to-transparent flex items-center">
-          <ChevronLeft className="w-4 h-4 text-white/40 hover:text-white transition-colors" />
-        </button>
-
-        <div ref={tickerRef}
-          className="flex items-center gap-3 overflow-x-auto scrollbar-hide px-8 py-2.5"
-          style={{ scrollbarWidth: "none" }}>
-          {[...tickerItems, ...tickerItems].map((t, i) => (
-            <div key={i}
-              className="flex items-start gap-2.5 flex-shrink-0 cursor-pointer group hover:bg-white/5 rounded-xl px-3 py-1.5 transition-all">
-              <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${t.color} flex items-center justify-center text-[10px] font-black text-white flex-shrink-0`}>
-                {t.initials}
-              </div>
-              <div className="min-w-0">
-                <p className="text-white/80 text-[11px] font-semibold leading-none whitespace-nowrap group-hover:text-white transition-colors">{t.name}</p>
-                <p className="text-white/35 text-[9px] mt-0.5 whitespace-nowrap">{t.tag}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <button onClick={() => scrollTicker("right")}
-          className="absolute right-0 top-0 bottom-0 z-10 px-2 bg-gradient-to-l from-[#080a0f] to-transparent flex items-center">
-          <ChevronRight className="w-4 h-4 text-white/40 hover:text-white transition-colors" />
-        </button>
       </div>
 
       {/* ── Hero Banner Slider ── */}
@@ -185,24 +121,6 @@ export default function DashboardPage() {
           {heroSlides.map((_, i) => (
             <button key={i} onClick={() => setSlide(i)}
               className={`rounded-full transition-all duration-300 ${i === slide ? "w-5 h-2 bg-pink-400" : "w-2 h-2 bg-white/25 hover:bg-white/50"}`} />
-          ))}
-        </div>
-      </div>
-
-      {/* ── Patrocinadores / Socios ── */}
-      <div className="px-6 py-3 border-b border-white/6 bg-[#0a0b10]/40">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-white/25 text-[9px] font-bold uppercase tracking-widest">PATROCINADORES</span>
-          <button className="text-pink-400 text-[10px] hover:underline">Ver todos</button>
-        </div>
-        <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide pb-1">
-          {[...sponsors, ...sponsors].map((s, i) => (
-            <div key={i} className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group">
-              <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${s.color} flex items-center justify-center text-[10px] font-black text-white border-2 border-transparent group-hover:border-white/30 transition-all`}>
-                {s.initials}
-              </div>
-              <span className="text-white/35 text-[9px] whitespace-nowrap group-hover:text-white/60 transition-colors">{s.name}</span>
-            </div>
           ))}
         </div>
       </div>
