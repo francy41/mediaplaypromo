@@ -133,16 +133,19 @@ export const PLANS: PricingPlan[] = [
 
 export const MODEL_COSTS: Record<string, number> = {
   // Imagen
-  "flux-dev":             1,
-  "wan2.1-text-to-image": 1,
-  "google-imagen4":       2,
-  "ideogram-v3-t2i":      2,
+  "flux-schnell-image":       1,
+  "flux-dev-image":           2,
+  "flux-kontext-dev-t2i":     2,
+  "hidream_i1_fast_image":    1,
+  "hidream_i1_dev_image":     2,
+  "hidream_i1_full_image":    3,
   // Video
-  "openai-sora-2-text-to-video":  20,
-  "veo3-text-to-video":            18,
-  "kling-v3.0-pro-text-to-video": 15,
-  "veo3-image-to-video":           18,
-  "runway-image-to-video":         15,
+  "veo3-fast-text-to-video":  10,
+  "veo3-text-to-video":       18,
+  "runway-text-to-video":     15,
+  "veo3-fast-image-to-video": 10,
+  "veo3-image-to-video":      18,
+  "runway-image-to-video":    15,
 };
 
 export function getCost(model: string): number {

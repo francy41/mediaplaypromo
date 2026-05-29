@@ -48,15 +48,19 @@ export function AIPlayground({
   const [duration, setDuration] = useState(5);
   const [aspect, setAspect] = useState("16:9");
 
+  type Status = "idle" | "queued" | "pending" | "processing" | "completed" | "succeeded" | "failed" | "cancelled";
   const [jobId, setJobId] = useState<string | null>(null);
-  const [status, setStatus] = useState<"idle" | "queued" | "processing" | "succeeded" | "failed">("idle");
+  const [status, setStatus] = useState<Status>("idle");
   const [output, setOutput] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const TERMINAL_OK: Status[] = ["completed", "succeeded"];
+  const TERMINAL_FAIL: Status[] = ["failed", "cancelled"];
+
   // Polling loop
   useEffect(() => {
-    if (!jobId || status === "succeeded" || status === "failed") return;
+    if (!jobId || TERMINAL_OK.includes(status) || TERMINAL_FAIL.includes(status)) return;
     pollRef.current = setInterval(async () => {
       try {
         const res = await fetch(`/api/ai/status/${encodeURIComponent(jobId)}`);
@@ -66,11 +70,13 @@ export function AIPlayground({
           setError(job.error ?? "Error consultando job");
           return;
         }
-        setStatus(job.status);
-        if (job.status === "succeeded") {
-          const out = Array.isArray(job.output) ? job.output : job.output ? [job.output] : [];
+        setStatus(job.status as Status);
+        if (TERMINAL_OK.includes(job.status as Status)) {
+          // Normaliza outputs: output | urls | result_url
+          const raw = job.output ?? job.urls ?? job.result_url ?? [];
+          const out = Array.isArray(raw) ? raw : raw ? [raw] : [];
           setOutput(out);
-        } else if (job.status === "failed") {
+        } else if (TERMINAL_FAIL.includes(job.status as Status)) {
           setError(job.error ?? "Generación falló");
         }
       } catch (e) {
@@ -127,7 +133,7 @@ export function AIPlayground({
     setError(null);
   };
 
-  const isWorking = status === "queued" || status === "processing";
+  const isWorking = status === "queued" || status === "pending" || status === "processing";
   const Icon = kind === "image" ? ImageIcon : VideoIcon;
 
   const cost = getCost(model);

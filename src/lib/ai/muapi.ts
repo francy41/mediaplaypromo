@@ -1,8 +1,12 @@
 /**
  * Muapi.ai client — Image & Video generation
  *
- * Base URL: https://api.muapi.ai (verifica en https://muapi.ai/docs/introduction)
- * Auth: Authorization: Bearer ${MUAPI_API_KEY}
+ * Base URL: https://api.muapi.ai
+ * Auth: header `x-api-key: ${MUAPI_API_KEY}`
+ *
+ * Endpoints reales (verificado desde openapi.json):
+ *   POST /api/v1/{model-name}                       → inicia job (devuelve request_id)
+ *   GET  /api/v1/predictions/{id}/result            → polling de status
  *
  * Server-side only. NEVER importar desde "use client".
  */
@@ -10,41 +14,40 @@
 const MUAPI_BASE_URL = process.env.MUAPI_BASE_URL || "https://api.muapi.ai";
 
 export interface MuapiGenerateRequest {
-  /** Model slug, e.g. "flux-dev", "google-imagen4", "openai-sora-2-text-to-video" */
+  /** Model slug, e.g. "flux-dev-image", "veo3-text-to-video" */
   model: string;
   /** Prompt de texto */
   prompt: string;
   /** Imagen base (URL) para image-to-video / image-to-image */
   image?: string;
-  /** Negative prompt */
-  negative_prompt?: string;
-  /** Image: ancho px (ej. 1024) */
+  /** Image: ancho px */
   width?: number;
-  /** Image: alto px (ej. 1024) */
+  /** Image: alto px */
   height?: number;
-  /** Image: cantidad a generar */
-  num_images?: number;
   /** Video: duración segundos */
   duration?: number;
   /** Video: aspect ratio "16:9" | "9:16" | "1:1" */
   aspect_ratio?: string;
   /** Seed para reproducibilidad */
   seed?: number;
-  /** Steps de inferencia */
+  /** Steps */
   steps?: number;
-  /** Guidance scale */
-  guidance_scale?: number;
-  /** Extras provider-specific */
+  /** Extras */
   extra?: Record<string, unknown>;
 }
 
 export interface MuapiJob {
+  /** id del request — usado para polling */
   id: string;
-  status: "queued" | "processing" | "succeeded" | "failed" | "canceled";
-  model: string;
-  created_at: string;
-  /** URL(s) del output cuando succeeded */
+  /** Muapi devuelve "queued" | "pending" | "processing" | "completed" | "failed" | "cancelled" */
+  status: "queued" | "pending" | "processing" | "completed" | "succeeded" | "failed" | "cancelled" | "canceled";
+  model?: string;
+  created_at?: string;
+  /** URL(s) del output cuando completed */
   output?: string | string[];
+  /** Algunos modelos devuelven `result_url` o `urls` */
+  result_url?: string;
+  urls?: string[];
   /** Mensaje de error si failed */
   error?: string;
   /** Cost en créditos */
@@ -72,10 +75,9 @@ async function muapiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${getApiKey()}`,
+      "x-api-key": getApiKey(),
       ...(init?.headers ?? {}),
     },
-    // Cache disabled for AI generation requests
     cache: "no-store",
   });
 
@@ -86,77 +88,98 @@ async function muapiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     const message = (body && typeof body === "object" && "error" in body)
       ? String((body as { error: unknown }).error)
-      : `Muapi error ${res.status}`;
+      : (body && typeof body === "object" && "detail" in body)
+        ? String((body as { detail: unknown }).detail)
+        : `Muapi error ${res.status}`;
     throw new MuapiError(res.status, message, body);
   }
 
   return body as T;
 }
 
+/** Normaliza el response porque algunos modelos usan id, request_id o predictionId */
+function normalizeJob(raw: Record<string, unknown>): MuapiJob {
+  const id = String(raw.id ?? raw.request_id ?? raw.requestId ?? raw.predictionId ?? "");
+  const status = (raw.status ?? "queued") as MuapiJob["status"];
+  return {
+    id,
+    status,
+    model: raw.model as string | undefined,
+    created_at: raw.created_at as string | undefined,
+    output: raw.output as string | string[] | undefined,
+    result_url: raw.result_url as string | undefined,
+    urls: raw.urls as string[] | undefined,
+    error: raw.error as string | undefined,
+    cost: raw.cost as number | undefined,
+  };
+}
+
 /**
- * Inicia un job de generación (image, video, etc).
- * Muapi típicamente es asíncrono: devuelve un job_id y haces polling con getJob().
+ * POST /api/v1/{model} — inicia job de generación.
+ * Body: { prompt, width, height, duration, etc. } sin "model" field (es en URL).
  */
 export async function createGeneration(req: MuapiGenerateRequest): Promise<MuapiJob> {
-  return muapiFetch<MuapiJob>("/v1/predictions", {
-    method: "POST",
-    body: JSON.stringify(req),
-  });
+  const { model, ...input } = req;
+  if (!model) throw new MuapiError(400, "model requerido");
+
+  const raw = await muapiFetch<Record<string, unknown>>(
+    `/api/v1/${encodeURIComponent(model)}`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    }
+  );
+  return normalizeJob(raw);
 }
 
 /**
- * Consulta el estado de un job.
+ * GET /api/v1/predictions/{id}/result — polling.
  */
 export async function getJob(id: string): Promise<MuapiJob> {
-  return muapiFetch<MuapiJob>(`/v1/predictions/${encodeURIComponent(id)}`, {
-    method: "GET",
-  });
+  const raw = await muapiFetch<Record<string, unknown>>(
+    `/api/v1/predictions/${encodeURIComponent(id)}/result`,
+    { method: "GET" }
+  );
+  return normalizeJob(raw);
 }
 
 /**
- * Cancela un job en cola/processing.
- */
-export async function cancelJob(id: string): Promise<MuapiJob> {
-  return muapiFetch<MuapiJob>(`/v1/predictions/${encodeURIComponent(id)}/cancel`, {
-    method: "POST",
-  });
-}
-
-/**
- * Polling helper: espera hasta que el job termine (o falle / timeout).
+ * Polling helper.
  */
 export async function waitForJob(id: string, opts?: { timeoutMs?: number; intervalMs?: number }): Promise<MuapiJob> {
-  const timeoutMs = opts?.timeoutMs ?? 5 * 60 * 1000;   // 5 min default
-  const intervalMs = opts?.intervalMs ?? 2000;          // 2s polling
+  const timeoutMs = opts?.timeoutMs ?? 5 * 60 * 1000;
+  const intervalMs = opts?.intervalMs ?? 2000;
   const deadline = Date.now() + timeoutMs;
+  const TERMINAL = new Set(["completed", "succeeded", "failed", "cancelled", "canceled"]);
 
   while (Date.now() < deadline) {
     const job = await getJob(id);
-    if (job.status === "succeeded" || job.status === "failed" || job.status === "canceled") {
-      return job;
-    }
+    if (TERMINAL.has(job.status)) return job;
     await new Promise((r) => setTimeout(r, intervalMs));
   }
   throw new MuapiError(408, `Timeout esperando job ${id}`);
 }
 
 /* ─────────────────────────────────────────────
-   Catálogo de modelos (subset — añade más según veas)
+   Catálogo de modelos (verificado desde openapi.json)
    ───────────────────────────────────────────── */
 
 export const MUAPI_MODELS = {
   image: [
-    { slug: "flux-dev",            label: "Flux Dev",        category: "Image", priceHint: "$" },
-    { slug: "google-imagen4",      label: "Imagen 4",        category: "Image", priceHint: "$$" },
-    { slug: "ideogram-v3-t2i",     label: "Ideogram v3",     category: "Image", priceHint: "$$" },
-    { slug: "wan2.1-text-to-image",label: "Wan 2.1",         category: "Image", priceHint: "$" },
+    { slug: "flux-schnell-image",        label: "Flux Schnell (rápido)",     category: "Image T2I", priceHint: "$" },
+    { slug: "flux-dev-image",            label: "Flux Dev (balanced)",       category: "Image T2I", priceHint: "$$" },
+    { slug: "flux-kontext-dev-t2i",      label: "Flux Kontext Dev",          category: "Image T2I", priceHint: "$$" },
+    { slug: "hidream_i1_fast_image",     label: "HiDream Fast",              category: "Image T2I", priceHint: "$" },
+    { slug: "hidream_i1_dev_image",      label: "HiDream Dev",               category: "Image T2I", priceHint: "$$" },
+    { slug: "hidream_i1_full_image",     label: "HiDream Full (best)",       category: "Image T2I", priceHint: "$$$" },
   ],
   video: [
-    { slug: "openai-sora-2-text-to-video", label: "Sora 2 (10s)",  category: "Video T2V", priceHint: "$$$" },
-    { slug: "veo3-text-to-video",          label: "Veo 3",         category: "Video T2V", priceHint: "$$$" },
-    { slug: "kling-v3.0-pro-text-to-video",label: "Kling 3 Pro",   category: "Video T2V", priceHint: "$$$" },
-    { slug: "veo3-image-to-video",         label: "Veo 3 I2V",     category: "Video I2V", priceHint: "$$$" },
-    { slug: "runway-image-to-video",       label: "Runway I2V",    category: "Video I2V", priceHint: "$$$" },
+    { slug: "veo3-fast-text-to-video",   label: "Veo 3 Fast",                category: "Video T2V", priceHint: "$$$" },
+    { slug: "veo3-text-to-video",        label: "Veo 3 (balanced)",          category: "Video T2V", priceHint: "$$$" },
+    { slug: "runway-text-to-video",      label: "Runway T2V",                category: "Video T2V", priceHint: "$$$" },
+    { slug: "veo3-fast-image-to-video",  label: "Veo 3 Fast I2V",            category: "Video I2V", priceHint: "$$$" },
+    { slug: "veo3-image-to-video",       label: "Veo 3 I2V",                 category: "Video I2V", priceHint: "$$$" },
+    { slug: "runway-image-to-video",     label: "Runway Gen-4 I2V (best)",   category: "Video I2V", priceHint: "$$$" },
   ],
 } as const;
 
