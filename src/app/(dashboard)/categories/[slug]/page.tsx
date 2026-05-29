@@ -11,6 +11,8 @@ import { AIPlayground } from "@/components/ai/AIPlayground";
 import { PaywallGate } from "@/components/PaywallGate";
 import { useStats, formatCount } from "@/lib/stats";
 import { VideoPricingTable } from "@/components/VideoPricingTable";
+import { ProductShowcase } from "@/components/products/ProductShowcase";
+import { productsByCategory } from "@/lib/products";
 
 // Mapa slug → tipo de playground a embeber
 const PLAYGROUND_BY_SLUG: Record<string, "image" | "video"> = {
@@ -134,6 +136,18 @@ export default function CategoryPage({ params }: PageProps) {
           />
         </PaywallGate>
       )}
+
+      {/* ── 🛍️ PRODUCTOS A LA VENTA en esta categoría ── */}
+      {productsByCategory(slug).map((product) => (
+        <div key={product.id} className="pt-2">
+          <div className="text-center mb-5">
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-violet-500/15 to-fuchsia-500/15 border border-violet-500/30 rounded-full px-3 py-1 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.18em] text-violet-300 mb-2">
+              🛍️ PRODUCTO DESTACADO EN ESTA CATEGORÍA
+            </div>
+          </div>
+          <ProductShowcase product={product} />
+        </div>
+      ))}
 
       {/* ── Tabla de precios por modelo (visible para todos los usuarios en categorías de video) ── */}
       {PLAYGROUND_BY_SLUG[slug] === "video" && (
