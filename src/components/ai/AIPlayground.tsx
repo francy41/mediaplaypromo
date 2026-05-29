@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { MUAPI_MODELS } from "@/lib/ai/muapi";
 import { getCost } from "@/lib/pricing";
+import { trackGeneration } from "@/lib/stats";
+import { usePathname } from "next/navigation";
 
 type Kind = "image" | "video";
 
@@ -68,6 +70,9 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
   const [aspect, setAspect] = useState("16:9");
   const [resolution, setResolution] = useState("720p");
 
+  const pathname = usePathname();
+  const categorySlug = pathname?.match(/\/categories\/([^/]+)/)?.[1];
+
   const [jobs, setJobs] = useState<Job[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLaunching, setIsLaunching] = useState(false);
@@ -126,6 +131,9 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
     setError(null);
     setIsLaunching(true);
     setJobs(Array.from({ length: quantity }, (_, i) => ({ index: i, jobId: null, status: "queued", output: [] })));
+
+    // Tracking: incrementa contador de la categoría visible
+    if (categorySlug) trackGeneration(categorySlug, quantity);
 
     const shared: Record<string, unknown> = {};
     if (kind === "image") {

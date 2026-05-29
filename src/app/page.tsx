@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTheme } from "@/lib/theme-context";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { PricingPlans } from "@/components/PricingPlans";
+import { useStats, formatCount } from "@/lib/stats";
 
 function CategorySidebar({ onItemClick }: { onItemClick?: () => void }) {
   const cats = CATEGORIES.filter((c) => c.enabled);
@@ -113,6 +114,7 @@ function SidebarThemeSwitcher() {
 
 export default function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { byCategory, total } = useStats();
 
   return (
     <div className="min-h-screen bg-[#070809] text-white">
@@ -227,11 +229,23 @@ export default function LandingPage() {
 
                   <div className="text-center relative z-10">
                     <h3 className="text-white font-bold text-xs leading-tight mb-1">{cat.title}</h3>
-                    <p className="text-white/45 text-[10px] leading-tight">{cat.subtitle}</p>
+                    <p className="text-white/45 text-[10px] leading-tight mb-2">{cat.subtitle}</p>
+                    <span className="inline-flex items-center gap-1 bg-white/[0.06] border border-white/10 rounded-full px-1.5 py-0.5 text-[9px] font-bold text-cyan-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                      {formatCount(byCategory[cat.slug] ?? 0)} generaciones
+                    </span>
                   </div>
                 </Link>
               );
             })}
+          </div>
+
+          {/* Total counter strip */}
+          <div className="mt-6 text-center">
+            <p className="text-white/45 text-xs">
+              <span className="text-white font-bold text-base">{formatCount(total)}</span> generaciones realizadas en la plataforma
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 ml-2 animate-pulse" />
+            </p>
           </div>
         </section>
 
@@ -253,8 +267,14 @@ export default function LandingPage() {
                     <Icon className="w-7 h-7 text-white drop-shadow" />
                   </div>
                   <h3 className="relative text-white font-bold text-base mb-1">{cat.title}</h3>
-                  <p className="relative text-white/55 text-xs leading-relaxed">{cat.subtitle}</p>
-                  <p className={`relative text-[11px] font-bold mt-3 ${cat.textAccent} flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity`}>Explorar <ArrowRight className="w-3 h-3" /></p>
+                  <p className="relative text-white/55 text-xs leading-relaxed mb-3">{cat.subtitle}</p>
+                  <div className="relative flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1 bg-white/[0.06] border border-white/10 rounded-full px-2 py-0.5 text-[10px] font-bold text-cyan-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                      {formatCount(byCategory[cat.slug] ?? 0)}
+                    </span>
+                    <p className={`text-[11px] font-bold ${cat.textAccent} flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity`}>Explorar <ArrowRight className="w-3 h-3" /></p>
+                  </div>
                 </Link>
               );
             })}

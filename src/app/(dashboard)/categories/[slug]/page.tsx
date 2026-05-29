@@ -9,6 +9,7 @@ import {
 import { CATEGORIES, getCategoryBySlug } from "@/lib/categories";
 import { AIPlayground } from "@/components/ai/AIPlayground";
 import { PaywallGate } from "@/components/PaywallGate";
+import { useStats, formatCount } from "@/lib/stats";
 
 // Mapa slug → tipo de playground a embeber
 const PLAYGROUND_BY_SLUG: Record<string, "image" | "video"> = {
@@ -49,6 +50,8 @@ export default function CategoryPage({ params }: PageProps) {
   if (!cat) notFound();
 
   const Icon = cat.icon;
+  const { byCategory } = useStats();
+  const categoryCount = byCategory[slug] ?? 0;
 
   const relatedCategories = CATEGORIES
     .filter(c => c.slug !== slug && c.enabled)
@@ -100,7 +103,7 @@ export default function CategoryPage({ params }: PageProps) {
           {/* Quick stats */}
           <div className="flex items-center gap-6 mt-6 flex-wrap">
             {[
-              { icon: Users, label: "12,450+ usuarios activos" },
+              { icon: Users, label: `${formatCount(categoryCount)} generaciones · live` },
               { icon: Star,  label: "4.9/5 valoración media" },
               { icon: Clock, label: "Actualizado esta semana" },
             ].map((s) => {
