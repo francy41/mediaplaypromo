@@ -187,19 +187,25 @@ export function AIPlayground({
         </div>
       </div>
 
-      {/* Model selector */}
+      {/* Model selector — agrupado por familia (Veo, Kling, Grok, Sora...) */}
       <div>
-        <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Modelo</label>
+        <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">
+          Modelo <span className="text-white/30 font-normal normal-case">· {models.length} disponibles</span>
+        </label>
         <select
           value={model}
           onChange={(e) => setModel(e.target.value)}
           disabled={isWorking}
           className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/40 disabled:opacity-50"
         >
-          {models.map((m) => (
-            <option key={m.slug} value={m.slug} className="bg-[#0f1219]">
-              {m.label} · {m.priceHint}
-            </option>
+          {Array.from(new Set(models.map((m) => m.category))).map((cat) => (
+            <optgroup key={cat} label={cat} className="bg-[#0f1219]">
+              {models.filter((m) => m.category === cat).map((m) => (
+                <option key={m.slug} value={m.slug} className="bg-[#0f1219]">
+                  {m.label} · {m.priceHint}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
       </div>

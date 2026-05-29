@@ -120,6 +120,11 @@ export default function CategoryPage({ params }: PageProps) {
         <AIPlayground
           kind={PLAYGROUND_BY_SLUG[slug]}
           gradient={cat.gradient}
+          defaultModel={
+            PLAYGROUND_BY_SLUG[slug] === "video"
+              ? "veo3-fast-text-to-video"     // Veo 3 Fast por defecto (barato + rápido)
+              : "flux-schnell-image"          // Flux Schnell por defecto en imagen
+          }
         />
       )}
 

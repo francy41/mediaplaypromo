@@ -132,20 +132,64 @@ export const PLANS: PricingPlan[] = [
    ───────────────────────────────────────────── */
 
 export const MODEL_COSTS: Record<string, number> = {
-  // Imagen
-  "flux-schnell-image":       1,
-  "flux-dev-image":           2,
-  "flux-kontext-dev-t2i":     2,
-  "hidream_i1_fast_image":    1,
-  "hidream_i1_dev_image":     2,
-  "hidream_i1_full_image":    3,
-  // Video
-  "veo3-fast-text-to-video":  10,
-  "veo3-text-to-video":       18,
-  "runway-text-to-video":     15,
-  "veo3-fast-image-to-video": 10,
-  "veo3-image-to-video":      18,
-  "runway-image-to-video":    15,
+  // ── Imagen ──
+  "flux-schnell-image":         1,
+  "flux-dev-image":             2,
+  "flux-kontext-dev-t2i":       2,
+  "hidream_i1_fast_image":      1,
+  "hidream_i1_dev_image":       2,
+  "hidream_i1_full_image":      3,
+  "grok-imagine-text-to-image": 4,
+  "wan2.7-text-to-image-pro":   3,
+  "hunyuan-image-3.0":          2,
+
+  // ── Video Veo (Google) ──
+  "veo3.1-text-to-video":       30,
+  "veo3.1-fast-text-to-video":  15,
+  "veo3.1-lite-text-to-video":   8,
+  "veo3-text-to-video":         25,
+  "veo3-fast-text-to-video":    12,
+
+  // ── Video Kling ──
+  "kling-v3.0-pro-text-to-video":      28,
+  "kling-v3.0-standard-text-to-video": 18,
+  "kling-v2.6-pro-t2v":                22,
+  "kling-v2.5-turbo-pro-t2v":          14,
+  "kling-o1-text-to-video":            20,
+
+  // ── Video Grok (xAI) ──
+  "grok-imagine-text-to-video": 20,
+
+  // ── Video Sora (OpenAI) ──
+  "openai-sora-2-pro-text-to-video": 35,
+  "openai-sora-2-text-to-video":     25,
+
+  // ── Video Runway ──
+  "runway-text-to-video":  18,
+  "runway-image-to-video": 15,
+
+  // ── Video Hailuo ──
+  "minimax-hailuo-2.3-pro-t2v": 14,
+  "minimax-hailuo-2.3-fast":     6,
+
+  // ── Video Wan ──
+  "wan2.7-text-to-video":      10,
+  "wan2.5-text-to-video-fast":  5,
+
+  // ── Video Seedance ──
+  "seedance-v1.5-pro-t2v":       12,
+  "seedance-v1.5-pro-t2v-fast":   6,
+
+  // ── Video Hunyuan ──
+  "hunyuan-text-to-video":       10,
+  "hunyuan-fast-text-to-video":   5,
+
+  // ── Video PixVerse ──
+  "pixverse-v6-t2v": 10,
+
+  // ── Video LTX ──
+  "ltx-2-pro-text-to-video":  10,
+  "ltx-2-fast-text-to-video":  5,
 };
 
 export function getCost(model: string): number {

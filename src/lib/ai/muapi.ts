@@ -168,22 +168,72 @@ export async function waitForJob(id: string, opts?: { timeoutMs?: number; interv
    Catálogo de modelos (verificado desde openapi.json)
    ───────────────────────────────────────────── */
 
+/**
+ * Catálogo curado de modelos Muapi (los más populares + recomendados).
+ * Hay 200+ modelos disponibles; aquí están los TOP para producción.
+ */
 export const MUAPI_MODELS = {
   image: [
-    { slug: "flux-schnell-image",        label: "Flux Schnell (rápido)",     category: "Image T2I", priceHint: "$" },
-    { slug: "flux-dev-image",            label: "Flux Dev (balanced)",       category: "Image T2I", priceHint: "$$" },
-    { slug: "flux-kontext-dev-t2i",      label: "Flux Kontext Dev",          category: "Image T2I", priceHint: "$$" },
-    { slug: "hidream_i1_fast_image",     label: "HiDream Fast",              category: "Image T2I", priceHint: "$" },
-    { slug: "hidream_i1_dev_image",      label: "HiDream Dev",               category: "Image T2I", priceHint: "$$" },
-    { slug: "hidream_i1_full_image",     label: "HiDream Full (best)",       category: "Image T2I", priceHint: "$$$" },
+    // Flux family — best quality/cost ratio
+    { slug: "flux-schnell-image",        label: "⚡ Flux Schnell (más rápido)",  category: "Image",  priceHint: "$" },
+    { slug: "flux-dev-image",            label: "Flux Dev (balanced)",            category: "Image",  priceHint: "$$" },
+    { slug: "flux-kontext-dev-t2i",      label: "Flux Kontext Dev",               category: "Image",  priceHint: "$$" },
+    // HiDream — high quality
+    { slug: "hidream_i1_full_image",     label: "🏆 HiDream Full (mejor calidad)",category: "Image",  priceHint: "$$$" },
+    { slug: "hidream_i1_dev_image",      label: "HiDream Dev",                    category: "Image",  priceHint: "$$" },
+    { slug: "hidream_i1_fast_image",     label: "HiDream Fast",                   category: "Image",  priceHint: "$" },
+    // Otros premium
+    { slug: "grok-imagine-text-to-image",label: "🚀 Grok Imagine T2I (xAI)",      category: "Image",  priceHint: "$$$" },
+    { slug: "wan2.7-text-to-image-pro",  label: "Wan 2.7 Pro (Alibaba)",          category: "Image",  priceHint: "$$$" },
+    { slug: "hunyuan-image-3.0",         label: "Hunyuan 3.0 (Tencent)",          category: "Image",  priceHint: "$$" },
   ],
   video: [
-    { slug: "veo3-fast-text-to-video",   label: "Veo 3 Fast",                category: "Video T2V", priceHint: "$$$" },
-    { slug: "veo3-text-to-video",        label: "Veo 3 (balanced)",          category: "Video T2V", priceHint: "$$$" },
-    { slug: "runway-text-to-video",      label: "Runway T2V",                category: "Video T2V", priceHint: "$$$" },
-    { slug: "veo3-fast-image-to-video",  label: "Veo 3 Fast I2V",            category: "Video I2V", priceHint: "$$$" },
-    { slug: "veo3-image-to-video",       label: "Veo 3 I2V",                 category: "Video I2V", priceHint: "$$$" },
-    { slug: "runway-image-to-video",     label: "Runway Gen-4 I2V (best)",   category: "Video I2V", priceHint: "$$$" },
+    // ── Google Veo 3 family ──
+    { slug: "veo3.1-text-to-video",          label: "👑 Veo 3.1 (Google, último)",   category: "Veo",      priceHint: "$$$$" },
+    { slug: "veo3.1-fast-text-to-video",     label: "⚡ Veo 3.1 Fast",                category: "Veo",      priceHint: "$$$" },
+    { slug: "veo3.1-lite-text-to-video",     label: "Veo 3.1 Lite (más barato)",      category: "Veo",      priceHint: "$$" },
+    { slug: "veo3-text-to-video",            label: "Veo 3 (balanced)",               category: "Veo",      priceHint: "$$$" },
+    { slug: "veo3-fast-text-to-video",       label: "⚡ Veo 3 Fast (recomendado)",    category: "Veo",      priceHint: "$$" },
+
+    // ── Kuaishou Kling family ──
+    { slug: "kling-v3.0-pro-text-to-video",    label: "👑 Kling 3.0 Pro",             category: "Kling",    priceHint: "$$$$" },
+    { slug: "kling-v3.0-standard-text-to-video",label:"Kling 3.0 Standard",           category: "Kling",    priceHint: "$$$" },
+    { slug: "kling-v2.6-pro-t2v",              label: "Kling 2.6 Pro",                category: "Kling",    priceHint: "$$$" },
+    { slug: "kling-v2.5-turbo-pro-t2v",        label: "⚡ Kling 2.5 Turbo Pro",       category: "Kling",    priceHint: "$$" },
+    { slug: "kling-o1-text-to-video",          label: "Kling O1 (último)",            category: "Kling",    priceHint: "$$$" },
+
+    // ── xAI Grok ──
+    { slug: "grok-imagine-text-to-video",    label: "🚀 Grok Imagine (xAI)",          category: "Grok",     priceHint: "$$$" },
+
+    // ── OpenAI Sora ──
+    { slug: "openai-sora-2-pro-text-to-video", label: "👑 Sora 2 Pro",                category: "Sora",     priceHint: "$$$$" },
+    { slug: "openai-sora-2-text-to-video",     label: "Sora 2",                       category: "Sora",     priceHint: "$$$" },
+
+    // ── Runway ──
+    { slug: "runway-text-to-video",          label: "Runway Gen-4",                   category: "Runway",   priceHint: "$$$" },
+
+    // ── MiniMax Hailuo ──
+    { slug: "minimax-hailuo-2.3-pro-t2v",    label: "Hailuo 2.3 Pro",                 category: "Hailuo",   priceHint: "$$" },
+    { slug: "minimax-hailuo-2.3-fast",       label: "⚡ Hailuo 2.3 Fast (barato)",    category: "Hailuo",   priceHint: "$" },
+
+    // ── Alibaba Wan ──
+    { slug: "wan2.7-text-to-video",          label: "Wan 2.7 (último)",               category: "Wan",      priceHint: "$$" },
+    { slug: "wan2.5-text-to-video-fast",     label: "⚡ Wan 2.5 Fast",                category: "Wan",      priceHint: "$" },
+
+    // ── ByteDance Seedance ──
+    { slug: "seedance-v1.5-pro-t2v",         label: "Seedance 1.5 Pro",               category: "Seedance", priceHint: "$$" },
+    { slug: "seedance-v1.5-pro-t2v-fast",    label: "⚡ Seedance Fast",               category: "Seedance", priceHint: "$" },
+
+    // ── Tencent Hunyuan ──
+    { slug: "hunyuan-text-to-video",         label: "Hunyuan",                        category: "Hunyuan",  priceHint: "$$" },
+    { slug: "hunyuan-fast-text-to-video",    label: "⚡ Hunyuan Fast",                category: "Hunyuan",  priceHint: "$" },
+
+    // ── PixVerse ──
+    { slug: "pixverse-v6-t2v",               label: "PixVerse v6",                    category: "PixVerse", priceHint: "$$" },
+
+    // ── LTX (Lightricks) ──
+    { slug: "ltx-2-pro-text-to-video",       label: "LTX-2 Pro",                      category: "LTX",      priceHint: "$$" },
+    { slug: "ltx-2-fast-text-to-video",      label: "⚡ LTX-2 Fast",                  category: "LTX",      priceHint: "$" },
   ],
 } as const;
 
