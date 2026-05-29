@@ -1,20 +1,36 @@
 "use client";
 import { useState } from "react";
-import { Check, Star, ShoppingCart, Sparkles, Zap, Crown, Award, ArrowRight } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
+import { Check, Star, ShoppingCart, Sparkles, Zap, Crown, Award, ArrowRight, Lock, LogIn } from "lucide-react";
 import type { Product } from "@/lib/products";
+import { useAuth } from "@/lib/auth-context";
 
 interface Props {
   product: Product;
 }
 
 export function ProductShowcase({ product }: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { user } = useAuth();
   const [selectedPriceId, setSelectedPriceId] = useState<string | null>(
     product.prices.find((p) => p.popular)?.id ?? null
   );
+  const [showLoginPrompt, setShowLoginPrompt] = useState<string | null>(null);
 
   const handleBuy = (priceId: string) => {
-    // TODO: cuando Stripe esté wireado, redirigir a Stripe Checkout
-    alert(`✅ Próximamente: checkout para ${priceId}\n\nMientras tanto, este es un placeholder. Cuando Stripe esté conectado, esto abrirá el checkout real.`);
+    if (!user) {
+      // No logueado: mostrar prompt + redirigir a login con returnTo
+      setShowLoginPrompt(priceId);
+      return;
+    }
+    // Logueado: TODO Stripe checkout
+    alert(`✅ Próximamente: checkout para ${priceId}\n\nUsuario: ${user.email}\nCuando Stripe esté conectado, esto abrirá Stripe Checkout con el precio ID: ${priceId}`);
+  };
+
+  const goToLogin = (priceId: string) => {
+    const returnTo = `${pathname}?buy=${priceId}`;
+    router.push(`/login?redirect=${encodeURIComponent(returnTo)}`);
   };
 
   return (
@@ -304,6 +320,61 @@ export function ProductShowcase({ product }: Props) {
           </div>
         </div>
       </div>
+
+      {/* ── Modal: Login Prompt (cuando usuario anónimo pulsa Comprar) ── */}
+      {showLoginPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowLoginPrompt(null)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="glass-card relative max-w-md w-full rounded-3xl border-2 border-violet-500/40 p-6 sm:p-8 shadow-2xl shadow-violet-500/30 animate-in zoom-in-95 duration-200"
+          >
+            <div className={`absolute -top-20 -right-20 w-72 h-72 bg-gradient-to-br ${product.gradient} opacity-20 rounded-full blur-3xl pointer-events-none`} />
+
+            <div className="relative text-center">
+              <div className={`inline-flex w-16 h-16 rounded-2xl bg-gradient-to-br ${product.gradient} items-center justify-center shadow-2xl mb-4 ring-2 ring-white/20 glow-pulse`}>
+                <Lock className="w-8 h-8 text-white" />
+              </div>
+
+              <h3 className="text-2xl font-black text-white mb-2">¡Casi lo tienes!</h3>
+              <p className="text-white/55 text-sm mb-5">
+                Para comprar <strong className={product.textAccent}>{product.name}</strong> necesitas tener una cuenta. Es gratis y tarda menos de 1 minuto.
+              </p>
+
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-3 mb-5 text-left">
+                <p className="text-white/40 text-[10px] uppercase tracking-wider font-bold mb-1">Has elegido</p>
+                <p className="text-white font-bold">
+                  {product.prices.find((p) => p.id === showLoginPrompt)?.name} · €{product.prices.find((p) => p.id === showLoginPrompt)?.price}
+                  <span className="text-white/40 font-normal text-xs ml-1">{product.prices.find((p) => p.id === showLoginPrompt)?.periodLabel}</span>
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <button
+                  onClick={() => goToLogin(showLoginPrompt)}
+                  className={`shine-btn w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r ${product.gradient} text-white font-bold text-sm px-5 py-3 rounded-xl shadow-lg ring-1 ring-white/20 transition-all hover:-translate-y-0.5`}
+                >
+                  <LogIn className="w-4 h-4" /> Iniciar sesión y comprar
+                </button>
+                <button
+                  onClick={() => {
+                    const returnTo = `${pathname}?buy=${showLoginPrompt}`;
+                    router.push(`/register?redirect=${encodeURIComponent(returnTo)}`);
+                  }}
+                  className="w-full inline-flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold text-sm px-5 py-3 rounded-xl transition-all"
+                >
+                  Crear cuenta gratis <ArrowRight className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setShowLoginPrompt(null)}
+                  className="w-full text-white/40 hover:text-white text-xs py-2 transition-colors"
+                >
+                  Seguir explorando
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
