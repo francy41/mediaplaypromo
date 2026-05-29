@@ -101,19 +101,24 @@ async function muapiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
-/** Normaliza el response porque algunos modelos usan id, request_id o predictionId */
+/** Normaliza el response porque Muapi devuelve `outputs` (plural), algunos usan `output`, `urls`, `result_url`... */
 function normalizeJob(raw: Record<string, unknown>): MuapiJob {
   const id = String(raw.id ?? raw.request_id ?? raw.requestId ?? raw.predictionId ?? "");
   const status = (raw.status ?? "queued") as MuapiJob["status"];
+
+  // Muapi real shape: { outputs: ["https://cdn.muapi.ai/.../file.png"] }
+  // Otros providers usan: output, result_url, urls
+  const outputs = (raw.outputs ?? raw.output ?? raw.result_url ?? raw.result) as string | string[] | undefined;
+
   return {
     id,
     status,
     model: raw.model as string | undefined,
     created_at: raw.created_at as string | undefined,
-    output: raw.output as string | string[] | undefined,
+    output: outputs,
     result_url: raw.result_url as string | undefined,
     urls: raw.urls as string[] | undefined,
-    error: raw.error as string | undefined,
+    error: (raw.error && raw.error !== "") ? (raw.error as string) : undefined,
     cost: raw.cost as number | undefined,
   };
 }
