@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Loader2, Sparkles, Download, AlertCircle, RefreshCw,
-  Image as ImageIcon, Video as VideoIcon, Zap, Crown, Wand2, FolderDown, CheckCircle2
+  Image as ImageIcon, Video as VideoIcon, Zap, Crown, Wand2, FolderDown, CheckCircle2,
+  Layers, ArrowRight, Clock, XCircle
 } from "lucide-react";
 import { MUAPI_MODELS } from "@/lib/ai/muapi";
 import { getCost } from "@/lib/pricing";
@@ -342,6 +343,16 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
             : "Time-lapse aéreo de una ciudad futurista al atardecer, motion blur...")}
           className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-cyan-500/40 resize-none disabled:opacity-50"
         />
+        {/* Detección de prompts múltiples → sugerir Batch */}
+        {prompt.split("\n").filter((l) => l.trim()).length > 1 && (
+          <Link
+            href="/admin/batch"
+            className="mt-2 inline-flex items-center gap-1.5 bg-fuchsia-500/10 hover:bg-fuchsia-500/20 border border-fuchsia-500/30 text-fuchsia-300 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors"
+          >
+            <Layers className="w-3.5 h-3.5" /> Detecté {prompt.split("\n").filter((l) => l.trim()).length} líneas — usa el Batch Generator para que cada una sea un video distinto
+            <ArrowRight className="w-3 h-3" />
+          </Link>
+        )}
       </div>
 
       {/* Quantity + Params */}
@@ -438,23 +449,29 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
         )}
       </button>
 
-      {/* Live progress */}
-      {isWorking && total > 1 && (
+      {/* Live progress bar (compact summary) */}
+      {jobs.length > 0 && (
         <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-2 text-xs">
+          <div className="flex items-center justify-between mb-2 text-xs flex-wrap gap-2">
             <span className="text-white font-bold flex items-center gap-1.5">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
-              Generando {completed + failed} de {total}
+              {isWorking ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+              ) : completed === total ? (
+                <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+              ) : (
+                <AlertCircle className="w-3.5 h-3.5 text-yellow-400" />
+              )}
+              {isWorking ? `Generando ${completed + failed} de ${total}` : `${completed} de ${total} completados`}
             </span>
-            <span className="text-cyan-400 font-bold">{progressPct}%</span>
+            <span className="text-cyan-400 font-bold text-sm">{progressPct}%</span>
           </div>
           <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
             <div
-              className={`h-full bg-gradient-to-r ${gradient} transition-all duration-500`}
+              className={`h-full bg-gradient-to-r ${gradient} transition-all duration-500 ${isWorking ? "gradient-anim" : ""}`}
               style={{ width: `${progressPct}%` }}
             />
           </div>
-          <div className="flex items-center gap-3 mt-2 text-[10px] text-white/55">
+          <div className="flex items-center gap-3 mt-2 text-[10px] text-white/55 flex-wrap">
             <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-yellow-400" /> En cola: {jobs.filter((j) => j.status === "queued" || j.status === "pending").length}</span>
             <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> Procesando: {jobs.filter((j) => j.status === "processing").length}</span>
             <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-400" /> Listos: {completed}</span>
@@ -487,48 +504,34 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
         </div>
       )}
 
-      {/* Output gallery */}
-      {allOutputs.length > 0 && (
+      {/* Job cards — grid per video con status en vivo */}
+      {jobs.length > 0 && (
         <div className="space-y-3 pt-2 border-t border-white/8">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <p className="text-white font-bold text-sm flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-green-400" />
-              {allOutputs.length} {kind === "video" ? "videos" : "imágenes"} listos
+              {kind === "video" ? <VideoIcon className="w-4 h-4 text-cyan-400" /> : <ImageIcon className="w-4 h-4 text-cyan-400" />}
+              {kind === "video" ? "Videos" : "Imágenes"} ({completed}/{total} listos)
             </p>
             <div className="flex items-center gap-2">
-              <button
-                onClick={downloadAll}
-                className="shine-btn inline-flex items-center gap-1.5 bg-gradient-to-r from-green-500 to-emerald-600 hover:opacity-95 text-white text-xs font-bold px-3 py-2 rounded-lg shadow-lg shadow-green-500/30 transition-all"
-              >
-                <Download className="w-3.5 h-3.5" /> Descargar todos
-              </button>
-              <button onClick={reset} className="text-white/45 hover:text-white text-xs font-semibold inline-flex items-center gap-1">
-                <RefreshCw className="w-3 h-3" /> Nuevo
-              </button>
+              {allOutputs.length > 0 && (
+                <button
+                  onClick={downloadAll}
+                  className="shine-btn inline-flex items-center gap-1.5 bg-gradient-to-r from-green-500 to-emerald-600 hover:opacity-95 text-white text-xs font-bold px-3 py-2 rounded-lg shadow-lg shadow-green-500/30 transition-all"
+                >
+                  <Download className="w-3.5 h-3.5" /> Descargar todos ({allOutputs.length})
+                </button>
+              )}
+              {!isWorking && (
+                <button onClick={reset} className="text-white/45 hover:text-white text-xs font-semibold inline-flex items-center gap-1">
+                  <RefreshCw className="w-3 h-3" /> Nuevo
+                </button>
+              )}
             </div>
           </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {allOutputs.map((url, i) => (
-              <div key={i} className="relative rounded-2xl overflow-hidden border border-white/10 bg-black/40">
-                {kind === "image" ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={url} alt={`Generated ${i + 1}`} className="w-full h-auto block" />
-                ) : (
-                  <video src={url} controls className="w-full h-auto block" />
-                )}
-                <div className="absolute top-2 left-2 bg-black/60 backdrop-blur text-white text-[10px] font-bold px-2 py-0.5 rounded-md border border-white/20">
-                  #{i + 1}
-                </div>
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noreferrer"
-                  download
-                  className="absolute top-2 right-2 inline-flex items-center gap-1 bg-black/60 backdrop-blur border border-white/20 hover:bg-black/80 text-white text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors"
-                >
-                  <Download className="w-3 h-3" />
-                </a>
-              </div>
+            {jobs.map((job) => (
+              <JobCard key={job.index} job={job} kind={kind} gradient={gradient} prompt={prompt} />
             ))}
           </div>
         </div>
@@ -541,6 +544,119 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
           <p className="text-white/45 text-xs">Elige modelo, escribe prompt, cantidad y pulsa generar. Los resultados aparecerán aquí.</p>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   JobCard — ventana individual por video con status en vivo
+   ───────────────────────────────────────────── */
+function JobCard({
+  job, kind, gradient, prompt,
+}: {
+  job: Job;
+  kind: Kind;
+  gradient: string;
+  prompt: string;
+}) {
+  const s = job.status;
+  const isQueued = s === "queued" || s === "pending";
+  const isProcessing = s === "processing";
+  const isDone = TERMINAL_OK.includes(s);
+  const isFailed = TERMINAL_FAIL.includes(s);
+  const output = job.output[0]; // primer resultado
+
+  const statusLabel =
+    isQueued     ? "En cola" :
+    isProcessing ? "Procesando" :
+    isDone       ? "Listo" :
+    isFailed     ? "Falló" : "Esperando";
+
+  const statusColor =
+    isQueued     ? "text-yellow-400 bg-yellow-500/15 border-yellow-500/30" :
+    isProcessing ? "text-cyan-400 bg-cyan-500/15 border-cyan-500/30" :
+    isDone       ? "text-green-400 bg-green-500/15 border-green-500/30" :
+    isFailed     ? "text-red-400 bg-red-500/15 border-red-500/30"
+                 : "text-white/45 bg-white/5 border-white/10";
+
+  return (
+    <div className={`relative rounded-2xl overflow-hidden border bg-[#0a0c12] transition-all ${
+      isDone ? "border-green-500/30 shadow-lg shadow-green-500/10" :
+      isProcessing ? "border-cyan-500/30 shadow-lg shadow-cyan-500/10" :
+      isFailed ? "border-red-500/30" : "border-white/10"
+    }`}>
+      {/* Header del card */}
+      <div className="flex items-center justify-between px-3 py-2 bg-black/40 border-b border-white/8">
+        <span className="text-white font-bold text-xs">#{job.index + 1}</span>
+        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}`}>
+          {isQueued && <Clock className="w-2.5 h-2.5" />}
+          {isProcessing && <Loader2 className="w-2.5 h-2.5 animate-spin" />}
+          {isDone && <CheckCircle2 className="w-2.5 h-2.5" />}
+          {isFailed && <XCircle className="w-2.5 h-2.5" />}
+          {statusLabel}
+        </span>
+      </div>
+
+      {/* Body: media o placeholder animado */}
+      <div className="aspect-video relative bg-black flex items-center justify-center overflow-hidden">
+        {isDone && output ? (
+          kind === "image" ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={output} alt={`Generated ${job.index + 1}`} className="w-full h-full object-cover" />
+          ) : (
+            <video src={output} controls className="w-full h-full object-cover bg-black" />
+          )
+        ) : isFailed ? (
+          <div className="text-center p-4">
+            <XCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
+            <p className="text-red-200/70 text-xs px-2 line-clamp-3">{job.error ?? "Generación falló"}</p>
+          </div>
+        ) : (
+          <>
+            {/* Animated placeholder con efecto shimmer */}
+            <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-20`} />
+            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent gradient-anim" />
+            {/* Orbs flotando */}
+            <div className={`absolute top-1/4 left-1/4 w-16 h-16 bg-gradient-to-br ${gradient} opacity-40 rounded-full blur-2xl float-soft`} />
+            <div className={`absolute bottom-1/4 right-1/4 w-12 h-12 bg-gradient-to-br ${gradient} opacity-30 rounded-full blur-2xl float-slow`} />
+            {/* Icono central */}
+            <div className="relative z-10 text-center">
+              <div className={`w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-2xl mb-2 ring-1 ring-white/20 ${isProcessing ? "glow-pulse" : ""}`}>
+                {isProcessing ? (
+                  <Loader2 className="w-7 h-7 text-white animate-spin" />
+                ) : kind === "video" ? (
+                  <VideoIcon className="w-7 h-7 text-white" />
+                ) : (
+                  <ImageIcon className="w-7 h-7 text-white" />
+                )}
+              </div>
+              <p className="text-white/85 text-[11px] font-bold">{statusLabel}{isProcessing ? "..." : ""}</p>
+              {isQueued && <p className="text-white/40 text-[9px] mt-0.5">Esperando turno</p>}
+              {isProcessing && <p className="text-white/40 text-[9px] mt-0.5">Generando con IA</p>}
+            </div>
+          </>
+        )}
+
+        {/* Download overlay cuando listo */}
+        {isDone && output && (
+          <a
+            href={output}
+            target="_blank"
+            rel="noreferrer"
+            download
+            className="absolute top-2 right-2 inline-flex items-center gap-1 bg-black/70 backdrop-blur border border-white/20 hover:bg-black/90 text-white text-[10px] font-semibold px-2 py-1 rounded-md transition-colors"
+          >
+            <Download className="w-2.5 h-2.5" /> Descargar
+          </a>
+        )}
+      </div>
+
+      {/* Footer: prompt preview */}
+      <div className="px-3 py-2 bg-black/40 border-t border-white/8">
+        <p className="text-white/45 text-[10px] line-clamp-1">
+          {prompt.slice(0, 60)}{prompt.length > 60 ? "..." : ""}
+        </p>
+      </div>
     </div>
   );
 }
