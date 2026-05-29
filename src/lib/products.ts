@@ -90,14 +90,22 @@ export interface Product {
   categorySlug: string;
   name: string;
   shortName?: string;
+  /** Versión / variante (ej: "V1", "V2 Beta", "Pro Edition") */
+  version?: string;
   tagline: string;
   description: string;
+  /** Descripción corta para card en grid (1-2 líneas) */
+  cardDescription?: string;
   /** Texto largo para hero */
   longDescription?: string;
   /** Tagline para box / paquete (ej: "PROCESAMIENTO MASIVO DE VIDEO") */
   packTagline?: string;
   /** Autor / brand */
   author?: string;
+  /** URL de portada (imagen para card en grid). Si vacío, se renderiza el box 3D auto */
+  coverImage?: string;
+  /** Icono principal para card si no hay cover */
+  cardIcon?: LucideIcon;
   /** Gradient principal */
   gradient: string;
   borderColor: string;
@@ -114,6 +122,10 @@ export interface Product {
   premium?: boolean;
   /** Mostrar en marketplace público */
   enabled: boolean;
+  /** Orden dentro de la categoría */
+  order?: number;
+  /** Counter de ventas (para social proof) */
+  salesCount?: number;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -127,16 +139,21 @@ const YF_AUTO_CLIP: Product = {
   categorySlug: "editor-video",
   name: "YF AUTO CLIP",
   shortName: "YF Auto Clip",
+  version: "V2",
   tagline: "Suite profesional de edición de video",
   description: "Procesamiento masivo de video. Reemplaza audios, corta clips y convierte formatos con calidad profesional.",
+  cardDescription: "Audio Replace + Clip Cutter + Format Converter en un solo paquete",
   longDescription: "Todo lo que necesitas para automatizar, editar y destacar tu contenido como un verdadero profesional. 3 herramientas en una sola suite — sin instalaciones complicadas, sin curvas de aprendizaje.",
   packTagline: "PROCESAMIENTO MASIVO DE VIDEO",
   author: "by YANKYFILMS",
+  cardIcon: Layers,
   gradient: "from-violet-500 via-purple-500 to-fuchsia-600",
   borderColor: "border-violet-500/40",
   textAccent: "text-violet-400",
   premium: true,
   enabled: true,
+  order: 1,
+  salesCount: 2400,
 
   // 3 sub-productos del pack
   subProducts: [
@@ -360,19 +377,120 @@ const YF_AUTO_CLIP: Product = {
 };
 
 /* ═══════════════════════════════════════════════════════════════
+   📦 PRODUCTO: YF AUTO CLIP V1 — Versión Legacy/Lite
+   ═══════════════════════════════════════════════════════════════ */
+
+const YF_AUTO_CLIP_V1: Product = {
+  id: "yf-auto-clip-v1",
+  slug: "yf-auto-clip-v1",
+  categorySlug: "editor-video",
+  name: "YF AUTO CLIP",
+  shortName: "YF Auto Clip V1",
+  version: "V1",
+  tagline: "Versión clásica · La original",
+  description: "La versión original que conquistó a 1,500+ creadores. Probada y estable.",
+  cardDescription: "Versión original · Edición batch básica para creadores principiantes",
+  longDescription: "La primera versión de YF AUTO CLIP. Ideal para quienes empiezan o prefieren una interfaz más simple. Incluye las funciones esenciales de edición masiva.",
+  packTagline: "VERSIÓN ORIGINAL",
+  author: "by YANKYFILMS",
+  cardIcon: Scissors,
+  gradient: "from-amber-500 via-orange-500 to-red-600",
+  borderColor: "border-amber-500/40",
+  textAccent: "text-amber-400",
+  premium: false,
+  enabled: true,
+  order: 2,
+  salesCount: 1500,
+  benefits: [
+    { icon: Clock, title: "Ahorra Tiempo", description: "La versión que inició la revolución." },
+    { icon: Hand, title: "Más Simple", description: "Interfaz minimalista — sin distracciones." },
+    { icon: Award, title: "Estable", description: "Versión madura, probada por +1,500 creadores." },
+  ],
+  prices: [
+    {
+      id: "v1-monthly",
+      name: "Mensual",
+      description: "Acceso mes a mes",
+      price: 17,
+      billingPeriod: "monthly",
+      monthlyEquivalent: 17,
+      periodLabel: "/mes",
+      cta: "Empezar V1 Mensual",
+      features: [
+        "YF AUTO CLIP V1 (3 herramientas básicas)",
+        "Resolución 1080p",
+        "Soporte por email <48h",
+        "1 PC autorizado",
+        "Cancela cuando quieras",
+      ],
+    },
+    {
+      id: "v1-6months",
+      name: "Semestral",
+      description: "Ahorra €25 vs mensual",
+      price: 77,
+      originalPrice: 102,
+      billingPeriod: "6months",
+      monthlyEquivalent: 12.83,
+      periodLabel: "/6 meses",
+      badge: "AHORRO 25%",
+      cta: "Empezar V1 Semestral",
+      features: [
+        "YF AUTO CLIP V1 completo",
+        "Soporte prioritario <24h",
+        "2 PCs autorizados",
+        "Equivale a €12.83/mes",
+      ],
+    },
+    {
+      id: "v1-yearly",
+      name: "Anual",
+      description: "Mejor valor — ahorras €87",
+      price: 117,
+      originalPrice: 204,
+      billingPeriod: "yearly",
+      monthlyEquivalent: 9.75,
+      periodLabel: "/año",
+      popular: true,
+      bestDeal: true,
+      badge: "MÁS POPULAR · AHORRO 43%",
+      cta: "Empezar V1 Anual",
+      features: [
+        "YF AUTO CLIP V1 completo",
+        "Actualizaciones DE POR VIDA",
+        "Soporte prioritario 24/7",
+        "3 PCs autorizados",
+        "Equivale a €9.75/mes",
+      ],
+    },
+  ],
+};
+
+/* ═══════════════════════════════════════════════════════════════
    CATÁLOGO GLOBAL DE PRODUCTOS
    ═══════════════════════════════════════════════════════════════ */
 
-export const PRODUCTS: Product[] = [
+export const DEFAULT_PRODUCTS: Product[] = [
   YF_AUTO_CLIP,
+  YF_AUTO_CLIP_V1,
 ];
 
-/** Productos visibles en una categoría específica */
+/** Catálogo mutable (override via SuperAdmin localStorage) */
+export const PRODUCTS: Product[] = [...DEFAULT_PRODUCTS];
+
+/** Productos visibles en una categoría específica (ordenados) */
 export function productsByCategory(categorySlug: string): Product[] {
-  return PRODUCTS.filter((p) => p.categorySlug === categorySlug && p.enabled);
+  return PRODUCTS
+    .filter((p) => p.categorySlug === categorySlug && p.enabled)
+    .sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
 }
 
 /** Buscar producto por slug */
 export function getProductBySlug(slug: string): Product | undefined {
   return PRODUCTS.find((p) => p.slug === slug);
+}
+
+/** Buscar producto por slug dentro de una categoría específica */
+export function getProductInCategory(categorySlug: string, productSlug: string): Product | undefined {
+  return PRODUCTS.find((p) => p.categorySlug === categorySlug && p.slug === productSlug && p.enabled);
 }

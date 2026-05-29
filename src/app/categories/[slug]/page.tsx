@@ -11,7 +11,7 @@ import { AIPlayground } from "@/components/ai/AIPlayground";
 import { PaywallGate } from "@/components/PaywallGate";
 import { useStats, formatCount } from "@/lib/stats";
 import { VideoPricingTable } from "@/components/VideoPricingTable";
-import { ProductShowcase } from "@/components/products/ProductShowcase";
+import { ProductCard } from "@/components/products/ProductCard";
 import { productsByCategory } from "@/lib/products";
 
 // Mapa slug → tipo de playground a embeber
@@ -127,17 +127,32 @@ export default function CategoryPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* ── 🛍️ PRODUCTOS A LA VENTA (tienen prioridad: si hay producto, NO se muestra playground/tabla/tools) ── */}
-      {products.map((product) => (
-        <div key={product.id} className="pt-2">
-          <div className="text-center mb-5">
-            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-violet-500/15 to-fuchsia-500/15 border border-violet-500/30 rounded-full px-3 py-1 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.18em] text-violet-300 mb-2">
-              🛍️ PRODUCTO DESTACADO EN ESTA CATEGORÍA
+      {/* ── 🛍️ GRID DE SUBCATEGORÍAS / PRODUCTOS (4 cols) ── */}
+      {hasProduct && (
+        <div className="pt-2">
+          <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+            <div>
+              <div className="inline-flex items-center gap-2 bg-gradient-to-r from-violet-500/15 to-fuchsia-500/15 border border-violet-500/30 rounded-full px-3 py-1 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.18em] text-violet-300 mb-2">
+                🛍️ PRODUCTOS DISPONIBLES
+              </div>
+              <h2 className="text-white font-black text-2xl sm:text-3xl">
+                {products.length} {products.length === 1 ? "producto disponible" : "productos disponibles"}
+                <span className="text-white/45 font-normal text-base ml-2">en {cat.title}</span>
+              </h2>
+              <p className="text-white/45 text-xs sm:text-sm mt-1">
+                Pulsa cualquier card para ver detalles, precios y comprar.
+              </p>
             </div>
           </div>
-          <ProductShowcase product={product} />
+
+          {/* Grid 4 columnas en desktop · 2 en tablet · 1 en móvil */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {products.map((product) => (
+              <ProductCard key={product.id} product={product} categorySlug={slug} />
+            ))}
+          </div>
         </div>
-      ))}
+      )}
 
       {/* ── AI Playground (solo si NO hay producto) ── */}
       {!hasProduct && PLAYGROUND_BY_SLUG[slug] && (
