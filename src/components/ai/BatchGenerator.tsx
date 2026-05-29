@@ -30,7 +30,7 @@ const SAMPLE_BATCH = [
 export function BatchGenerator({ kind = "video" }: { kind?: "image" | "video" }) {
   const models = MUAPI_MODELS[kind];
   const [model, setModel] = useState<string>(
-    kind === "video" ? "veo3-fast-text-to-video" : "flux-schnell-image"
+    kind === "video" ? "wan2.2-5b-fast-t2v" : "flux-schnell-image"
   );
   const [rows, setRows] = useState<PromptRow[]>([
     { id: crypto.randomUUID(), prompt: "", job: { status: "idle" } },

@@ -122,8 +122,8 @@ export default function CategoryPage({ params }: PageProps) {
           gradient={cat.gradient}
           defaultModel={
             PLAYGROUND_BY_SLUG[slug] === "video"
-              ? "veo3-fast-text-to-video"     // Veo 3 Fast por defecto (barato + rápido)
-              : "flux-schnell-image"          // Flux Schnell por defecto en imagen
+              ? "wan2.2-5b-fast-t2v"          // Wan 2.2 5B Fast — $0.02 por video (más barato)
+              : "flux-schnell-image"          // Flux Schnell — $0.003 por imagen
           }
         />
       )}

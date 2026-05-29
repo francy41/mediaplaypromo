@@ -213,10 +213,10 @@ export function getCost(model: string): number {
 */
 export const ADMIN_MARGIN_PCT = 0.50;
 
-/** Coste REAL de Muapi en USD (estimado por modelo). Verifica en muapi.ai/pricing */
+/** Coste REAL de Muapi en USD (medido o estimado). Los marcados [✓] están confirmados con test real. */
 export const MODEL_REAL_COST_USD: Record<string, number> = {
-  // Imagen
-  "flux-schnell-image":              0.003,
+  // ── Imagen ──
+  "flux-schnell-image":              0.003,  // ✓ medido
   "flux-dev-image":                  0.025,
   "flux-kontext-dev-t2i":            0.025,
   "hidream_i1_fast_image":           0.008,
@@ -225,37 +225,45 @@ export const MODEL_REAL_COST_USD: Record<string, number> = {
   "grok-imagine-text-to-image":      0.04,
   "wan2.7-text-to-image-pro":        0.03,
   "hunyuan-image-3.0":               0.02,
-  // Video Veo
+
+  // ── 💰 BUDGET (más baratos confirmados) ──
+  "wan2.2-5b-fast-t2v":              0.02,   // ✓ medido — EL MÁS BARATO
+  "seedance-lite-t2v":               0.10,   // ✓ medido
+  "wan2.5-text-to-video-fast":       0.25,
+  "hunyuan-fast-text-to-video":      0.25,
+  "ltx-2-fast-text-to-video":        0.31,   // ✓ medido (6s)
+  "minimax-hailuo-2.3-fast":         0.30,
+  "seedance-v1.5-pro-t2v-fast":      0.35,
+
+  // ── Video Veo (Google) ──
   "veo3.1-text-to-video":            3.00,
   "veo3.1-fast-text-to-video":       1.50,
   "veo3.1-lite-text-to-video":       0.80,
   "veo3-text-to-video":              2.50,
   "veo3-fast-text-to-video":         0.50,
-  // Video Kling
+
+  // ── Video Kling ──
   "kling-v3.0-pro-text-to-video":      2.80,
   "kling-v3.0-standard-text-to-video": 1.50,
   "kling-v2.6-pro-t2v":                2.00,
   "kling-v2.5-turbo-pro-t2v":          0.60,
   "kling-o1-text-to-video":            1.80,
-  // Grok / Sora
+
+  // ── Grok / Sora ──
   "grok-imagine-text-to-video":        1.20,
   "openai-sora-2-pro-text-to-video":   3.50,
   "openai-sora-2-text-to-video":       2.00,
-  // Runway / Hailuo / Wan / Seedance / Hunyuan / PixVerse / LTX
+
+  // ── Runway / Hailuo / Wan / Seedance / Hunyuan / PixVerse / LTX ──
   "runway-text-to-video":              1.50,
   "runway-image-to-video":             1.30,
   "minimax-hailuo-2.3-pro-t2v":        1.00,
-  "minimax-hailuo-2.3-fast":           0.30,
   "wan2.7-text-to-video":              0.60,
-  "wan2.5-text-to-video-fast":         0.25,
   "seedance-v1.5-pro-t2v":             0.80,
-  "seedance-v1.5-pro-t2v-fast":        0.35,
   "seedance-v1.5-pro-video-extend":    0.80,
   "hunyuan-text-to-video":             0.60,
-  "hunyuan-fast-text-to-video":        0.25,
   "pixverse-v6-t2v":                   0.60,
   "ltx-2-pro-text-to-video":           0.60,
-  "ltx-2-fast-text-to-video":          0.25,
 };
 
 /** Devuelve el coste REAL en USD que Muapi te cobra */
