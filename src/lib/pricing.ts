@@ -296,6 +296,50 @@ export function projectAdminEarnings(model: string, generations: number) {
 }
 
 /* ─────────────────────────────────────────────
+   📦 BUNDLES — Paquetes de videos por modelo
+   ───────────────────────────────────────────── */
+
+export const VIDEO_BUNDLE_SIZES = [1, 5, 10, 20, 50, 100] as const;
+
+/** Lista curada de modelos VIDEO para mostrar en la tabla de precios pública.
+ *  Ordenados por precio (más barato → más caro). */
+export const PUBLIC_VIDEO_PRICING = [
+  { slug: "wan2.2-5b-fast-t2v",            name: "Wan 2.2 5B Fast",      tier: "budget",  duration: "5s",  resolution: "480p" },
+  { slug: "seedance-lite-t2v",             name: "Seedance Lite",         tier: "budget",  duration: "5s",  resolution: "720p" },
+  { slug: "wan2.5-text-to-video-fast",     name: "Wan 2.5 Fast",          tier: "budget",  duration: "5s",  resolution: "720p" },
+  { slug: "hunyuan-fast-text-to-video",    name: "Hunyuan Fast",          tier: "budget",  duration: "5s",  resolution: "720p" },
+  { slug: "minimax-hailuo-2.3-fast",       name: "Hailuo 2.3 Fast",       tier: "budget",  duration: "5s",  resolution: "720p" },
+  { slug: "seedance-v1.5-pro-t2v-fast",    name: "Seedance Fast",         tier: "budget",  duration: "5s",  resolution: "1080p" },
+  { slug: "veo3-fast-text-to-video",       name: "Veo 3 Fast",            tier: "mid",     duration: "5s",  resolution: "720p" },
+  { slug: "kling-v2.5-turbo-pro-t2v",      name: "Kling 2.5 Turbo Pro",   tier: "mid",     duration: "5s",  resolution: "1080p" },
+  { slug: "veo3.1-lite-text-to-video",     name: "Veo 3.1 Lite",          tier: "mid",     duration: "5s",  resolution: "720p" },
+  { slug: "grok-imagine-text-to-video",    name: "Grok Imagine (xAI)",    tier: "mid",     duration: "5s",  resolution: "1080p" },
+  { slug: "runway-text-to-video",          name: "Runway Gen-4",          tier: "premium", duration: "5s",  resolution: "1080p" },
+  { slug: "veo3.1-fast-text-to-video",     name: "Veo 3.1 Fast",          tier: "premium", duration: "5s",  resolution: "1080p" },
+  { slug: "kling-v3.0-pro-text-to-video",  name: "Kling 3.0 Pro",         tier: "premium", duration: "5s",  resolution: "1080p" },
+  { slug: "openai-sora-2-text-to-video",   name: "Sora 2",                tier: "premium", duration: "5s",  resolution: "1080p" },
+  { slug: "veo3-text-to-video",            name: "Veo 3 (balanced)",      tier: "premium", duration: "5s",  resolution: "1080p" },
+  { slug: "veo3.1-text-to-video",          name: "Veo 3.1 (último)",      tier: "ultra",   duration: "5s",  resolution: "1080p" },
+  { slug: "openai-sora-2-pro-text-to-video", name: "Sora 2 Pro",          tier: "ultra",   duration: "5s",  resolution: "1080p" },
+] as const;
+
+/** Precio bundle al cliente (en USD, incluye margen 50%) */
+export function getBundlePrice(model: string, quantity: number): number {
+  return +(getCustomerPriceUSD(model) * quantity).toFixed(2);
+}
+
+/** Tu ganancia neta en bundle (solo admin) */
+export function getBundleProfit(model: string, quantity: number): number {
+  return +(getAdminProfitUSD(model) * quantity).toFixed(2);
+}
+
+/** Conversión USD → EUR (aprox, para presentación) */
+export function usdToEur(usd: number): number {
+  const rate = 0.92;
+  return +(usd * rate).toFixed(2);
+}
+
+/* ─────────────────────────────────────────────
    FAQs para la página de pricing
    ───────────────────────────────────────────── */
 

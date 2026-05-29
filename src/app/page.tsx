@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTheme } from "@/lib/theme-context";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { PricingPlans } from "@/components/PricingPlans";
+import { VideoPricingTable } from "@/components/VideoPricingTable";
 import { useStats, formatCount } from "@/lib/stats";
 
 function CategorySidebar({ onItemClick }: { onItemClick?: () => void }) {
@@ -355,6 +356,23 @@ export default function LandingPage() {
             </p>
           </div>
           <PricingPlans embedded showMargin />
+
+          {/* Precios por video individual con bundles */}
+          <div className="border-t border-white/8 pb-12">
+            <div className="text-center pt-12 px-4 mb-2">
+              <div className="inline-flex items-center gap-2 bg-fuchsia-500/10 border border-fuchsia-500/20 rounded-full px-3 py-1 text-[11px] sm:text-xs text-fuchsia-400 mb-4 font-bold tracking-wider uppercase">
+                <Sparkles className="w-3 h-3" /> Pago por video
+              </div>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight mb-3 max-w-3xl mx-auto">
+                Compra paquetes{" "}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-fuchsia-400 to-purple-500">según tu necesidad</span>
+              </h2>
+              <p className="text-white/55 text-sm sm:text-base max-w-2xl mx-auto">
+                17 modelos. Desde €0.03 por video con Wan 2.2 hasta videos premium con Veo 3.1 y Sora 2 Pro.
+              </p>
+            </div>
+            <VideoPricingTable embedded />
+          </div>
         </section>
 
         {/* CTA */}

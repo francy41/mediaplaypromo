@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Check, X, Sparkles, ArrowRight, Star, Crown, ChevronDown } from "lucide-react";
 import { PLANS, PRICING_FAQ } from "@/lib/pricing";
+import { VideoPricingTable } from "@/components/VideoPricingTable";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function PricingPage() {
@@ -139,6 +140,9 @@ export default function PricingPage() {
           })}
         </div>
       </section>
+
+      {/* Video pricing per model */}
+      <VideoPricingTable />
 
       {/* Comparison strip */}
       <section className="px-4 sm:px-6 lg:px-8 pb-16 max-w-5xl mx-auto">
