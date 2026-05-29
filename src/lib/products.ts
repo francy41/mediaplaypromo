@@ -9,7 +9,10 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Music, Scissors, Replace, Clock, Rocket, Star, Hand, Shield,
-  Zap, Sparkles, Crown, Users, FileVideo, Layers, Award, Repeat
+  Zap, Sparkles, Crown, Users, FileVideo, Layers, Award, Repeat,
+  Upload, Settings, Eye, Download, RefreshCw, Volume2, FileText,
+  Sliders, Play, ListChecks, Crop, Wand2, Image as ImageIcon,
+  CheckCircle2, Target, TrendingUp, Smile, FastForward
 } from "lucide-react";
 
 export interface PriceTier {
@@ -38,6 +41,12 @@ export interface PriceTier {
   stripePriceId?: string;
 }
 
+export interface WorkflowStep {
+  title: string;
+  description?: string;
+  icon: LucideIcon;
+}
+
 export interface SubProduct {
   name: string;
   description: string;
@@ -46,6 +55,26 @@ export interface SubProduct {
   borderColor: string;
   bgColor: string;
   features: string[];
+  /** Datos para sección DEEP estilo banner premium */
+  deep?: {
+    /** Slogan corto: "REEMPLAZA CUALQUIER AUDIO DE FORMA MASIVA" */
+    headline: string;
+    headlineAccent?: string;
+    /** Color tema: "blue" | "red" | "purple" | "orange" */
+    theme: "blue" | "red" | "purple" | "orange";
+    /** Descripción larga */
+    description: string;
+    /** Lista de 5 features con icon */
+    featuresWithIcons: { icon: LucideIcon; title: string; description: string }[];
+    /** "Así de fácil" workflow (3-4 pasos) */
+    workflow: WorkflowStep[];
+    /** Beneficios (¿Por qué usar X?) */
+    why?: { icon: LucideIcon; title: string; description: string }[];
+    /** CTA texto */
+    ctaText: string;
+    /** "Ideal para:" lista */
+    idealFor?: string[];
+  };
 }
 
 export interface Benefit {
@@ -125,6 +154,34 @@ const YF_AUTO_CLIP: Product = {
         "Control de volumen y fade",
         "Ideal para YouTube, Reels, TikTok",
       ],
+      deep: {
+        headline: "REEMPLAZA CUALQUIER AUDIO",
+        headlineAccent: "DE FORMA MASIVA Y AUTOMÁTICA",
+        theme: "blue",
+        description: "Ahorra horas de trabajo reemplazando el audio original de tus videos por nuevos audios sincronizados automáticamente.",
+        featuresWithIcons: [
+          { icon: Layers, title: "REEMPLAZO MASIVO", description: "Reemplaza el audio de múltiples videos al instante." },
+          { icon: Volume2, title: "SINCRONIZACIÓN AUTOMÁTICA", description: "El nuevo audio se ajusta perfectamente a la duración de cada video." },
+          { icon: FileText, title: "SOPORTE MULTIFORMATO", description: "Compatible con MP4, MOV, MKV, AVI y más." },
+          { icon: Sliders, title: "VOLUMEN Y EFECTOS", description: "Ajusta volumen, fade in/out y mejora la calidad del audio." },
+          { icon: Play, title: "APTO PARA TODO TIPO DE CONTENIDO", description: "Ideal para YouTube, Reels, TikTok, cursos y más." },
+        ],
+        workflow: [
+          { title: "CARGA TUS VIDEOS", icon: Upload },
+          { title: "AÑADE EL AUDIO", icon: Music },
+          { title: "AJUSTA Y SINCRONIZA", icon: Sliders },
+          { title: "EXPORTA Y LISTO", icon: Download },
+        ],
+        why: [
+          { icon: Clock, title: "AHORRA TIEMPO", description: "Procesa decenas de videos en minutos." },
+          { icon: Rocket, title: "AUMENTA TU PRODUCTIVIDAD", description: "Enfócate en crear, nosotros hacemos el trabajo pesado." },
+          { icon: Star, title: "RESULTADOS PROFESIONALES", description: "Audio limpio, sincronizado y sin complicaciones." },
+          { icon: Hand, title: "FÁCIL DE USAR", description: "Interfaz intuitiva y procesos sencillos." },
+          { icon: Shield, title: "100% SEGURO", description: "Tus archivos siempre están protegidos." },
+        ],
+        ctaText: "PROBAR AUDIO REPLACE AHORA",
+        idealFor: ["YouTubers", "Editores de Reels y TikTok", "Cursos online", "Marketing digital"],
+      },
     },
     {
       name: "CLIP CUTTER",
@@ -140,6 +197,34 @@ const YF_AUTO_CLIP: Product = {
         "Vista previa instantánea",
         "Exportación en alta calidad",
       ],
+      deep: {
+        headline: "CORTE PRECISO.",
+        headlineAccent: "EDICIÓN SIN LÍMITES.",
+        theme: "red",
+        description: "Corta, divide y personaliza tus videos con precisión total. Ahorra tiempo y obtén resultados profesionales.",
+        featuresWithIcons: [
+          { icon: Scissors, title: "CORTES PRECISOS", description: "Elimina lo que no necesitas con exactitud al segundo." },
+          { icon: FileVideo, title: "DIVIDE Y ORGANIZA", description: "Divide videos largos en partes más pequeñas fácilmente." },
+          { icon: Zap, title: "RÁPIDO Y EFICIENTE", description: "Procesamiento ultra rápido sin perder calidad." },
+          { icon: Award, title: "EXPORTACIÓN SIN PÉRDIDA", description: "Mantén la máxima calidad en cada corte." },
+          { icon: Play, title: "IDEAL PARA CUALQUIER CREADOR", description: "Perfecto para YouTube, Reels, TikTok, cursos y más." },
+        ],
+        workflow: [
+          { title: "CARGA TU VIDEO", icon: Upload },
+          { title: "SELECCIONA INICIO Y DURACIÓN", icon: Crop },
+          { title: "VISTA PREVIA TU CORTE", icon: Eye },
+          { title: "EXPORTA Y LISTO", icon: Download },
+        ],
+        why: [
+          { icon: Target, title: "CORTES AL SEGUNDO", description: "Precisión exacta en el inicio y final del clip." },
+          { icon: Layers, title: "DIVIDE EN PARTES", description: "Extrae múltiples segmentos de un video fácilmente." },
+          { icon: FastForward, title: "SIN RE-ENCODING", description: "Cortes más rápidos sin procesar el video." },
+          { icon: Eye, title: "VISTA PREVIA INSTANTÁNEA", description: "Previsualiza antes de guardar tu clip." },
+          { icon: Download, title: "EXPORTA EN ALTA CALIDAD", description: "Mantén la calidad original en cada exportación." },
+        ],
+        ctaText: "PROBAR CLIP CUTTER AHORA",
+        idealFor: ["Creadores de YouTube", "Editores de Reels y Shorts", "Cursos online", "Reels y TikTok"],
+      },
     },
     {
       name: "FORMAT CONVERTER",
@@ -155,6 +240,34 @@ const YF_AUTO_CLIP: Product = {
         "Calidad profesional garantizada",
         "Soporte multiformato",
       ],
+      deep: {
+        headline: "CONVIERTE TUS VIDEOS A",
+        headlineAccent: "MÚLTIPLES FORMATOS SIN COMPLICACIONES.",
+        theme: "purple",
+        description: "Adapta tus videos a cualquier plataforma con un solo clic. Máxima compatibilidad, calidad profesional y resultados optimizados.",
+        featuresWithIcons: [
+          { icon: Replace, title: "CONVERSIÓN TOTAL", description: "Convierte tus videos a múltiples formatos de video y audio." },
+          { icon: FileVideo, title: "FORMATOS POPULARES", description: "Soporte para MP4, MOV, MKV, AVI, WEBM y más." },
+          { icon: TrendingUp, title: "ÓPTIMIZADO PARA CADA RED", description: "Perfiles preconfigurados para YouTube, Instagram, TikTok, Facebook y más." },
+          { icon: Award, title: "CALIDAD PROFESIONAL", description: "Mantén la mejor calidad en cada conversión, sin pérdida de video." },
+          { icon: Rocket, title: "RÁPIDO Y EFICIENTE", description: "Procesos de conversión ultra rápidos con tecnología avanzada." },
+        ],
+        workflow: [
+          { title: "AGREGA TUS VIDEOS", icon: Upload },
+          { title: "ELIGE FORMATO Y AJUSTES", icon: Settings },
+          { title: "SELECCIONA DESTINO", icon: Target },
+          { title: "CONVIERTE Y LISTO", icon: CheckCircle2 },
+        ],
+        why: [
+          { icon: Layers, title: "MÚLTIPLES FORMATOS", description: "Convierte a los formatos más usados en el mundo." },
+          { icon: Sliders, title: "PERFILES OPTIMIZADOS", description: "Ajustes predefinidos para cada plataforma y dispositivo." },
+          { icon: Crop, title: "RESOLUCIÓN PERSONALIZADA", description: "Elige la resolución ideal para cada necesidad." },
+          { icon: Volume2, title: "CONVERSIÓN DE AUDIO", description: "Extrae o convierte el audio a MP3, AAC, WAV y más." },
+          { icon: Layers, title: "PROCESAMIENTO MASIVO", description: "Convierte múltiples archivos al mismo tiempo." },
+        ],
+        ctaText: "PROBAR FORMAT CONVERTER AHORA",
+        idealFor: ["Creadores de contenido", "Marketing digital", "Empresas y agencias", "Educadores online", "Y mucho más..."],
+      },
     },
   ],
 

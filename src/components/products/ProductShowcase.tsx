@@ -1,9 +1,10 @@
 "use client";
 import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Check, Star, ShoppingCart, Sparkles, Zap, Crown, Award, ArrowRight, Lock, LogIn } from "lucide-react";
+import { Check, Star, ShoppingCart, Sparkles, Zap, Crown, Award, ArrowRight, Lock, LogIn, Hand, Rocket, Trophy } from "lucide-react";
 import type { Product } from "@/lib/products";
 import { useAuth } from "@/lib/auth-context";
+import { YFAutoClipDeepSections } from "./YFAutoClipDeepSections";
 
 interface Props {
   product: Product;
@@ -36,113 +37,144 @@ export function ProductShowcase({ product }: Props) {
   return (
     <div className="space-y-6">
 
-      {/* ── HERO DEL PRODUCTO ── */}
-      <div className={`glass-card relative overflow-hidden rounded-3xl border ${product.borderColor} bg-gradient-to-br from-violet-500/10 via-purple-500/5 to-transparent p-6 sm:p-8`}>
-        {/* Decorative orbs */}
-        <div className={`absolute -top-24 -right-24 w-80 h-80 bg-gradient-to-br ${product.gradient} opacity-20 rounded-full blur-3xl pointer-events-none float-slow`} />
-        <div className={`absolute -bottom-24 -left-24 w-72 h-72 bg-gradient-to-br ${product.gradient} opacity-15 rounded-full blur-3xl pointer-events-none float-soft`} />
+      {/* ═══════════════════════════════════════════════════════════
+         HERO PRINCIPAL — estilo banner cinemático
+         "CREA. EDITA. TRANSFORMA. DOMINA TU CONTENIDO."
+         ═══════════════════════════════════════════════════════════ */}
+      <section className="relative overflow-hidden rounded-3xl border border-violet-500/40 bg-gradient-to-br from-[#0d0620] via-[#1c0a3a] to-[#08041a]">
+        {/* Orbs decorativos */}
+        <div className="absolute -top-32 -right-32 w-96 h-96 bg-gradient-to-br from-violet-500 to-fuchsia-600 opacity-30 rounded-full blur-3xl pointer-events-none float-slow" />
+        <div className="absolute top-1/3 -left-20 w-80 h-80 bg-gradient-to-br from-cyan-500 to-blue-600 opacity-20 rounded-full blur-3xl pointer-events-none float-soft" />
+        <div className="absolute -bottom-32 right-1/4 w-72 h-72 bg-gradient-to-br from-pink-500 to-rose-600 opacity-15 rounded-full blur-3xl pointer-events-none float-slow" style={{ animationDelay: "3s" }} />
         <div className="particles-bg" />
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{
+          backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
+          backgroundSize: "60px 60px",
+        }} />
 
-        <div className="relative grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-8 items-center">
-          <div>
-            {/* Tag superior */}
-            <div className="inline-flex items-center gap-2 bg-white/10 border border-white/15 rounded-full px-2.5 py-1 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.18em] text-white/80 mb-3">
-              <Sparkles className="w-3 h-3 text-yellow-300" />
-              PRODUCTO DIGITAL · LICENCIA PROFESIONAL
-            </div>
-
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight text-white tracking-tight">
-              {product.name}
-            </h1>
-
-            <p className={`text-base sm:text-lg font-bold mt-2 ${product.textAccent}`}>{product.tagline}</p>
-
-            <p className="text-white/55 text-sm sm:text-base max-w-xl mt-3">
-              {product.longDescription ?? product.description}
+        <div className="relative grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-8 lg:gap-12 p-6 sm:p-10 lg:p-14 items-center">
+          <div className="space-y-5 min-w-0">
+            {/* Tag superior pequeño */}
+            <p className="text-white/65 text-[10px] sm:text-xs font-bold tracking-[0.25em] uppercase">
+              HERRAMIENTAS <span className="text-violet-400">PRO</span> QUE LLEVAN TU CONTENIDO AL SIGUIENTE NIVEL
             </p>
 
-            {product.author && (
-              <p className="text-white/35 text-xs mt-3 italic">{product.author}</p>
-            )}
+            {/* Mega título cinemático */}
+            <h1 className="text-5xl sm:text-6xl lg:text-8xl font-black leading-[0.9] tracking-tighter">
+              <span className="text-white block">CREA. EDITA.</span>
+              <span className="text-white block">TRANSFORMA.</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 block">DOMINA TU</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 block">CONTENIDO.</span>
+            </h1>
 
-            {/* Stats */}
-            {product.stats && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-5 max-w-md">
-                {product.stats.map((s) => (
-                  <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-2.5 text-center">
-                    <p className={`font-black text-base sm:text-lg ${product.textAccent}`}>{s.value}</p>
-                    <p className="text-white/45 text-[9px] sm:text-[10px] uppercase tracking-wider font-bold">{s.label}</p>
+            <p className="text-white/65 text-sm sm:text-base max-w-md leading-relaxed">
+              Todo lo que necesitas para automatizar, editar y destacar tu contenido como un verdadero profesional.
+            </p>
+
+            {/* CTA principal */}
+            <button
+              onClick={() => document.getElementById("prices")?.scrollIntoView({ behavior: "smooth" })}
+              className="shine-btn inline-flex items-center gap-2 bg-gradient-to-r from-violet-500 via-purple-600 to-fuchsia-600 hover:opacity-95 text-white font-black text-sm sm:text-base px-7 py-4 rounded-2xl shadow-2xl shadow-violet-500/40 ring-1 ring-white/20 transition-all hover:-translate-y-0.5 hover:scale-[1.02] uppercase tracking-wide"
+            >
+              <Sparkles className="w-4 h-4" /> DESCUBRE EL PODER DE YF AUTO CLIP
+            </button>
+
+            {/* 3 features bottom */}
+            <div className="grid grid-cols-3 gap-3 sm:gap-5 pt-4 max-w-lg">
+              {[
+                { icon: Hand, label: "FÁCIL DE USAR" },
+                { icon: Rocket, label: "RENDIMIENTO PRO" },
+                { icon: Trophy, label: "RESULTADOS REALES" },
+              ].map((f) => {
+                const FIcon = f.icon;
+                return (
+                  <div key={f.label} className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                      <FIcon className="w-3.5 h-3.5 text-white" />
+                    </div>
+                    <span className="text-white/85 font-bold text-[10px] sm:text-xs uppercase tracking-wider leading-tight">{f.label}</span>
                   </div>
-                ))}
-              </div>
-            )}
-
-            {/* CTAs */}
-            <div className="flex flex-wrap items-center gap-3 mt-6">
-              <a
-                href="#prices"
-                className={`shine-btn inline-flex items-center gap-2 bg-gradient-to-r ${product.gradient} hover:opacity-95 text-white font-bold px-5 py-3 rounded-xl shadow-xl transition-all hover:-translate-y-0.5 text-sm ring-1 ring-white/20`}
-              >
-                <ShoppingCart className="w-4 h-4" /> Ver precios
-              </a>
-              <button
-                onClick={() => document.getElementById("subproducts")?.scrollIntoView({ behavior: "smooth" })}
-                className="glass-card inline-flex items-center gap-2 hover:border-white/30 text-white px-5 py-3 rounded-xl transition-all text-sm hover:-translate-y-0.5"
-              >
-                Ver herramientas <ArrowRight className="w-4 h-4" />
-              </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Box visual (placeholder estilo cinematic) */}
-          <div className="hidden lg:flex items-center justify-center">
-            <div className={`relative w-56 h-72 rounded-3xl bg-gradient-to-br ${product.gradient} flex flex-col items-center justify-between p-5 shadow-2xl ring-2 ring-white/20`}>
-              <div className="text-center">
-                <p className="text-white/70 text-[10px] font-bold tracking-[0.2em] uppercase">YF Auto Clip</p>
-              </div>
-              <div className="text-center">
-                <p className="text-white font-black text-3xl tracking-wider">YF</p>
-                <p className="text-white/85 text-[10px] font-bold tracking-widest uppercase mt-1">Auto Clip</p>
-              </div>
-              <div className="w-full space-y-1.5">
-                {product.subProducts?.map((s) => (
-                  <div key={s.name} className="bg-black/30 backdrop-blur border border-white/20 rounded-md py-1.5 text-center">
-                    <p className="text-white text-[9px] font-black uppercase tracking-wider">{s.name}</p>
+          {/* Box 3D del producto principal */}
+          <div className="relative flex items-center justify-center lg:justify-end">
+            <div className="relative w-56 sm:w-64 lg:w-72 aspect-[3/4]">
+              <div className="relative w-full h-full rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-700 shadow-2xl ring-2 ring-violet-500/40 overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent" />
+                <div className="absolute top-5 left-1/2 -translate-x-1/2 text-center">
+                  <p className="text-white text-xs font-bold tracking-[0.25em] uppercase opacity-90">YF AUTO CLIP</p>
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-white font-black text-7xl tracking-tighter drop-shadow-2xl">YF</p>
+                    <p className="text-white/90 text-xs font-bold tracking-[0.3em] uppercase mt-1">Auto Clip</p>
                   </div>
-                ))}
+                </div>
+                <div className="absolute bottom-5 left-4 right-4 space-y-1.5">
+                  {product.subProducts?.map((sp) => (
+                    <div key={sp.name} className="bg-black/40 backdrop-blur border border-white/30 rounded-lg py-1.5 text-center">
+                      <p className="text-white text-[10px] font-black tracking-widest uppercase">{sp.name}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <p className="text-white/40 text-[8px]">{product.packTagline}</p>
+              {/* Floating sparkle */}
+              <div className="absolute -top-4 -right-4 w-14 h-14 rounded-full bg-gradient-to-br from-yellow-300 to-orange-400 flex items-center justify-center shadow-xl ring-2 ring-white/30 float-soft">
+                <Sparkles className="w-7 h-7 text-white drop-shadow" />
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* ── SUB-PRODUCTOS ── */}
+        {/* Stats strip */}
+        {product.stats && (
+          <div className="relative border-t border-white/8 px-6 sm:px-10 lg:px-14 py-5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6">
+              {product.stats.map((s) => (
+                <div key={s.label} className="text-center">
+                  <p className={`font-black text-xl sm:text-2xl ${product.textAccent}`}>{s.value}</p>
+                  <p className="text-white/45 text-[9px] sm:text-[10px] uppercase tracking-wider font-bold mt-0.5">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* ═══════════════════════════════════════════════════════════
+         "3 HERRAMIENTAS. INFINITAS POSIBILIDADES."
+         ═══════════════════════════════════════════════════════════ */}
       {product.subProducts && (
-        <div id="subproducts" className="space-y-4">
+        <div id="subproducts" className="space-y-6">
           <div className="text-center">
-            <h2 className="text-2xl sm:text-3xl font-black text-white">
-              {product.subProducts.length} HERRAMIENTAS. <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-fuchsia-400">INFINITAS POSIBILIDADES.</span>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tighter leading-none">
+              {product.subProducts.length} HERRAMIENTAS.{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400">INFINITAS POSIBILIDADES.</span>
             </h2>
-            <p className="text-white/45 text-sm mt-2">Cada herramienta es poderosa por sí sola. Juntas son imparables.</p>
+            <p className="text-white/45 text-sm mt-3 max-w-2xl mx-auto">Cada herramienta es poderosa por sí sola. Juntas, son imparables.</p>
           </div>
 
+          {/* ── Cards iniciales de las 3 herramientas (resumen) ── */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {product.subProducts.map((sub) => {
               const Icon = sub.icon;
               return (
-                <div key={sub.name} className={`glass-card hover-lift relative overflow-hidden rounded-2xl border ${sub.borderColor} bg-gradient-to-br ${sub.bgColor} p-5`}>
-                  <div className={`absolute -top-8 -right-8 w-32 h-32 bg-gradient-to-br ${sub.color} opacity-20 rounded-full blur-3xl`} />
+                <div key={sub.name} className={`glass-card hover-lift relative overflow-hidden rounded-2xl border ${sub.borderColor} bg-gradient-to-br ${sub.bgColor} p-5 sm:p-6`}>
+                  <div className={`absolute -top-8 -right-8 w-32 h-32 bg-gradient-to-br ${sub.color} opacity-25 rounded-full blur-3xl`} />
 
-                  <div className={`relative w-12 h-12 rounded-2xl bg-gradient-to-br ${sub.color} flex items-center justify-center shadow-lg mb-4 ring-1 ring-white/20`}>
+                  <div className={`relative w-12 h-12 rounded-2xl bg-gradient-to-br ${sub.color} flex items-center justify-center shadow-xl mb-4 ring-1 ring-white/20`}>
                     <Icon className="w-6 h-6 text-white" />
                   </div>
 
-                  <h3 className="relative text-white font-black text-base mb-1.5">{sub.name}</h3>
+                  <h3 className="relative text-white font-black text-lg mb-1.5 tracking-wide">{sub.name}</h3>
                   <p className="relative text-white/60 text-xs leading-relaxed mb-4">{sub.description}</p>
 
                   <ul className="relative space-y-1.5">
-                    {sub.features.map((f) => (
+                    {sub.features.slice(0, 3).map((f) => (
                       <li key={f} className="flex items-start gap-2 text-xs">
                         <Check className="w-3 h-3 text-green-400 flex-shrink-0 mt-0.5" />
                         <span className="text-white/75">{f}</span>
@@ -153,26 +185,32 @@ export function ProductShowcase({ product }: Props) {
               );
             })}
           </div>
+
+          {/* ── SECCIONES DEEP estilo banner (1 por sub-producto) ── */}
+          <div className="space-y-6 pt-2">
+            {product.subProducts.map((sub) => (
+              sub.deep ? <YFAutoClipDeepSections key={sub.name} subProduct={sub} /> : null
+            ))}
+          </div>
         </div>
       )}
 
-      {/* ── BENEFICIOS ── */}
-      <div className="glass-card rounded-2xl border border-white/10 p-5 sm:p-6">
-        <div className="text-center mb-5">
-          <h2 className="text-xl sm:text-2xl font-black text-white">
-            ¿Por qué usar <span className={product.textAccent}>{product.shortName ?? product.name}</span>?
-          </h2>
-          <p className="text-white/45 text-xs mt-1">Diseñado por creadores, para creadores serios.</p>
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-          {product.benefits.map((b) => {
+      {/* ═══════════════════════════════════════════════════════════
+         BENEFICIOS GLOBALES — 4 columnas (Productividad / Velocidad / Impacto / Resultados)
+         ═══════════════════════════════════════════════════════════ */}
+      <div className="glass-card relative overflow-hidden rounded-3xl border border-white/10 p-6 sm:p-8">
+        <div className="absolute -top-20 -right-20 w-72 h-72 bg-gradient-to-br from-violet-500 to-purple-600 opacity-15 rounded-full blur-3xl float-slow" />
+
+        <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
+          {product.benefits.slice(0, 4).map((b) => {
             const Icon = b.icon;
             return (
-              <div key={b.title} className="bg-white/3 border border-white/8 rounded-xl p-4 hover:bg-white/5 transition-colors">
-                <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${product.gradient} flex items-center justify-center mb-2 opacity-90`}>
-                  <Icon className="w-4 h-4 text-white" />
+              <div key={b.title} className="text-center">
+                <div className={`w-12 h-12 mx-auto rounded-2xl bg-gradient-to-br ${product.gradient} flex items-center justify-center shadow-xl mb-3 ring-1 ring-white/20`}>
+                  <Icon className="w-6 h-6 text-white" />
                 </div>
-                <h3 className="text-white font-bold text-sm mb-0.5">{b.title}</h3>
+                <p className="text-violet-400 font-black text-2xl sm:text-3xl tracking-tighter">+</p>
+                <h3 className="text-white font-black text-xs sm:text-sm uppercase tracking-wider mb-1">{b.title}</h3>
                 <p className="text-white/45 text-[11px] leading-snug">{b.description}</p>
               </div>
             );
