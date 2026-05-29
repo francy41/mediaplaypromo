@@ -9,7 +9,7 @@ import {
   ShoppingBag, Zap, Scale, Bell, Settings, ChevronLeft,
   ChevronRight, Globe, MessageSquare, Star, Shield,
   Video, Film, Mic, Image, BookOpen, Layout, ChevronDown, GalleryHorizontal,
-  Bot, Filter, Mail, CalendarClock, Briefcase, Sparkles, Palette, Radio
+  Bot, Filter, Mail, CalendarClock, Briefcase, Sparkles, Palette, Radio, Layers
 } from "lucide-react";
 
 const mainNav = [
@@ -172,6 +172,7 @@ export function Sidebar() {
             )}
             {[
               { label: "Control Hub",        href: "/admin",            icon: Star,    iconBg: "bg-fuchsia-500/20", iconColor: "text-fuchsia-400" },
+              { label: "Batch Generator",    href: "/admin/batch",      icon: Layers,  iconBg: "bg-fuchsia-500/20", iconColor: "text-fuchsia-300" },
               { label: "Categorías",         href: "/admin/categories", icon: Settings, iconBg: "bg-orange-500/20", iconColor: "text-orange-400" },
               { label: "Banners",            href: "/admin/banners",    icon: GalleryHorizontal, iconBg: "bg-cyan-500/20", iconColor: "text-cyan-400" },
               { label: "Usuarios",           href: "/admin/users",      icon: Users,    iconBg: "bg-blue-500/20",   iconColor: "text-blue-400" },

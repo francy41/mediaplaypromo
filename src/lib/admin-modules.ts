@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   LayoutGrid, Image as ImageIcon, Users, ShoppingBag, UserCheck, Globe,
   CreditCard, Sparkles, Film, FolderTree, BarChart3, Settings, Shield, Bell,
-  Database, Mail, Bot, FileText, Palette, Activity, Server, Lock
+  Database, Mail, Bot, FileText, Palette, Activity, Server, Lock, Layers
 } from "lucide-react";
 
 export interface AdminModule {
@@ -26,6 +26,9 @@ export const ADMIN_MODULES: AdminModule[] = [
   { id: "banners", title: "Banners Homepage", description: "Editor del hero slider", href: "/admin/banners",
     icon: ImageIcon, group: "Contenido", iconBg: "bg-cyan-500/15", iconText: "text-cyan-400",
     status: "live", kpi: { label: "Activos", value: 6 } },
+  { id: "batch", title: "Batch AI Generator", description: "Generación masiva de videos/imágenes — 50% margen", href: "/admin/batch",
+    icon: Layers, group: "Contenido", iconBg: "bg-fuchsia-500/15", iconText: "text-fuchsia-400",
+    status: "live", kpi: { label: "Margen", value: "50%" } },
   { id: "homepage", title: "Page Builder", description: "Edita secciones del homepage", href: "/admin/homepage",
     icon: LayoutGrid, group: "Contenido", iconBg: "bg-violet-500/15", iconText: "text-violet-400",
     status: "beta", kpi: { label: "Secciones", value: 7 } },
