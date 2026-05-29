@@ -7,6 +7,7 @@ import HeroBannerSlider from "@/components/HeroBannerSlider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTheme } from "@/lib/theme-context";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { PricingPlans } from "@/components/PricingPlans";
 
 function CategorySidebar({ onItemClick }: { onItemClick?: () => void }) {
   const cats = CATEGORIES.filter((c) => c.enabled);
@@ -317,16 +318,35 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* ─── Pricing Plans (con margen 50% admin) ─── */}
+        <section className="bg-gradient-to-b from-transparent via-white/[0.02] to-transparent border-y border-white/8">
+          <div className="text-center pt-12 sm:pt-16 px-4">
+            <div className="inline-flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/20 rounded-full px-3 py-1 text-[11px] sm:text-xs text-cyan-400 mb-4 font-bold tracking-wider uppercase">
+              <Sparkles className="w-3 h-3" /> Planes y precios
+            </div>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight mb-3 max-w-3xl mx-auto">
+              Acceso completo desde{" "}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">€29/mes</span>
+            </h2>
+            <p className="text-white/55 text-sm sm:text-base max-w-2xl mx-auto">
+              Generación de videos e imágenes con IA, marca blanca, afiliados — todo incluido.
+              <br />
+              <span className="text-white/45 text-xs">Cancela cuando quieras. Garantía de 30 días.</span>
+            </p>
+          </div>
+          <PricingPlans embedded showMargin />
+        </section>
+
         {/* CTA */}
-        <section className="px-4 sm:px-6 lg:px-8 pb-16 sm:pb-20 lg:pb-24 max-w-3xl mx-auto text-center">
+        <section className="px-4 sm:px-6 lg:px-8 pb-16 sm:pb-20 lg:pb-24 pt-12 max-w-3xl mx-auto text-center">
           <div className="bg-gradient-to-br from-cyan-500/10 to-blue-600/10 border border-cyan-500/20 rounded-2xl p-7 sm:p-10">
-            <h2 className="text-2xl sm:text-3xl font-black mb-3">Empieza gratis hoy</h2>
-            <p className="text-white/50 mb-6 text-sm sm:text-base">Sin tarjeta de crédito. Sin compromisos. Solo resultados.</p>
+            <h2 className="text-2xl sm:text-3xl font-black mb-3">Empieza hoy mismo</h2>
+            <p className="text-white/50 mb-6 text-sm sm:text-base">Activación inmediata. Cancela cuando quieras. Sin permanencia.</p>
             <Link
-              href="/register"
+              href="/pricing"
               className="inline-flex items-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-black font-bold px-6 sm:px-8 py-3 sm:py-3.5 rounded-xl transition-colors text-sm"
             >
-              Crear cuenta gratis <ArrowRight className="w-4 h-4" />
+              Ver todos los planes <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </section>

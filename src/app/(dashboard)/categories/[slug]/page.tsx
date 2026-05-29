@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { CATEGORIES, getCategoryBySlug } from "@/lib/categories";
 import { AIPlayground } from "@/components/ai/AIPlayground";
+import { PaywallGate } from "@/components/PaywallGate";
 
 // Mapa slug → tipo de playground a embeber
 const PLAYGROUND_BY_SLUG: Record<string, "image" | "video"> = {
@@ -115,17 +116,19 @@ export default function CategoryPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* ── AI Playground (solo en categorías con generador) ── */}
+      {/* ── AI Playground (gated por paywall — solo planes de pago + SuperAdmin) ── */}
       {PLAYGROUND_BY_SLUG[slug] && (
-        <AIPlayground
-          kind={PLAYGROUND_BY_SLUG[slug]}
-          gradient={cat.gradient}
-          defaultModel={
-            PLAYGROUND_BY_SLUG[slug] === "video"
-              ? "wan2.2-5b-fast-t2v"          // Wan 2.2 5B Fast — $0.02 por video (más barato)
-              : "flux-schnell-image"          // Flux Schnell — $0.003 por imagen
-          }
-        />
+        <PaywallGate feature={PLAYGROUND_BY_SLUG[slug] === "video" ? "el Generador de Video IA" : "el Generador de Imagen IA"}>
+          <AIPlayground
+            kind={PLAYGROUND_BY_SLUG[slug]}
+            gradient={cat.gradient}
+            defaultModel={
+              PLAYGROUND_BY_SLUG[slug] === "video"
+                ? "wan2.2-5b-fast-t2v"          // Wan 2.2 5B Fast — $0.02 por video (más barato)
+                : "flux-schnell-image"          // Flux Schnell — $0.003 por imagen
+            }
+          />
+        </PaywallGate>
       )}
 
       {/* ── Tools Grid ── */}
