@@ -65,6 +65,7 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
   const [height, setHeight] = useState(1024);
   const [duration, setDuration] = useState(5);
   const [aspect, setAspect] = useState("16:9");
+  const [resolution, setResolution] = useState("720p");
 
   const [jobs, setJobs] = useState<Job[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -132,6 +133,7 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
     } else {
       shared.duration = duration;
       shared.aspect_ratio = aspect;
+      shared.resolution = resolution;
     }
 
     try {
@@ -355,53 +357,106 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
         )}
       </div>
 
-      {/* Quantity + Params */}
-      <div className={`grid gap-3 ${kind === "image" ? "grid-cols-3" : "grid-cols-3"}`}>
-        <div>
-          <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Cantidad</label>
-          <select value={quantity} onChange={(e) => setQuantity(+e.target.value)} disabled={isWorking}
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/40 disabled:opacity-50">
-            {[1, 2, 3, 5, 10].map((n) => <option key={n} value={n} className="bg-[#0f1219]">{n}</option>)}
-          </select>
+      {/* Cantidad — pills visuales grandes */}
+      <div>
+        <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">
+          Cantidad · ¿Cuántos {kind === "video" ? "videos" : "imágenes"} quieres?
+        </label>
+        <div className="grid grid-cols-6 gap-1.5">
+          {[1, 2, 3, 5, 10, 20].map((n) => (
+            <button
+              key={n}
+              onClick={() => setQuantity(n)}
+              disabled={isWorking}
+              className={`px-2 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50 ${
+                quantity === n
+                  ? `bg-gradient-to-r ${gradient} text-white shadow-lg ring-1 ring-white/20`
+                  : "bg-white/5 border border-white/10 text-white/65 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              {n}
+            </button>
+          ))}
         </div>
-        {kind === "image" ? (
-          <>
-            <div>
-              <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Ancho</label>
-              <select value={width} onChange={(e) => setWidth(+e.target.value)} disabled={isWorking}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/40 disabled:opacity-50">
-                {[512, 768, 1024, 1536, 2048].map((n) => <option key={n} value={n} className="bg-[#0f1219]">{n}px</option>)}
-              </select>
+      </div>
+
+      {kind === "video" ? (
+        <>
+          {/* Formato — Aspect ratio con iconos visuales */}
+          <div>
+            <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">
+              Formato · Orientación del video
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { v: "16:9", label: "Horizontal", desc: "YouTube, TV", w: 28, h: 16 },
+                { v: "9:16", label: "Vertical",   desc: "TikTok, Reels", w: 16, h: 28 },
+                { v: "1:1",  label: "Cuadrado",   desc: "Instagram", w: 22, h: 22 },
+              ].map((opt) => (
+                <button
+                  key={opt.v}
+                  onClick={() => setAspect(opt.v)}
+                  disabled={isWorking}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all disabled:opacity-50 ${
+                    aspect === opt.v
+                      ? `bg-gradient-to-br ${gradient} bg-opacity-20 border-white/30 ring-2 ring-white/15`
+                      : "bg-white/5 border-white/10 hover:bg-white/10"
+                  }`}
+                >
+                  <div
+                    style={{ width: `${opt.w}px`, height: `${opt.h}px` }}
+                    className={`rounded-md ${
+                      aspect === opt.v ? "bg-white" : "bg-white/30 border border-white/40"
+                    }`}
+                  />
+                  <div className="text-center">
+                    <p className={`text-[11px] font-bold ${aspect === opt.v ? "text-white" : "text-white/80"}`}>{opt.label}</p>
+                    <p className="text-white/40 text-[9px]">{opt.v}</p>
+                    <p className="text-white/30 text-[9px]">{opt.desc}</p>
+                  </div>
+                </button>
+              ))}
             </div>
-            <div>
-              <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Alto</label>
-              <select value={height} onChange={(e) => setHeight(+e.target.value)} disabled={isWorking}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/40 disabled:opacity-50">
-                {[512, 768, 1024, 1536, 2048].map((n) => <option key={n} value={n} className="bg-[#0f1219]">{n}px</option>)}
-              </select>
-            </div>
-          </>
-        ) : (
-          <>
+          </div>
+
+          {/* Duración + Resolución */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Duración</label>
               <select value={duration} onChange={(e) => setDuration(+e.target.value)} disabled={isWorking}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/40 disabled:opacity-50">
-                {[3, 5, 10, 15, 30].map((n) => <option key={n} value={n} className="bg-[#0f1219]">{n} seg</option>)}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/40 disabled:opacity-50">
+                {[3, 5, 6, 8, 10, 15, 30].map((n) => <option key={n} value={n} className="bg-[#0f1219]">{n} segundos</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Aspect</label>
-              <select value={aspect} onChange={(e) => setAspect(e.target.value)} disabled={isWorking}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500/40 disabled:opacity-50">
-                <option value="16:9" className="bg-[#0f1219]">16:9 horizontal</option>
-                <option value="9:16" className="bg-[#0f1219]">9:16 vertical</option>
-                <option value="1:1"  className="bg-[#0f1219]">1:1 cuadrado</option>
+              <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Calidad (resolución)</label>
+              <select value={resolution} onChange={(e) => setResolution(e.target.value)} disabled={isWorking}
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/40 disabled:opacity-50">
+                <option value="480p"  className="bg-[#0f1219]">480p · Estándar (más rápido)</option>
+                <option value="720p"  className="bg-[#0f1219]">720p · HD (equilibrado)</option>
+                <option value="1080p" className="bg-[#0f1219]">1080p · Full HD (premium)</option>
               </select>
             </div>
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Ancho</label>
+            <select value={width} onChange={(e) => setWidth(+e.target.value)} disabled={isWorking}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/40 disabled:opacity-50">
+              {[512, 768, 1024, 1536, 2048].map((n) => <option key={n} value={n} className="bg-[#0f1219]">{n}px</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Alto</label>
+            <select value={height} onChange={(e) => setHeight(+e.target.value)} disabled={isWorking}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/40 disabled:opacity-50">
+              {[512, 768, 1024, 1536, 2048].map((n) => <option key={n} value={n} className="bg-[#0f1219]">{n}px</option>)}
+            </select>
+          </div>
+        </div>
+      )}
 
       {/* Folder picker */}
       <div className="flex items-center gap-2 flex-wrap">
@@ -529,7 +584,7 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {jobs.map((job) => (
               <JobCard key={job.index} job={job} kind={kind} gradient={gradient} prompt={prompt} />
             ))}
@@ -604,7 +659,15 @@ function JobCard({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={output} alt={`Generated ${job.index + 1}`} className="w-full h-full object-cover" />
           ) : (
-            <video src={output} controls className="w-full h-full object-cover bg-black" />
+            <video
+              src={output}
+              controls
+              preload="auto"
+              playsInline
+              muted
+              loop
+              className="w-full h-full object-cover bg-black"
+            />
           )
         ) : isFailed ? (
           <div className="text-center p-4">
