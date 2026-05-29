@@ -77,8 +77,19 @@ export function YFAutoClipDeepSections({ subProduct }: Props) {
   const t = THEME_STYLES[deep.theme];
   const Icon = subProduct.icon;
 
+  // Mapeo de tema → color de fondo base (para style inline que protege del light-mode flip)
+  const bgBase = {
+    blue:   "#070d1f",
+    red:    "#1a0606",
+    purple: "#0d0620",
+    orange: "#1a0a04",
+  }[deep.theme];
+
   return (
-    <section className={`relative overflow-hidden rounded-3xl border ${t.iconBoxBorder} bg-gradient-to-br ${t.bgGradient}`}>
+    <section
+      className={`cinematic-dark relative overflow-hidden rounded-3xl border ${t.iconBoxBorder} bg-gradient-to-br ${t.bgGradient}`}
+      style={{ backgroundColor: bgBase, color: "white" }}
+    >
       {/* Decorative orbs */}
       <div className={`absolute -top-32 -right-32 w-96 h-96 ${t.glowOrb} rounded-full blur-3xl pointer-events-none float-slow`} />
       <div className={`absolute -bottom-32 -left-32 w-80 h-80 ${t.glowOrb2} rounded-full blur-3xl pointer-events-none float-soft`} />

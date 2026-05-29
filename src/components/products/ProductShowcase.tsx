@@ -41,7 +41,9 @@ export function ProductShowcase({ product }: Props) {
          HERO PRINCIPAL — estilo banner cinemático
          "CREA. EDITA. TRANSFORMA. DOMINA TU CONTENIDO."
          ═══════════════════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden rounded-3xl border border-violet-500/40 bg-gradient-to-br from-[#0d0620] via-[#1c0a3a] to-[#08041a]">
+      <section className="cinematic-dark relative overflow-hidden rounded-3xl border border-violet-500/40 bg-gradient-to-br from-[#0d0620] via-[#1c0a3a] to-[#08041a]"
+        style={{ backgroundColor: "#0d0620", color: "white" }}
+      >
         {/* Orbs decorativos */}
         <div className="absolute -top-32 -right-32 w-96 h-96 bg-gradient-to-br from-violet-500 to-fuchsia-600 opacity-30 rounded-full blur-3xl pointer-events-none float-slow" />
         <div className="absolute top-1/3 -left-20 w-80 h-80 bg-gradient-to-br from-cyan-500 to-blue-600 opacity-20 rounded-full blur-3xl pointer-events-none float-soft" />

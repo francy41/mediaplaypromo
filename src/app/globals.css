@@ -429,3 +429,87 @@ body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: contain;
 /* Safe-area insets helper */
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0); }
 .safe-top    { padding-top: env(safe-area-inset-top, 0); }
+
+/* ─────────────────────────────────────────────
+   🎬 CINEMATIC DARK SECTIONS
+   Secciones que SIEMPRE deben verse en dark theme,
+   independientemente de si el usuario tiene modo claro.
+   (Hero de YF AUTO CLIP, deep sections con backgrounds oscuros)
+   ───────────────────────────────────────────── */
+
+/* Fondo siempre oscuro: anula las reglas del light mode que ponen blanco */
+:root[data-theme="light"] .cinematic-dark,
+:root[data-theme="light"] .cinematic-dark [class*="bg-[#"],
+:root[data-theme="light"] .cinematic-dark [class*="from-[#"],
+:root[data-theme="light"] .cinematic-dark [class*="via-[#"],
+:root[data-theme="light"] .cinematic-dark [class*="to-[#"] {
+  /* Anular forzados de fondo blanco del light mode */
+  background-color: transparent !important;
+}
+
+/* Texto blanco siempre visible (anula flip a slate oscuro) */
+:root[data-theme="light"] .cinematic-dark .text-white,
+:root[data-theme="light"] .cinematic-dark .text-white\/85,
+:root[data-theme="light"] .cinematic-dark .text-white\/80,
+:root[data-theme="light"] .cinematic-dark .text-white\/75,
+:root[data-theme="light"] .cinematic-dark .text-white\/70 {
+  color: #ffffff !important;
+}
+
+:root[data-theme="light"] .cinematic-dark .text-white\/65,
+:root[data-theme="light"] .cinematic-dark .text-white\/60,
+:root[data-theme="light"] .cinematic-dark .text-white\/55,
+:root[data-theme="light"] .cinematic-dark .text-white\/50 {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+:root[data-theme="light"] .cinematic-dark .text-white\/45,
+:root[data-theme="light"] .cinematic-dark .text-white\/40,
+:root[data-theme="light"] .cinematic-dark .text-white\/35,
+:root[data-theme="light"] .cinematic-dark .text-white\/30 {
+  color: rgba(255, 255, 255, 0.55) !important;
+}
+
+:root[data-theme="light"] .cinematic-dark .text-white\/25,
+:root[data-theme="light"] .cinematic-dark .text-white\/20 {
+  color: rgba(255, 255, 255, 0.35) !important;
+}
+
+/* Borders/bg translúcidos blancos: mantenerlos */
+:root[data-theme="light"] .cinematic-dark [class*="border-white\\/"] {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+:root[data-theme="light"] .cinematic-dark .bg-white\/5,
+:root[data-theme="light"] .cinematic-dark .bg-white\/8,
+:root[data-theme="light"] .cinematic-dark .bg-white\/10,
+:root[data-theme="light"] .cinematic-dark .bg-white\/15,
+:root[data-theme="light"] .cinematic-dark .bg-white\/20,
+:root[data-theme="light"] .cinematic-dark .bg-white\/\[0\.02\],
+:root[data-theme="light"] .cinematic-dark .bg-white\/\[0\.03\],
+:root[data-theme="light"] .cinematic-dark .bg-white\/\[0\.04\],
+:root[data-theme="light"] .cinematic-dark .bg-white\/\[0\.05\],
+:root[data-theme="light"] .cinematic-dark .bg-white\/\[0\.06\] {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Glass-card dentro de cinematic: oscuro siempre */
+:root[data-theme="light"] .cinematic-dark .glass-card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)) !important;
+  border-color: rgba(255,255,255,0.1) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08) !important;
+}
+
+/* Forzar fondos hexadecimales oscuros específicos a permanecer oscuros */
+:root[data-theme="light"] .cinematic-dark.bg-\[\#070d1f\],
+:root[data-theme="light"] .cinematic-dark.bg-\[\#0d0620\],
+:root[data-theme="light"] .cinematic-dark.bg-\[\#1a0606\] {
+  background-color: var(--orig-bg, #0a0c10) !important;
+}
+
+/* Las gradientes hexadecimales deben mantenerse oscuras */
+:root[data-theme="light"] .cinematic-dark [class*="from-[\\#"][class*="0d0620"],
+:root[data-theme="light"] .cinematic-dark [class*="from-[\\#"][class*="070d1f"],
+:root[data-theme="light"] .cinematic-dark [class*="from-[\\#"][class*="1a0606"] {
+  --tw-gradient-from: #0d0620 !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
