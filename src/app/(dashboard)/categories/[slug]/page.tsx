@@ -56,6 +56,11 @@ export default function CategoryPage({ params }: PageProps) {
   const { byCategory } = useStats();
   const categoryCount = byCategory[slug] ?? 0;
 
+  // Productos a la venta en esta categoría
+  const products = productsByCategory(slug);
+  // Si hay producto destacado, mostramos SOLO ese producto (no playground/tabla/tools)
+  const hasProduct = products.length > 0;
+
   const relatedCategories = CATEGORIES
     .filter(c => c.slug !== slug && c.enabled)
     .slice(0, 4);
@@ -122,23 +127,8 @@ export default function CategoryPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* ── AI Playground (gated por paywall — solo planes de pago + SuperAdmin) ── */}
-      {PLAYGROUND_BY_SLUG[slug] && (
-        <PaywallGate feature={PLAYGROUND_BY_SLUG[slug] === "video" ? "el Generador de Video IA" : "el Generador de Imagen IA"}>
-          <AIPlayground
-            kind={PLAYGROUND_BY_SLUG[slug]}
-            gradient={cat.gradient}
-            defaultModel={
-              PLAYGROUND_BY_SLUG[slug] === "video"
-                ? "wan2.2-5b-fast-t2v"          // Wan 2.2 5B Fast — $0.02 por video (más barato)
-                : "flux-schnell-image"          // Flux Schnell — $0.003 por imagen
-            }
-          />
-        </PaywallGate>
-      )}
-
-      {/* ── 🛍️ PRODUCTOS A LA VENTA en esta categoría ── */}
-      {productsByCategory(slug).map((product) => (
+      {/* ── 🛍️ PRODUCTOS A LA VENTA (tienen prioridad: si hay producto, NO se muestra playground/tabla/tools) ── */}
+      {products.map((product) => (
         <div key={product.id} className="pt-2">
           <div className="text-center mb-5">
             <div className="inline-flex items-center gap-2 bg-gradient-to-r from-violet-500/15 to-fuchsia-500/15 border border-violet-500/30 rounded-full px-3 py-1 text-[10px] sm:text-[11px] font-black uppercase tracking-[0.18em] text-violet-300 mb-2">
@@ -149,8 +139,23 @@ export default function CategoryPage({ params }: PageProps) {
         </div>
       ))}
 
-      {/* ── Tabla de precios por modelo (visible para todos los usuarios en categorías de video) ── */}
-      {PLAYGROUND_BY_SLUG[slug] === "video" && (
+      {/* ── AI Playground (solo si NO hay producto) ── */}
+      {!hasProduct && PLAYGROUND_BY_SLUG[slug] && (
+        <PaywallGate feature={PLAYGROUND_BY_SLUG[slug] === "video" ? "el Generador de Video IA" : "el Generador de Imagen IA"}>
+          <AIPlayground
+            kind={PLAYGROUND_BY_SLUG[slug]}
+            gradient={cat.gradient}
+            defaultModel={
+              PLAYGROUND_BY_SLUG[slug] === "video"
+                ? "wan2.2-5b-fast-t2v"
+                : "flux-schnell-image"
+            }
+          />
+        </PaywallGate>
+      )}
+
+      {/* ── Tabla de precios por modelo (solo si NO hay producto) ── */}
+      {!hasProduct && PLAYGROUND_BY_SLUG[slug] === "video" && (
         <div className="glass-card rounded-3xl border border-white/10 p-4 sm:p-6">
           <div className="text-center mb-5">
             <div className="inline-flex items-center gap-2 bg-fuchsia-500/10 border border-fuchsia-500/20 rounded-full px-3 py-1 text-[10px] sm:text-[11px] text-fuchsia-400 mb-3 font-bold tracking-wider uppercase">
@@ -163,7 +168,8 @@ export default function CategoryPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* ── Tools Grid ── */}
+      {/* ── Tools Grid (solo si NO hay producto destacado) ── */}
+      {!hasProduct && (
       <div>
         <h2 className="text-white font-bold text-lg mb-4">
           Herramientas disponibles
@@ -202,9 +208,10 @@ export default function CategoryPage({ params }: PageProps) {
           ))}
         </div>
       </div>
+      )}
 
-      {/* ── Editor de Video: Why + How (solo en editor-video) ── */}
-      {slug === "editor-video" && (
+      {/* ── Editor de Video: Why + How (solo en editor-video Y si no hay producto) ── */}
+      {!hasProduct && slug === "editor-video" && (
         <>
           <div>
             <div className="text-center mb-6">
@@ -251,7 +258,8 @@ export default function CategoryPage({ params }: PageProps) {
         </>
       )}
 
-      {/* ── Features + Testimonials ── */}
+      {/* ── Features + Testimonials (solo si NO hay producto) ── */}
+      {!hasProduct && (
       <div className="grid grid-cols-2 gap-5">
         {/* Features */}
         <div className="bg-[#0f1219] border border-white/8 rounded-2xl p-6">
@@ -293,6 +301,7 @@ export default function CategoryPage({ params }: PageProps) {
           </div>
         </div>
       </div>
+      )}
 
       {/* ── Related Categories ── */}
       <div>

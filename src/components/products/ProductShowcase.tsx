@@ -164,85 +164,111 @@ export function ProductShowcase({ product }: Props) {
         </div>
       </div>
 
-      {/* ── 6 PAQUETES DE PRECIOS ── */}
+      {/* ── 3 PLANES DE SUSCRIPCIÓN ── */}
       <div id="prices" className="space-y-4 pt-2">
         <div className="text-center">
           <div className="inline-flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/20 rounded-full px-3 py-1 text-[11px] sm:text-xs text-cyan-400 mb-3 font-bold tracking-wider uppercase">
-            <Crown className="w-3 h-3" /> 6 paquetes disponibles
+            <Crown className="w-3 h-3" /> 3 planes · Elige el tuyo
           </div>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white">
-            Elige tu <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">licencia perfecta</span>
+            Acceso completo desde{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">
+              €{Math.min(...product.prices.map((p) => p.monthlyEquivalent ?? p.price)).toFixed(2)}/mes
+            </span>
           </h2>
           <p className="text-white/55 text-sm mt-2 max-w-2xl mx-auto">
-            Compra solo lo que necesitas. Desde licencias individuales hasta el pack completo o licencia de agencia.
+            Las 3 herramientas incluidas en todos los planes. Cuanto más largo el plazo, más ahorras.
           </p>
         </div>
 
-        {/* Grid 3 cols × 2 rows */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Grid 3 cols × 1 row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5 max-w-5xl mx-auto">
           {product.prices.map((tier) => {
-            const isSelected = selectedPriceId === tier.id;
             const discount = tier.originalPrice
               ? Math.round(((tier.originalPrice - tier.price) / tier.originalPrice) * 100)
               : 0;
+            const isPopular = tier.popular;
 
             return (
               <div
                 key={tier.id}
                 onClick={() => setSelectedPriceId(tier.id)}
-                className={`glass-card hover-lift relative overflow-hidden rounded-2xl border-2 p-5 cursor-pointer transition-all ${
-                  tier.popular
-                    ? `${product.borderColor} shadow-2xl shadow-violet-500/20 ring-1 ring-violet-500/30`
-                    : isSelected
-                      ? "border-white/30 ring-1 ring-white/20"
-                      : "border-white/10"
+                className={`glass-card hover-lift relative overflow-hidden rounded-3xl border-2 p-5 sm:p-6 cursor-pointer transition-all ${
+                  isPopular
+                    ? `${product.borderColor} shadow-2xl shadow-violet-500/30 ring-2 ring-violet-500/40 scale-100 md:scale-105`
+                    : "border-white/10"
                 }`}
               >
-                {tier.popular && (
-                  <div className={`absolute top-0 left-1/2 -translate-x-1/2 bg-gradient-to-r ${product.gradient} text-white text-[9px] font-black px-3 py-1 rounded-b-lg uppercase tracking-widest`}>
-                    ⭐ MÁS POPULAR
+                {tier.badge && (
+                  <div className={`absolute top-0 left-1/2 -translate-x-1/2 ${
+                    isPopular
+                      ? `bg-gradient-to-r ${product.gradient}`
+                      : "bg-green-500"
+                  } text-white text-[9px] font-black px-3 py-1 rounded-b-lg uppercase tracking-widest`}>
+                    {tier.badge}
                   </div>
                 )}
-                {tier.bestDeal && !tier.popular && (
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-green-500 text-white text-[9px] font-black px-3 py-1 rounded-b-lg uppercase tracking-widest">
-                    🔥 MEJOR PRECIO
+
+                <div className={`absolute -top-8 -right-8 w-32 h-32 bg-gradient-to-br ${product.gradient} opacity-15 rounded-full blur-3xl pointer-events-none float-soft`} />
+
+                <div className="relative pt-3">
+                  {/* Nombre + periodo */}
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className={`font-black text-xl ${isPopular ? product.textAccent : "text-white"}`}>{tier.name}</h3>
                   </div>
-                )}
+                  <p className="text-white/45 text-xs mb-5 leading-snug">{tier.description}</p>
 
-                <div className={`absolute -top-6 -right-6 w-24 h-24 bg-gradient-to-br ${product.gradient} opacity-15 rounded-full blur-2xl pointer-events-none`} />
+                  {/* Precio principal */}
+                  <div className="mb-4">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-white font-black text-5xl">€{tier.price}</span>
+                      <span className="text-white/40 text-sm">{tier.periodLabel}</span>
+                    </div>
 
-                <div className="relative">
-                  <h3 className="text-white font-black text-lg">{tier.name}</h3>
-                  <p className="text-white/45 text-xs mt-0.5 mb-4 leading-snug">{tier.description}</p>
-
-                  <div className="flex items-baseline gap-2 mb-1">
-                    <span className="text-white font-black text-4xl">€{tier.price}</span>
+                    {/* Precio original tachado + descuento */}
                     {tier.originalPrice && (
-                      <span className="text-white/30 text-sm line-through">€{tier.originalPrice}</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-white/30 text-sm line-through">€{tier.originalPrice}</span>
+                        {discount > 0 && (
+                          <span className="bg-green-500/15 border border-green-500/30 text-green-400 text-[10px] font-black px-2 py-0.5 rounded-full">
+                            -{discount}%
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Equivalente mensual (siempre visible) */}
+                    {tier.monthlyEquivalent && tier.billingPeriod !== "monthly" && (
+                      <div className="mt-3 bg-white/5 border border-white/10 rounded-lg p-2.5">
+                        <p className="text-white/55 text-[10px] font-bold uppercase tracking-wider">Equivale a</p>
+                        <p className="text-white font-black text-lg">
+                          €{tier.monthlyEquivalent.toFixed(2)} <span className="text-white/40 text-xs font-normal">/mes</span>
+                        </p>
+                      </div>
                     )}
                   </div>
-                  {discount > 0 && (
-                    <p className="text-green-400 text-xs font-bold mb-3">Ahorras un {discount}%</p>
-                  )}
-                  <p className="text-white/35 text-[10px] mb-4">Pago único · Sin suscripciones</p>
 
+                  {/* CTA Comprar */}
                   <button
                     onClick={(e) => { e.stopPropagation(); handleBuy(tier.id); }}
-                    className={`shine-btn w-full inline-flex items-center justify-center gap-1.5 ${
-                      tier.popular || tier.bestDeal
-                        ? `bg-gradient-to-r ${product.gradient} text-white shadow-lg`
+                    className={`shine-btn w-full inline-flex items-center justify-center gap-2 ${
+                      isPopular
+                        ? `bg-gradient-to-r ${product.gradient} text-white shadow-xl ring-1 ring-white/20`
                         : "bg-white/10 hover:bg-white/15 text-white border border-white/15"
-                    } font-bold text-xs px-4 py-2.5 rounded-xl transition-all hover:-translate-y-0.5`}
+                    } font-bold text-sm px-4 py-3 rounded-xl transition-all hover:-translate-y-0.5`}
                   >
-                    <ShoppingCart className="w-3.5 h-3.5" />
+                    <ShoppingCart className="w-4 h-4" />
                     {tier.cta}
                   </button>
 
-                  <ul className="mt-4 space-y-1.5">
+                  {/* Lista features */}
+                  <ul className="mt-5 space-y-2 pt-4 border-t border-white/8">
                     {tier.features.map((f) => (
                       <li key={f} className="flex items-start gap-2 text-xs">
-                        <Check className="w-3 h-3 text-green-400 flex-shrink-0 mt-0.5" />
-                        <span className="text-white/70">{f}</span>
+                        <Check className={`w-3.5 h-3.5 flex-shrink-0 mt-0.5 ${
+                          isPopular ? "text-green-400" : "text-white/55"
+                        }`} />
+                        <span className="text-white/75">{f}</span>
                       </li>
                     ))}
                   </ul>

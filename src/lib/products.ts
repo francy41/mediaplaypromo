@@ -16,14 +16,22 @@ export interface PriceTier {
   id: string;
   name: string;
   description: string;
-  /** Precio en EUR */
+  /** Precio total del paquete en EUR */
   price: number;
   /** Precio original tachado (para mostrar descuento) */
   originalPrice?: number;
+  /** Periodo de facturación */
+  billingPeriod: "monthly" | "6months" | "yearly" | "lifetime";
+  /** Precio mensual equivalente (para comparativa visual) */
+  monthlyEquivalent?: number;
+  /** Etiqueta del periodo (ej: "/mes", "/6 meses", "/año") */
+  periodLabel: string;
   /** Plan destacado */
   popular?: boolean;
   /** Best deal — mejor opción */
   bestDeal?: boolean;
+  /** Badge texto custom (ej: "MÁS POPULAR", "AHORRO 40%") */
+  badge?: string;
   features: string[];
   cta: string;
   /** Stripe price id (mock por ahora) */
@@ -166,107 +174,74 @@ const YF_AUTO_CLIP: Product = {
     { label: "Soporte", value: "24/7" },
   ],
 
-  // ─── 6 paquetes de precios ───
+  // ─── 3 planes de suscripción: Mensual / Semestral / Anual ───
   prices: [
     {
-      id: "audio-replace-only",
-      name: "Audio Replace",
-      description: "Solo la herramienta de reemplazo de audio",
+      id: "monthly",
+      name: "Mensual",
+      description: "Empieza ya — máxima flexibilidad",
       price: 27,
-      cta: "Comprar Audio Replace",
-      features: [
-        "1 herramienta: Audio Replace",
-        "Licencia personal",
-        "Actualizaciones 1 año",
-        "Soporte por email",
-        "1 PC autorizado",
-      ],
-      stripePriceId: "price_yfauto_audio_27",
-    },
-    {
-      id: "clip-cutter-only",
-      name: "Clip Cutter",
-      description: "Solo la herramienta de corte de clips",
-      price: 27,
-      cta: "Comprar Clip Cutter",
-      features: [
-        "1 herramienta: Clip Cutter",
-        "Licencia personal",
-        "Actualizaciones 1 año",
-        "Soporte por email",
-        "1 PC autorizado",
-      ],
-      stripePriceId: "price_yfauto_cutter_27",
-    },
-    {
-      id: "format-converter-only",
-      name: "Format Converter",
-      description: "Solo la herramienta de conversión",
-      price: 27,
-      cta: "Comprar Format Converter",
-      features: [
-        "1 herramienta: Format Converter",
-        "Licencia personal",
-        "Actualizaciones 1 año",
-        "Soporte por email",
-        "1 PC autorizado",
-      ],
-      stripePriceId: "price_yfauto_converter_27",
-    },
-    {
-      id: "duo-pack",
-      name: "Pack Duo",
-      description: "Elige 2 de las 3 herramientas — ahorra €7",
-      price: 47,
-      originalPrice: 54,
-      cta: "Comprar Pack Duo",
-      features: [
-        "2 herramientas a elegir",
-        "Licencia personal",
-        "Actualizaciones 1 año",
-        "Soporte prioritario",
-        "1 PC autorizado",
-        "Ahorras €7 vs comprarlas por separado",
-      ],
-      stripePriceId: "price_yfauto_duo_47",
-    },
-    {
-      id: "complete-pack",
-      name: "Pack Completo",
-      description: "Las 3 herramientas + Bonus",
-      price: 67,
-      originalPrice: 81,
-      popular: true,
-      bestDeal: true,
-      cta: "Comprar Pack Completo",
+      billingPeriod: "monthly",
+      monthlyEquivalent: 27,
+      periodLabel: "/mes",
+      cta: "Empezar Mensual",
       features: [
         "✨ Las 3 herramientas YF AUTO CLIP",
-        "🎁 BONUS: 50 plantillas pro",
-        "Licencia personal + comercial",
-        "Actualizaciones DE POR VIDA",
-        "Soporte prioritario 24/7",
-        "2 PCs autorizados",
-        "Acceso a comunidad VIP Discord",
+        "Audio Replace + Clip Cutter + Format Converter",
+        "Actualizaciones incluidas",
+        "Soporte por email <24h",
+        "Cancela cuando quieras",
+        "1 PC autorizado",
       ],
-      stripePriceId: "price_yfauto_complete_67",
+      stripePriceId: "price_yfauto_monthly_27",
     },
     {
-      id: "agency-license",
-      name: "Agency License",
-      description: "Para agencias y revendedores",
-      price: 197,
-      cta: "Licencia Agencia",
+      id: "6months",
+      name: "Semestral",
+      description: "Ahorra €35 vs mensual — pago 6 meses",
+      price: 127,
+      originalPrice: 162,
+      billingPeriod: "6months",
+      monthlyEquivalent: 21.17,
+      periodLabel: "/6 meses",
+      badge: "AHORRO 22%",
+      cta: "Empezar Semestral",
       features: [
-        "Las 3 herramientas YF AUTO CLIP",
-        "💼 Licencia comercial completa",
-        "♾️ PCs ilimitados",
-        "Marca blanca (white-label)",
-        "Reventa permitida",
-        "Soporte dedicado",
-        "Onboarding 1-on-1 incluido",
-        "API access",
+        "✨ Las 3 herramientas YF AUTO CLIP",
+        "Actualizaciones incluidas",
+        "Soporte prioritario <12h",
+        "🎁 BONUS: 25 plantillas pro",
+        "2 PCs autorizados",
+        "Ahorras €35 vs plan mensual",
+        "Equivale a €21.17/mes",
       ],
-      stripePriceId: "price_yfauto_agency_197",
+      stripePriceId: "price_yfauto_6months_127",
+    },
+    {
+      id: "yearly",
+      name: "Anual",
+      description: "Mejor valor — ahorras €127/año",
+      price: 197,
+      originalPrice: 324,
+      billingPeriod: "yearly",
+      monthlyEquivalent: 16.42,
+      periodLabel: "/año",
+      popular: true,
+      bestDeal: true,
+      badge: "MÁS POPULAR · AHORRO 40%",
+      cta: "Empezar Anual",
+      features: [
+        "✨ Las 3 herramientas YF AUTO CLIP",
+        "Actualizaciones DE POR VIDA",
+        "Soporte prioritario 24/7",
+        "🎁 BONUS: 50 plantillas pro premium",
+        "🎁 BONUS: Acceso comunidad VIP Discord",
+        "3 PCs autorizados",
+        "Ahorras €127 vs plan mensual",
+        "Equivale a €16.42/mes",
+        "💼 Uso comercial incluido",
+      ],
+      stripePriceId: "price_yfauto_yearly_197",
     },
   ],
 };
