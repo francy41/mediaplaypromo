@@ -53,7 +53,8 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
   const families = Array.from(new Set(models.map((m) => m.category)));
 
   const [family, setFamily] = useState<string>(() => {
-    const def = defaultModel && models.find((m) => m.slug === defaultModel);
+    if (!defaultModel) return families[0];
+    const def = models.find((m) => m.slug === defaultModel);
     return def?.category ?? families[0];
   });
   const familyModels = models.filter((m) => m.category === family);
