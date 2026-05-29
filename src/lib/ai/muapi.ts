@@ -86,11 +86,15 @@ async function muapiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   try { body = text ? JSON.parse(text) : undefined; } catch { body = text; }
 
   if (!res.ok) {
-    const message = (body && typeof body === "object" && "error" in body)
-      ? String((body as { error: unknown }).error)
-      : (body && typeof body === "object" && "detail" in body)
-        ? String((body as { detail: unknown }).detail)
-        : `Muapi error ${res.status}`;
+    // Muapi puede devolver: {detail: {error: {code, message, topup_url, ...}}} o {error: "msg"}
+    const b = body as Record<string, unknown> | null | undefined;
+    const detail = b?.detail as Record<string, unknown> | string | undefined;
+    const detailErr = (detail && typeof detail === "object" ? (detail as Record<string, unknown>).error : undefined) as Record<string, unknown> | undefined;
+    const message =
+      (detailErr?.message as string | undefined) ??
+      (typeof detail === "string" ? detail : undefined) ??
+      (b?.error as string | undefined) ??
+      `Muapi error ${res.status}`;
     throw new MuapiError(res.status, message, body);
   }
 

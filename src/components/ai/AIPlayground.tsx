@@ -304,11 +304,27 @@ export function AIPlayground({
         <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-start gap-2.5">
           <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
           <div className="text-sm min-w-0 flex-1">
-            <p className="text-red-300 font-bold">Error</p>
+            <p className="text-red-300 font-bold">
+              {error.toLowerCase().includes("insufficient") || error.toLowerCase().includes("credit")
+                ? "Sin créditos en Muapi"
+                : "Error"}
+            </p>
             <p className="text-red-200/70 text-xs break-words">{error}</p>
-            <button onClick={reset} className="mt-2 inline-flex items-center gap-1 text-red-300 hover:text-red-200 text-xs font-semibold">
-              <RefreshCw className="w-3 h-3" /> Reintentar
-            </button>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button onClick={reset} className="inline-flex items-center gap-1 text-red-300 hover:text-red-200 text-xs font-semibold">
+                <RefreshCw className="w-3 h-3" /> Reintentar
+              </button>
+              {(error.toLowerCase().includes("insufficient") || error.toLowerCase().includes("credit")) && (
+                <a
+                  href="https://muapi.ai/topup"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 text-xs font-bold px-2.5 py-1 rounded-md border border-yellow-500/30 transition-colors"
+                >
+                  <Zap className="w-3 h-3" /> Recargar Muapi
+                </a>
+              )}
+            </div>
           </div>
         </div>
       )}
