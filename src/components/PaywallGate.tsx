@@ -11,8 +11,12 @@ interface Props {
   feature?: string;
 }
 
-/** Planes que dan acceso a la feature */
-const PAID_PLANS = new Set(["Pro", "Business", "Enterprise"]);
+/** Detecta planes de pago (acepta nuevos nombres "Pro Video", "Starter Video", etc.) */
+function isPaidPlan(plan?: string): boolean {
+  if (!plan) return false;
+  if (plan === "Enterprise") return true;
+  return /^(Starter|Pro|Business)/i.test(plan);
+}
 
 export function PaywallGate({ children, feature = "AI Generator" }: Props) {
   const { user } = useAuth();
@@ -23,7 +27,7 @@ export function PaywallGate({ children, feature = "AI Generator" }: Props) {
   }
 
   // Usuarios con plan de pago pasan
-  if (user?.plan && PAID_PLANS.has(user.plan)) {
+  if (isPaidPlan(user?.plan)) {
     return <>{children}</>;
   }
 
