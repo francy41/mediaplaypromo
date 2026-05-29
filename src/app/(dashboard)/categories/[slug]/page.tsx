@@ -10,6 +10,7 @@ import { CATEGORIES, getCategoryBySlug } from "@/lib/categories";
 import { AIPlayground } from "@/components/ai/AIPlayground";
 import { PaywallGate } from "@/components/PaywallGate";
 import { useStats, formatCount } from "@/lib/stats";
+import { VideoPricingTable } from "@/components/VideoPricingTable";
 
 // Mapa slug → tipo de playground a embeber
 const PLAYGROUND_BY_SLUG: Record<string, "image" | "video"> = {
@@ -132,6 +133,20 @@ export default function CategoryPage({ params }: PageProps) {
             }
           />
         </PaywallGate>
+      )}
+
+      {/* ── Tabla de precios por modelo (visible para todos los usuarios en categorías de video) ── */}
+      {PLAYGROUND_BY_SLUG[slug] === "video" && (
+        <div className="glass-card rounded-3xl border border-white/10 p-4 sm:p-6">
+          <div className="text-center mb-5">
+            <div className="inline-flex items-center gap-2 bg-fuchsia-500/10 border border-fuchsia-500/20 rounded-full px-3 py-1 text-[10px] sm:text-[11px] text-fuchsia-400 mb-3 font-bold tracking-wider uppercase">
+              💰 Precios y paquetes
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-white">Coste por video según modelo</h2>
+            <p className="text-white/45 text-xs sm:text-sm mt-1">17 modelos · desde €0.03 por video. Mira lo que cuesta cada paquete antes de generar.</p>
+          </div>
+          <VideoPricingTable embedded />
+        </div>
       )}
 
       {/* ── Tools Grid ── */}

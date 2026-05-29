@@ -10,6 +10,7 @@ import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend
 } from "recharts";
+import { VideoPricingTable } from "@/components/VideoPricingTable";
 
 // ── Mock data ─────────────────────────────────────────────────
 const kpis = [
@@ -193,6 +194,20 @@ export default function DashboardPage() {
             </BarChart>
           </ResponsiveContainer>
         </div>
+      </div>
+
+      {/* ── Tabla de precios por video (todos los usuarios) ── */}
+      <div className="glass-card rounded-2xl border border-white/10 p-4 sm:p-5">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <div>
+            <h3 className="text-white font-bold text-base">💰 Precios por video</h3>
+            <p className="text-white/40 text-xs mt-0.5">17 modelos · paquetes de 1 a 100 videos</p>
+          </div>
+          <Link href="/pricing" className="text-cyan-400 hover:text-cyan-300 text-xs font-semibold flex items-center gap-1">
+            Ver todos los planes <ArrowUpRight className="w-3 h-3" />
+          </Link>
+        </div>
+        <VideoPricingTable embedded />
       </div>
 
       {/* ── Afiliados table + detail panel ── */}
