@@ -19,7 +19,7 @@ export function ProductCard({ product, categorySlug }: Props) {
   return (
     <Link
       href={href}
-      className="glass-card hover-lift group flex flex-col items-center gap-3 rounded-2xl p-4 sm:p-5 relative overflow-hidden"
+      className="glass-card hover-lift group flex flex-col items-center gap-2 sm:gap-3 rounded-2xl p-2.5 sm:p-5 relative overflow-hidden"
     >
       {/* Hover gradient overlay */}
       <div className={`absolute inset-0 bg-gradient-to-br ${product.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-500 pointer-events-none`} />
@@ -81,30 +81,30 @@ export function ProductCard({ product, categorySlug }: Props) {
 
       {/* Nombre + versión inline */}
       <div className="relative z-10 text-center w-full">
-        <div className="flex items-center justify-center gap-1.5 mb-0.5">
-          <h3 className="text-white font-bold text-sm leading-tight truncate">{product.name}</h3>
+        <div className="flex items-center justify-center gap-1 sm:gap-1.5 mb-0.5">
+          <h3 className="text-white font-bold text-xs sm:text-sm leading-tight truncate">{product.name}</h3>
           {product.version && (
-            <span className={`text-[9px] font-black ${product.textAccent} bg-white/5 rounded px-1.5`}>
+            <span className={`text-[8px] sm:text-[9px] font-black ${product.textAccent} bg-white/5 rounded px-1 sm:px-1.5`}>
               {product.version}
             </span>
           )}
         </div>
-        <p className="text-white/45 text-[10px] leading-tight line-clamp-2 min-h-[1.6em]">
+        <p className="text-white/45 text-[9px] sm:text-[10px] leading-tight line-clamp-2 min-h-[1.6em]">
           {product.cardDescription ?? product.tagline}
         </p>
       </div>
 
       {/* Footer: ventas + price preview */}
-      <div className="relative z-10 w-full pt-2 mt-auto border-t border-white/8 flex items-center justify-between text-[10px]">
+      <div className="relative z-10 w-full pt-1.5 sm:pt-2 mt-auto border-t border-white/8 flex flex-col sm:flex-row items-center justify-between gap-0.5 sm:gap-0 text-[9px] sm:text-[10px]">
         {product.salesCount && (
           <span className="inline-flex items-center gap-1 text-white/45 font-semibold">
             <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            {product.salesCount >= 1000 ? `${(product.salesCount / 1000).toFixed(1)}k` : product.salesCount} ventas
+            {product.salesCount >= 1000 ? `${(product.salesCount / 1000).toFixed(1)}k` : product.salesCount}
           </span>
         )}
-        <span className={`font-bold ${product.textAccent} flex items-center gap-0.5`}>
-          desde €{Math.min(...product.prices.map((p) => p.monthlyEquivalent ?? p.price)).toFixed(0)}/mes
-          <ArrowRight className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <span className={`font-bold ${product.textAccent} flex items-center gap-0.5 whitespace-nowrap`}>
+          €{Math.min(...product.prices.map((p) => p.monthlyEquivalent ?? p.price)).toFixed(0)}/mes
+          <ArrowRight className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:inline" />
         </span>
       </div>
     </Link>

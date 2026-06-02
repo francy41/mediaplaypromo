@@ -103,7 +103,7 @@ export default function AdminCategoriesPage() {
     <div className="space-y-6 pb-8">
 
       {/* ── Header stats ── */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         {[
           { label: "Total Categorías",   value: categories.length, icon: Layout,    color: "text-orange-400", bg: "bg-orange-500/15" },
           { label: "Habilitadas",        value: enabledCount,      icon: ToggleRight,color: "text-green-400",  bg: "bg-green-500/15" },
@@ -139,8 +139,10 @@ export default function AdminCategoriesPage() {
         </button>
       </div>
 
-      {/* ── Categories Table ── */}
+      {/* ── Categories Table (scroll horizontal en móvil) ── */}
       <div className="bg-[#0f1219] border border-white/8 rounded-2xl overflow-hidden">
+       <div className="overflow-x-auto scrollbar-hide">
+        <div className="min-w-[820px]">
         {/* Column headers */}
         <div className="grid grid-cols-[2rem_2.5fr_1fr_7rem_7rem_7rem_6rem_6rem] gap-3 px-5 py-3 border-b border-white/8 bg-white/2">
           <span />
@@ -284,6 +286,8 @@ export default function AdminCategoriesPage() {
             );
           })}
         </div>
+        </div>
+       </div>
       </div>
 
       {/* ── Delete confirmation modal ── */}

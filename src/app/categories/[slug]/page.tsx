@@ -145,8 +145,8 @@ export default function CategoryPage({ params }: PageProps) {
             </div>
           </div>
 
-          {/* Grid 4 columnas en desktop · 2 en tablet · 1 en móvil */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {/* Grid: 2 cols móvil · 2 tablet · 4 desktop */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
             {products.map((product) => (
               <ProductCard key={product.id} product={product} categorySlug={slug} />
             ))}
