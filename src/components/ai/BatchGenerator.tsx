@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Plus, Trash2, Play, Loader2, Download, RefreshCw, Upload, FileText,
-  CheckCircle2, AlertCircle, DollarSign, TrendingUp, Sparkles, Wand2
+  CheckCircle2, AlertCircle, DollarSign, TrendingUp, Sparkles, Wand2, ImagePlus, X
 } from "lucide-react";
 import { MUAPI_MODELS } from "@/lib/ai/muapi";
 import { getRealCostUSD, getCustomerPriceUSD, getAdminProfitUSD, ADMIN_MARGIN_PCT } from "@/lib/pricing";
@@ -38,7 +38,22 @@ export function BatchGenerator({ kind = "video" }: { kind?: "image" | "video" })
   const [isLaunching, setIsLaunching] = useState(false);
   const [duration, setDuration] = useState(5);
   const [aspect, setAspect] = useState("16:9");
+  const [sourceImage, setSourceImage] = useState<{ dataUrl: string; name: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ¿El modelo seleccionado es image-to-video / referencia?
+  const needsImage = /image-to-video|i2v|reference|edit/i.test(model);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { alert("Solo imágenes (JPG, PNG, WebP)."); return; }
+    if (file.size > 3 * 1024 * 1024) { alert("La imagen supera 3MB. Usa una más ligera."); return; }
+    const reader = new FileReader();
+    reader.onload = () => setSourceImage({ dataUrl: reader.result as string, name: file.name });
+    reader.readAsDataURL(file);
+  };
 
   const realCost      = getRealCostUSD(model);
   const customerPrice = getCustomerPriceUSD(model);
@@ -117,6 +132,10 @@ export function BatchGenerator({ kind = "video" }: { kind?: "image" | "video" })
   const launchBatch = async () => {
     const prompts = rows.filter((r) => r.prompt.trim()).map((r) => r.prompt.trim());
     if (prompts.length === 0) return;
+    if (needsImage && !sourceImage) {
+      alert("Este modelo (image-to-video) necesita una imagen de origen. Súbela arriba para continuar.");
+      return;
+    }
     setIsLaunching(true);
 
     try {
@@ -124,6 +143,10 @@ export function BatchGenerator({ kind = "video" }: { kind?: "image" | "video" })
       if (kind === "video") {
         shared.duration = duration;
         shared.aspect_ratio = aspect;
+      }
+      if (sourceImage) {
+        shared.image = sourceImage.dataUrl;
+        shared.image_url = sourceImage.dataUrl;
       }
 
       const res = await fetch("/api/ai/batch", {
@@ -255,6 +278,36 @@ export function BatchGenerator({ kind = "video" }: { kind?: "image" | "video" })
           )}
         </div>
 
+        {/* ── Imagen de origen para TODO el batch (image-to-video) ── */}
+        <div className="pt-2">
+          <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+            <ImagePlus className="w-3 h-3" />
+            Imagen de origen {needsImage ? <span className="text-pink-400">· requerida para este modelo</span> : <span className="text-white/30">· opcional · se aplica a todo el batch</span>}
+          </label>
+          <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/jpg,image/webp" onChange={handleImageUpload} className="hidden" />
+          {sourceImage ? (
+            <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl p-2.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={sourceImage.dataUrl} alt="origen" className="w-12 h-12 rounded-lg object-cover ring-1 ring-white/15 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-white text-xs font-semibold truncate">{sourceImage.name}</p>
+                <p className="text-green-400 text-[10px] font-bold flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Cargada · se usa en los {activeCount} prompts</p>
+              </div>
+              <button onClick={() => fileInputRef.current?.click()} disabled={isLaunching || workingCount > 0} className="text-white/55 hover:text-white text-[11px] font-semibold px-2 py-1 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50">Cambiar</button>
+              <button onClick={() => setSourceImage(null)} disabled={isLaunching || workingCount > 0} className="w-7 h-7 rounded-lg hover:bg-red-500/20 flex items-center justify-center text-white/45 hover:text-red-400 transition-colors disabled:opacity-50" aria-label="Quitar"><X className="w-4 h-4" /></button>
+            </div>
+          ) : (
+            <button onClick={() => fileInputRef.current?.click()} disabled={isLaunching || workingCount > 0}
+              className={`w-full flex items-center justify-center gap-2.5 border-2 border-dashed rounded-xl py-3.5 transition-colors disabled:opacity-50 ${needsImage ? "border-pink-500/40 bg-pink-500/5 hover:bg-pink-500/10 text-pink-300" : "border-white/15 bg-white/[0.02] hover:bg-white/5 text-white/60"}`}>
+              <Upload className="w-5 h-5" />
+              <div className="text-left">
+                <p className="text-sm font-bold">Subir imagen desde tu PC</p>
+                <p className="text-[10px] opacity-70">JPG, PNG o WebP · máx 3MB · se aplica a todo el batch</p>
+              </div>
+            </button>
+          )}
+        </div>
+
         {/* Toolbar */}
         <div className="flex flex-wrap gap-2 pt-2">
           <button onClick={addRow} disabled={rows.length >= 50}
@@ -330,7 +383,7 @@ export function BatchGenerator({ kind = "video" }: { kind?: "image" | "video" })
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <button
           onClick={launchBatch}
-          disabled={activeCount === 0 || isLaunching || workingCount > 0}
+          disabled={activeCount === 0 || isLaunching || workingCount > 0 || (needsImage && !sourceImage)}
           className="shine-btn inline-flex items-center justify-center gap-2 bg-gradient-to-r from-fuchsia-500 to-purple-600 hover:opacity-95 text-white font-bold text-sm px-5 py-3 rounded-xl shadow-lg shadow-fuchsia-500/30 transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
         >
           {isLaunching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
