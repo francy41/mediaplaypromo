@@ -4,7 +4,7 @@ import Link from "next/link";
 import {
   Loader2, Sparkles, Download, AlertCircle, RefreshCw,
   Image as ImageIcon, Video as VideoIcon, Zap, Crown, Wand2, FolderDown, CheckCircle2,
-  Layers, ArrowRight, Clock, XCircle
+  Layers, ArrowRight, Clock, XCircle, Upload, ImagePlus, X
 } from "lucide-react";
 import { MUAPI_MODELS } from "@/lib/ai/muapi";
 import { getCost } from "@/lib/pricing";
@@ -77,7 +77,23 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
   const [error, setError] = useState<string | null>(null);
   const [isLaunching, setIsLaunching] = useState(false);
   const [downloadFolder, setDownloadFolder] = useState<FileSystemDirectoryHandle | null>(null);
+  const [sourceImage, setSourceImage] = useState<{ dataUrl: string; name: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ¿El modelo seleccionado es image-to-video / reference?
+  const needsImage = /image-to-video|i2v|reference|edit/i.test(model);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setError("Solo se aceptan archivos de imagen (JPG, PNG, WebP)."); return; }
+    if (file.size > 3 * 1024 * 1024) { setError("La imagen supera 3MB. Comprímela o usa una más ligera."); return; }
+    setError(null);
+    const reader = new FileReader();
+    reader.onload = () => setSourceImage({ dataUrl: reader.result as string, name: file.name });
+    reader.readAsDataURL(file);
+  };
 
   // Switch model si cambias de familia
   useEffect(() => {
@@ -128,6 +144,10 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
 
   const handleGenerate = async () => {
     if (!prompt.trim() || quantity < 1) return;
+    if (needsImage && !sourceImage) {
+      setError("Este modelo (image-to-video) necesita una imagen de origen. Súbela arriba para continuar.");
+      return;
+    }
     setError(null);
     setIsLaunching(true);
     setJobs(Array.from({ length: quantity }, (_, i) => ({ index: i, jobId: null, status: "queued", output: [] })));
@@ -143,6 +163,11 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
       shared.duration = duration;
       shared.aspect_ratio = aspect;
       shared.resolution = resolution;
+    }
+    // Imagen de origen (image-to-video / referencia)
+    if (sourceImage) {
+      shared.image = sourceImage.dataUrl;
+      shared.image_url = sourceImage.dataUrl;
     }
 
     try {
@@ -467,6 +492,69 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
         </div>
       )}
 
+      {/* ── Subir imagen local (image-to-video / referencia) ── */}
+      <div>
+        <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+          <ImagePlus className="w-3 h-3" />
+          Imagen de origen {needsImage ? <span className="text-pink-400">· requerida para este modelo</span> : <span className="text-white/30">· opcional (para animar tu foto)</span>}
+        </label>
+
+        {/* input file oculto */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/jpg,image/webp"
+          onChange={handleImageUpload}
+          className="hidden"
+        />
+
+        {sourceImage ? (
+          /* Preview con la imagen cargada */
+          <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl p-2.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={sourceImage.dataUrl} alt="origen" className="w-14 h-14 rounded-lg object-cover ring-1 ring-white/15 flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="text-white text-xs font-semibold truncate">{sourceImage.name}</p>
+              <p className="text-green-400 text-[10px] font-bold flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" /> Imagen cargada
+              </p>
+            </div>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isWorking}
+              className="text-white/55 hover:text-white text-[11px] font-semibold px-2 py-1 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50"
+            >
+              Cambiar
+            </button>
+            <button
+              onClick={() => setSourceImage(null)}
+              disabled={isWorking}
+              className="w-7 h-7 rounded-lg hover:bg-red-500/20 flex items-center justify-center text-white/45 hover:text-red-400 transition-colors disabled:opacity-50"
+              aria-label="Quitar imagen"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          /* Zona de drop / click para subir */
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isWorking}
+            className={`w-full flex items-center justify-center gap-2.5 border-2 border-dashed rounded-xl py-4 transition-colors disabled:opacity-50 ${
+              needsImage
+                ? "border-pink-500/40 bg-pink-500/5 hover:bg-pink-500/10 text-pink-300"
+                : "border-white/15 bg-white/[0.02] hover:bg-white/5 text-white/60"
+            }`}
+          >
+            <Upload className="w-5 h-5" />
+            <div className="text-left">
+              <p className="text-sm font-bold">Subir imagen desde tu PC</p>
+              <p className="text-[10px] opacity-70">JPG, PNG o WebP · máx 10MB</p>
+            </div>
+          </button>
+        )}
+      </div>
+
       {/* Folder picker */}
       <div className="flex items-center gap-2 flex-wrap">
         <button
@@ -494,7 +582,7 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
       {/* CTA */}
       <button
         onClick={handleGenerate}
-        disabled={!prompt.trim() || isWorking || userCredits < totalCost}
+        disabled={!prompt.trim() || isWorking || userCredits < totalCost || (needsImage && !sourceImage)}
         className={`shine-btn w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r ${gradient} hover:opacity-95 text-white font-bold text-sm px-5 py-3.5 rounded-xl shadow-lg transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
       >
         {isWorking ? (
