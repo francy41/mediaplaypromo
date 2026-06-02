@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Check, Star, ShoppingCart, Sparkles, Zap, Crown, Award, ArrowRight, Lock, LogIn, Hand, Rocket, Trophy } from "lucide-react";
+import { Check, Star, ShoppingCart, Sparkles, Zap, Crown, Award, ArrowRight, Lock, LogIn, Hand, Rocket, Trophy, Loader2 } from "lucide-react";
 import type { Product } from "@/lib/products";
 import { useAuth } from "@/lib/auth-context";
 import { YFAutoClipDeepSections } from "./YFAutoClipDeepSections";
@@ -19,14 +19,40 @@ export function ProductShowcase({ product }: Props) {
   );
   const [showLoginPrompt, setShowLoginPrompt] = useState<string | null>(null);
 
-  const handleBuy = (priceId: string) => {
+  const [buying, setBuying] = useState<string | null>(null);
+
+  const handleBuy = async (priceId: string) => {
     if (!user) {
       // No logueado: mostrar prompt + redirigir a login con returnTo
       setShowLoginPrompt(priceId);
       return;
     }
-    // Logueado: TODO Stripe checkout
-    alert(`✅ Próximamente: checkout para ${priceId}\n\nUsuario: ${user.email}\nCuando Stripe esté conectado, esto abrirá Stripe Checkout con el precio ID: ${priceId}`);
+    // Logueado → crear sesión de Stripe Checkout
+    setBuying(priceId);
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productSlug: product.slug,
+          tierId: priceId,
+          email: user.email,
+          origin: typeof window !== "undefined" ? window.location.origin : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error ?? "No se pudo iniciar el pago.");
+        return;
+      }
+      if (data.url) {
+        window.location.href = data.url; // redirige a Stripe Checkout
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Error de conexión con el pago.");
+    } finally {
+      setBuying(null);
+    }
   };
 
   const goToLogin = (priceId: string) => {
@@ -307,14 +333,18 @@ export function ProductShowcase({ product }: Props) {
                   {/* CTA Comprar */}
                   <button
                     onClick={(e) => { e.stopPropagation(); handleBuy(tier.id); }}
+                    disabled={buying === tier.id}
                     className={`shine-btn w-full inline-flex items-center justify-center gap-2 ${
                       isPopular
                         ? `bg-gradient-to-r ${product.gradient} text-white shadow-xl ring-1 ring-white/20`
                         : "bg-white/10 hover:bg-white/15 text-white border border-white/15"
-                    } font-bold text-sm px-4 py-3 rounded-xl transition-all hover:-translate-y-0.5`}
+                    } font-bold text-sm px-4 py-3 rounded-xl transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-wait`}
                   >
-                    <ShoppingCart className="w-4 h-4" />
-                    {tier.cta}
+                    {buying === tier.id ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Redirigiendo al pago...</>
+                    ) : (
+                      <><ShoppingCart className="w-4 h-4" /> {tier.cta}</>
+                    )}
                   </button>
 
                   {/* Lista features */}
