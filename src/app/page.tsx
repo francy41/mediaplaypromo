@@ -284,7 +284,10 @@ export default function LandingPage() {
 
         {/* White Label Promo */}
         <section className="px-4 sm:px-6 lg:px-8 pb-12 sm:pb-16 lg:pb-20 max-w-6xl mx-auto">
-          <div className="relative overflow-hidden rounded-3xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-600/15 via-purple-600/10 to-transparent p-8 sm:p-12">
+          <div
+            className="cinematic-dark relative overflow-hidden rounded-3xl border border-fuchsia-500/30 bg-gradient-to-br from-[#1a0c2e] via-[#1c0a30] to-[#0d0620] p-8 sm:p-12"
+            style={{ backgroundColor: "#140828", color: "white" }}
+          >
             <div className="absolute -top-20 -right-20 w-80 h-80 bg-fuchsia-500/20 rounded-full blur-3xl" />
             <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl" />
             <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
@@ -310,7 +313,7 @@ export default function LandingPage() {
                 {CATEGORIES.filter((c) => c.enabled).slice(10, 16).map((cat) => {
                   const Icon = cat.icon;
                   return (
-                    <div key={cat.slug} className={`bg-[#0f1219]/80 backdrop-blur border ${cat.borderColor} rounded-2xl p-4 aspect-square flex flex-col items-center justify-center gap-2`}>
+                    <div key={cat.slug} className={`bg-black/40 backdrop-blur border ${cat.borderColor} rounded-2xl p-4 aspect-square flex flex-col items-center justify-center gap-2`}>
                       <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${cat.gradient} flex items-center justify-center shadow-md`}>
                         <Icon className="w-5 h-5 text-white" />
                       </div>
