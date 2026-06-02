@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Video as VideoIcon, Crown, Sparkles, Zap, TrendingUp, Info } from "lucide-react";
-import { PUBLIC_VIDEO_PRICING, VIDEO_BUNDLE_SIZES, getBundlePrice, getBundleProfit, getCustomerPriceUSD, getAdminProfitUSD, getRealCostUSD, usdToEur } from "@/lib/pricing";
+import { PUBLIC_VIDEO_PRICING, VIDEO_BUNDLE_SIZES, getBundlePrice, getBundleAdminPrice, getBundleProfit, getCustomerPriceUSD, getAdminPriceUSD, getAdminProfitUSD, getRealCostUSD, usdToEur } from "@/lib/pricing";
 import { useAuth } from "@/lib/auth-context";
 
 type Tier = "all" | "budget" | "mid" | "premium" | "ultra";
@@ -40,6 +40,10 @@ export function VideoPricingTable({ showAdminProfit, currency = "EUR", embedded 
   const symbol = currency === "EUR" ? "€" : "$";
   const fmt = (usd: number) => (currency === "EUR" ? usdToEur(usd) : usd).toFixed(2);
 
+  // Precio según rol: admin = coste real · usuario = +30%
+  const unitPrice = (model: string) => isAdmin ? getAdminPriceUSD(model) : getCustomerPriceUSD(model);
+  const bundlePrice = (model: string, n: number) => isAdmin ? getBundleAdminPrice(model, n) : getBundlePrice(model, n);
+
   const filtered = tier === "all"
     ? PUBLIC_VIDEO_PRICING
     : PUBLIC_VIDEO_PRICING.filter((m) => m.tier === tier);
@@ -56,7 +60,7 @@ export function VideoPricingTable({ showAdminProfit, currency = "EUR", embedded 
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">generas</span>
           </h2>
           <p className="text-white/55 text-sm sm:text-base max-w-xl mx-auto">
-            17 modelos de video IA. Desde {symbol}{fmt(getCustomerPriceUSD("wan2.2-5b-fast-t2v"))} por video. Compra paquetes o usa créditos del plan.
+            17 modelos de video IA. Desde {symbol}{fmt(unitPrice("wan2.2-5b-fast-t2v"))} por video. Compra paquetes o usa créditos del plan.
           </p>
         </div>
       )}
@@ -78,11 +82,11 @@ export function VideoPricingTable({ showAdminProfit, currency = "EUR", embedded 
         ))}
       </div>
 
-      {/* Admin profit indicator */}
+      {/* Admin price indicator */}
       {showProfit && (
         <div className="mb-4 inline-flex items-center gap-2 bg-green-500/10 border border-green-500/30 text-green-300 text-[10px] sm:text-xs font-bold px-3 py-1.5 rounded-full">
-          <TrendingUp className="w-3 h-3" />
-          Vista SuperAdmin · ves tu ganancia neta (margen 50%)
+          <Crown className="w-3 h-3" />
+          Vista SuperAdmin · precios a COSTE REAL (los usuarios pagan +30%)
         </div>
       )}
 
@@ -128,7 +132,7 @@ export function VideoPricingTable({ showAdminProfit, currency = "EUR", embedded 
                       </div>
                     </td>
                     {VIDEO_BUNDLE_SIZES.map((n, i) => {
-                      const price = getBundlePrice(m.slug, n);
+                      const price = bundlePrice(m.slug, n);
                       const isPopular = n === 20;
                       return (
                         <td key={n} className={`px-3 py-3 text-right ${isPopular ? "bg-cyan-500/5" : ""}`}>
@@ -167,7 +171,7 @@ export function VideoPricingTable({ showAdminProfit, currency = "EUR", embedded 
                   <p className="text-white/40 text-[10px]">{m.duration} · {m.resolution}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-white font-black text-lg">{symbol}{fmt(getCustomerPriceUSD(m.slug))}</p>
+                  <p className="text-white font-black text-lg">{symbol}{fmt(unitPrice(m.slug))}</p>
                   <p className="text-white/30 text-[9px]">por video</p>
                 </div>
               </div>
@@ -175,7 +179,7 @@ export function VideoPricingTable({ showAdminProfit, currency = "EUR", embedded 
                 {VIDEO_BUNDLE_SIZES.slice(1).map((n) => (
                   <div key={n} className={`bg-white/5 border border-white/10 rounded-lg p-2 text-center ${n === 20 ? "border-cyan-500/30 bg-cyan-500/10" : ""}`}>
                     <p className="text-white/45 text-[9px] font-bold">{n} videos</p>
-                    <p className="text-white font-bold text-xs mt-0.5">{symbol}{fmt(getBundlePrice(m.slug, n))}</p>
+                    <p className="text-white font-bold text-xs mt-0.5">{symbol}{fmt(bundlePrice(m.slug, n))}</p>
                   </div>
                 ))}
               </div>

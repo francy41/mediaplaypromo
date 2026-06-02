@@ -232,21 +232,21 @@ export function getCost(model: string): number {
 }
 
 /* ─────────────────────────────────────────────
-   💰 ADMIN MARGIN — Ganancia del SuperAdmin
+   💰 PRICING POR ROL
    ─────────────────────────────────────────────
-   El admin (tú) gana 50% real sobre el coste de cada generación.
+   • ADMIN (SuperAdmin): paga el COSTE REAL de Muapi (sin recargo).
+     Puede usar todos los productos a precio de coste.
+   • USUARIO: paga COSTE REAL + 30% de ganancia para la plataforma.
 
    Flujo:
-   1. Muapi te factura el coste real (ej: $0.50 por video Veo3 Fast)
-   2. Le cobras al usuario final: real_cost × (1 + ADMIN_MARGIN_PCT) = $0.75
-   3. Tu ganancia = $0.25 (50% sobre el coste = 33% del precio final)
-
-   Alternativa por suscripción:
-   - Plan Pro €29/mes × 500 créditos = €0.058/crédito facturado
-   - Coste medio Muapi ≈ €0.025-0.04/crédito
-   - Margen efectivo = 40-65%
+   1. Muapi factura el coste real (ej: $0.50 por video Veo 3 Fast)
+   2. Admin paga: $0.50 (coste real)
+   3. Usuario paga: $0.50 × 1.30 = $0.65
+   4. Ganancia plataforma por usuario = $0.15 (30%)
 */
-export const ADMIN_MARGIN_PCT = 0.50;
+export const USER_MARKUP_PCT = 0.30;
+/** @deprecated usa USER_MARKUP_PCT — alias por compatibilidad */
+export const ADMIN_MARGIN_PCT = USER_MARKUP_PCT;
 
 /** Coste REAL de Muapi en USD (medido o estimado). Los marcados [✓] están confirmados con test real. */
 export const MODEL_REAL_COST_USD: Record<string, number> = {
@@ -301,19 +301,31 @@ export const MODEL_REAL_COST_USD: Record<string, number> = {
   "ltx-2-pro-text-to-video":           0.60,
 };
 
-/** Devuelve el coste REAL en USD que Muapi te cobra */
+/** Devuelve el coste REAL en USD que Muapi cobra */
 export function getRealCostUSD(model: string): number {
   return MODEL_REAL_COST_USD[model] ?? 0.01;
 }
 
-/** Precio que cobras al cliente final (coste real + margen admin) */
-export function getCustomerPriceUSD(model: string): number {
-  return getRealCostUSD(model) * (1 + ADMIN_MARGIN_PCT);
+/** Precio para ADMIN = coste real (sin recargo). El admin usa todo a coste. */
+export function getAdminPriceUSD(model: string): number {
+  return getRealCostUSD(model);
 }
 
-/** Ganancia del admin por generación */
+/** Precio para USUARIO = coste real + 30% de ganancia plataforma. */
+export function getCustomerPriceUSD(model: string): number {
+  return getRealCostUSD(model) * (1 + USER_MARKUP_PCT);
+}
+
+/** Ganancia de la plataforma por generación de usuario (el 30%). */
 export function getAdminProfitUSD(model: string): number {
-  return getRealCostUSD(model) * ADMIN_MARGIN_PCT;
+  return getRealCostUSD(model) * USER_MARKUP_PCT;
+}
+
+/** Precio que se cobra según el rol del usuario.
+ *  - SuperAdmin / admin → coste real (sin recargo)
+ *  - Usuario normal → coste real + 30% */
+export function getPriceForRole(model: string, isAdmin: boolean): number {
+  return isAdmin ? getAdminPriceUSD(model) : getCustomerPriceUSD(model);
 }
 
 /** Stats agregadas para SuperAdmin (a partir de N generaciones de un modelo) */
@@ -358,12 +370,17 @@ export const PUBLIC_VIDEO_PRICING = [
   { slug: "openai-sora-2-pro-text-to-video", name: "Sora 2 Pro",          tier: "ultra",   duration: "5s",  resolution: "1080p" },
 ] as const;
 
-/** Precio bundle al cliente (en USD, incluye margen 50%) */
+/** Precio bundle al USUARIO (en USD, incluye 30% de ganancia) */
 export function getBundlePrice(model: string, quantity: number): number {
   return +(getCustomerPriceUSD(model) * quantity).toFixed(2);
 }
 
-/** Tu ganancia neta en bundle (solo admin) */
+/** Precio bundle al ADMIN (coste real, sin recargo) */
+export function getBundleAdminPrice(model: string, quantity: number): number {
+  return +(getAdminPriceUSD(model) * quantity).toFixed(2);
+}
+
+/** Ganancia neta de la plataforma en bundle (el 30%) */
 export function getBundleProfit(model: string, quantity: number): number {
   return +(getAdminProfitUSD(model) * quantity).toFixed(2);
 }

@@ -215,7 +215,7 @@ export function BatchGenerator({ kind = "video" }: { kind?: "image" | "video" })
           </div>
           <div className="flex flex-col items-end gap-1">
             <span className="bg-green-500/15 border border-green-500/30 text-green-400 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" /> Margen Admin {(ADMIN_MARGIN_PCT * 100).toFixed(0)}%
+              <TrendingUp className="w-3 h-3" /> Ganancia usuario {(ADMIN_MARGIN_PCT * 100).toFixed(0)}% · Admin a coste
             </span>
             <p className="text-white/35 text-[10px]">
               Sobre coste real Muapi
