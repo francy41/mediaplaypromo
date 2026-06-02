@@ -91,14 +91,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
             setUser(await buildUserFromSupabase(supabase, session.user));
+          } else {
+            // Sin sesión Supabase: recuperar sesión admin de localStorage (failsafe)
+            try {
+              const stored = localStorage.getItem(SESSION_KEY);
+              if (stored) setUser(JSON.parse(stored));
+            } catch {}
           }
-          // Suscribirse a cambios de sesión
+          // Suscribirse a cambios de sesión Supabase
           const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
             if (session?.user) {
               setUser(await buildUserFromSupabase(supabase, session.user));
-            } else {
-              setUser(null);
             }
+            // Nota: no limpiamos en null aquí para no borrar la sesión admin de localStorage
           });
           unsub = () => sub.subscription.unsubscribe();
         } catch (e) {
@@ -123,6 +128,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (email: string, password: string): Promise<AuthResult> => {
     const normalizedEmail = email.trim().toLowerCase();
 
+    // ── Failsafe ADMIN: tu cuenta siempre entra con tu contraseña, ──
+    // ── tenga o no Supabase. Los usuarios normales van por Supabase. ──
+    if (normalizedEmail === ADMIN_EMAIL && password === ADMIN_CREDENTIALS.password) {
+      const authUser: AuthUser = {
+        email: ADMIN_CREDENTIALS.email,
+        name: ADMIN_CREDENTIALS.name,
+        role: ADMIN_CREDENTIALS.role,
+        avatar: ADMIN_CREDENTIALS.avatar,
+        plan: ADMIN_CREDENTIALS.plan,
+      };
+      setUser(authUser);
+      localStorage.setItem(SESSION_KEY, JSON.stringify(authUser));
+      return { ok: true };
+    }
+
     if (SUPABASE_ENABLED) {
       try {
         const supabase = createSupabaseBrowserClient();
@@ -141,19 +161,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // ── Modo mock (sin Supabase): solo admin hardcoded ──
-    if (normalizedEmail === ADMIN_EMAIL && password === ADMIN_CREDENTIALS.password) {
-      const authUser: AuthUser = {
-        email: ADMIN_CREDENTIALS.email,
-        name: ADMIN_CREDENTIALS.name,
-        role: ADMIN_CREDENTIALS.role,
-        avatar: ADMIN_CREDENTIALS.avatar,
-        plan: ADMIN_CREDENTIALS.plan,
-      };
-      setUser(authUser);
-      localStorage.setItem(SESSION_KEY, JSON.stringify(authUser));
-      return { ok: true };
-    }
     return { ok: false, error: "Email o contraseña incorrectos." };
   }, [buildUserFromSupabase]);
 
