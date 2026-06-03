@@ -46,8 +46,49 @@ export async function POST(req: NextRequest) {
           email: session.customer_email,
           amount: session.amount_total,
         });
-        // TODO (cuando Supabase tenga tablas): insertar en `payments`,
-        // activar suscripción del usuario, asignar créditos según el plan.
+
+        // Registrar el pago en Supabase
+        try {
+          const { createSupabaseAdminClient } = await import("@/lib/supabase/server");
+          const admin = createSupabaseAdminClient();
+          const email = session.customer_email ?? session.customer_details?.email ?? null;
+
+          // Buscar el user_id por email (si existe perfil)
+          let userId: string | null = null;
+          if (email) {
+            const { data: profile } = await admin
+              .from("profiles")
+              .select("id")
+              .eq("email", email.toLowerCase())
+              .single();
+            userId = profile?.id ?? null;
+          }
+
+          await admin.from("payments").insert({
+            user_id: userId,
+            amount: (session.amount_total ?? 0) / 100,
+            currency: (session.currency ?? "eur").toUpperCase(),
+            provider: "stripe",
+            provider_payment_id: session.id,
+            status: "completed",
+            description: `${meta.productName ?? "Producto"} · ${meta.tierName ?? ""}`.trim(),
+            metadata: { ...meta, stripe_session: session.id, email },
+          });
+
+          // Si hay usuario, actualizar su plan según el tier comprado
+          if (userId && meta.tierId) {
+            const planMap: Record<string, string> = {
+              monthly: "pro", "6months": "pro", yearly: "pro",
+              "v1-monthly": "starter", "v1-6months": "starter", "v1-yearly": "starter",
+            };
+            const newPlan = planMap[meta.tierId] ?? "pro";
+            await admin.from("profiles").update({ plan: newPlan }).eq("id", userId);
+          }
+
+          console.log("💾 Pago registrado en DB");
+        } catch (dbErr) {
+          console.error("Error guardando pago en DB:", dbErr);
+        }
         break;
       }
       case "invoice.paid": {

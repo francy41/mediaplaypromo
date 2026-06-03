@@ -513,3 +513,55 @@ body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: contain;
   --tw-gradient-from: #0d0620 !important;
   --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
 }
+
+/* ─────────────────────────────────────────────
+   🌑 ALWAYS-DARK — Páginas que SIEMPRE se ven oscuras
+   (login, registro, checkout) sin importar el tema del usuario.
+   Mantiene fondos oscuros y texto claro incluso en modo claro.
+   ───────────────────────────────────────────── */
+:root[data-theme="light"] .always-dark { color: #fff; }
+
+/* Texto blanco se mantiene claro */
+:root[data-theme="light"] .always-dark .text-white { color: #fff !important; }
+:root[data-theme="light"] .always-dark .text-white\/90 { color: rgba(255,255,255,0.90) !important; }
+:root[data-theme="light"] .always-dark .text-white\/85 { color: rgba(255,255,255,0.85) !important; }
+:root[data-theme="light"] .always-dark .text-white\/80 { color: rgba(255,255,255,0.80) !important; }
+:root[data-theme="light"] .always-dark .text-white\/75 { color: rgba(255,255,255,0.75) !important; }
+:root[data-theme="light"] .always-dark .text-white\/70 { color: rgba(255,255,255,0.70) !important; }
+:root[data-theme="light"] .always-dark .text-white\/65 { color: rgba(255,255,255,0.65) !important; }
+:root[data-theme="light"] .always-dark .text-white\/60 { color: rgba(255,255,255,0.60) !important; }
+:root[data-theme="light"] .always-dark .text-white\/55 { color: rgba(255,255,255,0.55) !important; }
+:root[data-theme="light"] .always-dark .text-white\/50 { color: rgba(255,255,255,0.50) !important; }
+:root[data-theme="light"] .always-dark .text-white\/45 { color: rgba(255,255,255,0.45) !important; }
+:root[data-theme="light"] .always-dark .text-white\/40 { color: rgba(255,255,255,0.40) !important; }
+:root[data-theme="light"] .always-dark .text-white\/35 { color: rgba(255,255,255,0.35) !important; }
+:root[data-theme="light"] .always-dark .text-white\/30 { color: rgba(255,255,255,0.30) !important; }
+:root[data-theme="light"] .always-dark .text-white\/25 { color: rgba(255,255,255,0.25) !important; }
+:root[data-theme="light"] .always-dark .text-white\/20 { color: rgba(255,255,255,0.20) !important; }
+
+/* Fondos hex oscuros se mantienen oscuros */
+:root[data-theme="light"] .always-dark.bg-\[\#070809\],
+:root[data-theme="light"] .always-dark .bg-\[\#070809\] { background-color: #070809 !important; }
+:root[data-theme="light"] .always-dark .bg-\[\#0f1117\],
+:root[data-theme="light"] .always-dark .bg-\[\#0f1219\],
+:root[data-theme="light"] .always-dark .bg-\[\#0a0c10\],
+:root[data-theme="light"] .always-dark .bg-\[\#0a0c12\] { background-color: #0f1117 !important; }
+
+/* Inputs y superficies translúcidas se mantienen sutiles sobre oscuro */
+:root[data-theme="light"] .always-dark .bg-white\/5,
+:root[data-theme="light"] .always-dark .bg-white\/\[0\.04\],
+:root[data-theme="light"] .always-dark .bg-white\/\[0\.03\],
+:root[data-theme="light"] .always-dark .bg-white\/3 { background-color: rgba(255,255,255,0.05) !important; }
+
+/* Inputs: texto claro + placeholder visible */
+:root[data-theme="light"] .always-dark input,
+:root[data-theme="light"] .always-dark textarea,
+:root[data-theme="light"] .always-dark select {
+  color: #fff !important;
+  background-color: rgba(255,255,255,0.05) !important;
+}
+:root[data-theme="light"] .always-dark input::placeholder,
+:root[data-theme="light"] .always-dark textarea::placeholder { color: rgba(255,255,255,0.35) !important; }
+
+/* Bordes translúcidos se mantienen */
+:root[data-theme="light"] .always-dark [class*="border-white\\/"] { border-color: rgba(255,255,255,0.12) !important; }

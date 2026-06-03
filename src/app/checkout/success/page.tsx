@@ -5,7 +5,7 @@ import { CheckCircle2, ArrowRight, LayoutDashboard, Download } from "lucide-reac
 
 function SuccessContent() {
   return (
-    <div className="min-h-screen bg-[#070809] text-white flex items-center justify-center p-4">
+    <div className="always-dark min-h-screen bg-[#070809] text-white flex items-center justify-center p-4" style={{ colorScheme: "dark" }}>
       <div className="glass-card relative overflow-hidden rounded-3xl border border-green-500/30 p-8 sm:p-12 max-w-md w-full text-center">
         <div className="absolute -top-24 -right-24 w-72 h-72 bg-gradient-to-br from-green-500 to-emerald-600 opacity-20 rounded-full blur-3xl float-slow" />
         <div className="particles-bg" />
