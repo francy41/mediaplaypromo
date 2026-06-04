@@ -10,6 +10,7 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { PricingPlans } from "@/components/PricingPlans";
 import { VideoPricingTable } from "@/components/VideoPricingTable";
 import { useStats, formatCount } from "@/lib/stats";
+import { SocialLinks } from "@/components/SocialLinks";
 
 function CategorySidebar({ onItemClick }: { onItemClick?: () => void }) {
   const cats = CATEGORIES.filter((c) => c.enabled);
@@ -393,8 +394,26 @@ export default function LandingPage() {
         </section>
 
         {/* Footer */}
-        <footer className="border-t border-white/8 px-4 sm:px-6 lg:px-8 py-6 text-center">
-          <p className="text-white/30 text-xs">© 2025 MediaPlayPromo.com — Todos los derechos reservados</p>
+        <footer className="border-t border-white/8 px-4 sm:px-6 lg:px-8 py-8">
+          <div className="max-w-6xl mx-auto flex flex-col items-center gap-5">
+            {/* Redes sociales */}
+            <div className="text-center">
+              <p className="text-white/45 text-xs font-semibold mb-3">Síguenos en redes</p>
+              <SocialLinks variant="footer" className="justify-center" />
+            </div>
+
+            {/* Links legales */}
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[11px] text-white/40">
+              <Link href="/pricing" className="hover:text-white transition-colors">Precios</Link>
+              <Link href="/terms" className="hover:text-white transition-colors">Términos</Link>
+              <Link href="/privacy" className="hover:text-white transition-colors">Privacidad</Link>
+              <Link href="/refunds" className="hover:text-white transition-colors">Reembolsos</Link>
+              <Link href="/cookies" className="hover:text-white transition-colors">Cookies</Link>
+              <Link href="/legal" className="hover:text-white transition-colors">Aviso Legal</Link>
+            </div>
+
+            <p className="text-white/30 text-xs">© 2025 MediaPlayPromo.com — Todos los derechos reservados</p>
+          </div>
         </footer>
       </div>
 

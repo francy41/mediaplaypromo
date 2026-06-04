@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LayoutDashboard, ArrowRight, Crown } from "lucide-react";
+import { SocialLinks } from "@/components/SocialLinks";
 
 /**
  * Layout PÚBLICO para /categories/*
@@ -78,12 +79,15 @@ export default function PublicCategoriesLayout({ children }: { children: React.R
 
       {/* ── Footer ── */}
       <footer className="border-t border-white/8 bg-[#070809]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-7 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white/40">
           <p>© 2025 MediaPlayPromo.com — Todos los derechos reservados</p>
-          <div className="flex items-center gap-4">
-            <Link href="/pricing" className="hover:text-white transition-colors">Precios</Link>
-            <Link href="/login" className="hover:text-white transition-colors">Iniciar sesión</Link>
-            <Link href="/register" className="hover:text-white transition-colors">Crear cuenta</Link>
+          <div className="flex flex-col sm:items-end items-center gap-3">
+            <SocialLinks variant="footer" />
+            <div className="flex items-center gap-4 flex-wrap justify-center">
+              <Link href="/pricing" className="hover:text-white transition-colors">Precios</Link>
+              <Link href="/terms" className="hover:text-white transition-colors">Términos</Link>
+              <Link href="/privacy" className="hover:text-white transition-colors">Privacidad</Link>
+            </div>
           </div>
         </div>
       </footer>
