@@ -13,6 +13,7 @@ import { useStats, formatCount } from "@/lib/stats";
 import { VideoPricingTable } from "@/components/VideoPricingTable";
 import { ProductCard } from "@/components/products/ProductCard";
 import { productsByCategory } from "@/lib/products";
+import { FreeVoiceStudio } from "@/components/ai/FreeVoiceStudio";
 
 // Mapa slug → tipo de playground a embeber
 const PLAYGROUND_BY_SLUG: Record<string, "image" | "video"> = {
@@ -152,6 +153,11 @@ export default function CategoryPage({ params }: PageProps) {
             ))}
           </div>
         </div>
+      )}
+
+      {/* ── 🎤 Estudio de Voz GRATIS (categoría generador-voz) ── */}
+      {!hasProduct && slug === "generador-voz" && (
+        <FreeVoiceStudio gradient={cat.gradient} />
       )}
 
       {/* ── AI Playground (solo si NO hay producto) ── */}
