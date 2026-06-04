@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth-context";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LayoutDashboard, ArrowRight, Crown } from "lucide-react";
 import { SocialLinks } from "@/components/SocialLinks";
+import { BrandLogo } from "@/components/BrandLogo";
 
 /**
  * Layout PÚBLICO para /categories/*
@@ -19,12 +20,10 @@ export default function PublicCategoriesLayout({ children }: { children: React.R
       <header className="sticky top-0 z-40 w-full bg-[#080a0f]/85 backdrop-blur-md border-b border-white/8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center font-black text-white text-sm shadow-lg shadow-orange-500/30">
-              M
-            </div>
+            <BrandLogo className="w-9 h-9 drop-shadow-lg" />
             <div>
-              <div className="text-white font-bold text-sm leading-none">MEDIAPLAY</div>
-              <div className="text-orange-400 text-[9px] font-semibold tracking-widest leading-none mt-0.5">PROMO.COM</div>
+              <div className="text-white font-bold text-sm leading-none">MediaPlay<span className="font-medium text-white/80">Promo</span></div>
+              <div className="text-white/35 text-[9px] font-semibold tracking-widest leading-none mt-0.5">.COM</div>
             </div>
           </Link>
 

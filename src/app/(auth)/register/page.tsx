@@ -5,6 +5,7 @@ import Link from "next/link";
 import { User, Mail, Lock, Eye, EyeOff, Globe, Check, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
+import { BrandLogo } from "@/components/BrandLogo";
 
 function RegisterContent() {
   const router = useRouter();
@@ -48,9 +49,7 @@ function RegisterContent() {
     <div className="w-full max-w-sm">
       {/* Logo */}
       <div className="text-center mb-8">
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center font-black text-white text-xl mx-auto mb-3">
-          M
-        </div>
+        <BrandLogo className="w-12 h-12 mx-auto mb-3 drop-shadow-lg" />
         <h1 className="text-white font-bold text-xl">Crear cuenta gratis</h1>
         <p className="text-white/40 text-sm mt-1">Empieza a dominar tu contenido hoy</p>
       </div>

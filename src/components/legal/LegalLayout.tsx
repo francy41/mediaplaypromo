@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { ArrowLeft, FileText, Shield, RefreshCw, Cookie, Scale, Mail } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const LEGAL_PAGES = [
   { href: "/terms",    label: "Términos y Condiciones", icon: FileText },
@@ -28,10 +29,10 @@ export function LegalLayout({
       <header className="sticky top-0 z-40 bg-[#070809]/85 backdrop-blur-md border-b border-white/8">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center font-black text-white text-sm shadow-lg shadow-orange-500/30">M</div>
+            <BrandLogo className="w-9 h-9 drop-shadow-lg" />
             <div>
-              <div className="text-white font-bold text-sm leading-none">MEDIAPLAY</div>
-              <div className="text-orange-400 text-[9px] font-semibold tracking-widest leading-none mt-0.5">PROMO.COM</div>
+              <div className="text-white font-bold text-sm leading-none">MediaPlay<span className="font-medium text-white/80">Promo</span></div>
+              <div className="text-white/35 text-[9px] font-semibold tracking-widest leading-none mt-0.5">.COM</div>
             </div>
           </Link>
           <div className="flex items-center gap-2">

@@ -20,26 +20,18 @@ export default function OGImage() {
         }}
       >
         {/* Logo */}
-        <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 40 }}>
-          <div
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: 20,
-              background: "linear-gradient(135deg, #fb923c, #ea580c)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 48,
-              fontWeight: 900,
-              color: "#fff",
-            }}
-          >
-            M
-          </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 22, marginBottom: 40 }}>
+          <svg width="84" height="84" viewBox="0 0 64 64">
+            <circle cx="32" cy="32" r="32" fill="#16213e" />
+            <path d="M14 18 L30 32 L14 46 Z" fill="none" stroke="#5c7cfa" strokeWidth="2.5" strokeLinejoin="round" />
+            <path d="M50 18 L34 32 L50 46 Z" fill="none" stroke="#f03e3e" strokeWidth="2.5" strokeLinejoin="round" />
+            <circle cx="24" cy="32" r="2.2" fill="#5c7cfa" />
+            <circle cx="40" cy="32" r="2.2" fill="#ff8787" />
+            <path d="M29.5 25 L38 32 L29.5 39 Z" fill="#7048e8" />
+          </svg>
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <span style={{ color: "#fff", fontSize: 34, fontWeight: 800, lineHeight: 1 }}>MEDIAPLAY</span>
-            <span style={{ color: "#fb923c", fontSize: 18, fontWeight: 700, letterSpacing: 6 }}>PROMO.COM</span>
+            <span style={{ color: "#fff", fontSize: 36, fontWeight: 900, lineHeight: 1 }}>MediaPlay<span style={{ fontWeight: 400 }}>Promo</span></span>
+            <span style={{ color: "#94a3b8", fontSize: 16, fontWeight: 600, letterSpacing: 4 }}>.COM</span>
           </div>
         </div>
 

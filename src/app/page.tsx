@@ -11,6 +11,7 @@ import { PricingPlans } from "@/components/PricingPlans";
 import { VideoPricingTable } from "@/components/VideoPricingTable";
 import { useStats, formatCount } from "@/lib/stats";
 import { SocialLinks } from "@/components/SocialLinks";
+import { BrandLogo } from "@/components/BrandLogo";
 
 function CategorySidebar({ onItemClick }: { onItemClick?: () => void }) {
   const cats = CATEGORIES.filter((c) => c.enabled);
@@ -130,12 +131,10 @@ export default function LandingPage() {
           <Menu className="w-4 h-4 text-white" />
         </button>
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center font-black text-white">
-            M
-          </div>
+          <BrandLogo className="w-9 h-9 drop-shadow-lg" />
           <div>
-            <div className="text-white font-bold text-sm leading-none">MEDIA</div>
-            <div className="text-cyan-400 text-[9px] font-semibold tracking-widest">PLAY PROMO</div>
+            <div className="text-white font-bold text-sm leading-none">MediaPlay<span className="font-medium text-white/80">Promo</span></div>
+            <div className="text-white/35 text-[9px] font-semibold tracking-widest leading-none mt-0.5">.COM</div>
           </div>
         </div>
         <div className="ml-auto flex items-center gap-1.5 sm:gap-3">
@@ -170,10 +169,8 @@ export default function LandingPage() {
           <aside className="lg:hidden fixed top-0 left-0 w-72 max-w-[85vw] h-full bg-[#0a0c0f] border-r border-white/10 z-50 flex flex-col animate-in slide-in-from-left duration-200">
             <div className="flex items-center justify-between px-4 h-16 border-b border-white/8">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center font-black text-white text-xs">
-                  M
-                </div>
-                <div className="text-white font-bold text-sm">MediaPlay</div>
+                <BrandLogo className="w-8 h-8" />
+                <div className="text-white font-bold text-sm">MediaPlay<span className="font-medium text-white/80">Promo</span></div>
               </div>
               <button
                 aria-label="Cerrar"

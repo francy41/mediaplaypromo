@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { CATEGORIES } from "@/lib/categories";
+import { BrandLogo } from "@/components/BrandLogo";
 import {
   LayoutDashboard, BarChart2, Users, UserCheck, Receipt,
   ShoppingBag, Zap, Scale, Bell, Settings, ChevronLeft,
@@ -56,13 +57,11 @@ export function Sidebar() {
           "flex items-center gap-3 border-b border-white/8 h-16 flex-shrink-0 transition-all",
           collapsed ? "px-4 justify-center" : "px-4"
         )}>
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center font-black text-white text-xs flex-shrink-0 shadow-lg shadow-orange-500/30">
-            M
-          </div>
+          <BrandLogo className="w-8 h-8 flex-shrink-0 drop-shadow-lg" />
           {!collapsed && (
             <div className="min-w-0">
-              <div className="text-white font-bold text-sm leading-none tracking-wide">MEDIAPLAY</div>
-              <div className="text-orange-400 text-[9px] font-semibold tracking-[0.2em] leading-none mt-0.5">PROMO.COM</div>
+              <div className="text-white font-bold text-sm leading-none tracking-wide">MediaPlay<span className="font-medium text-white/80">Promo</span></div>
+              <div className="text-white/35 text-[9px] font-semibold tracking-[0.2em] leading-none mt-0.5">.COM</div>
             </div>
           )}
         </div>

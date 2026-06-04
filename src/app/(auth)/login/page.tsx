@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, AlertCircle, Crown, Sparkles, Shield, Check, ArrowRight, Zap } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { BrandLogo } from "@/components/BrandLogo";
 
 function LoginContent() {
   const router = useRouter();
@@ -49,12 +50,10 @@ function LoginContent() {
         {/* Top: Logo */}
         <div className="relative">
           <Link href="/" className="inline-flex items-center gap-3 group">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center font-black text-white text-xl shadow-2xl shadow-orange-500/40 ring-2 ring-white/10 group-hover:scale-105 transition-transform">
-              M
-            </div>
+            <BrandLogo className="w-12 h-12 drop-shadow-2xl group-hover:scale-105 transition-transform" />
             <div>
-              <div className="text-white font-black text-base leading-none tracking-wide">MEDIAPLAY</div>
-              <div className="text-orange-400 text-[10px] font-bold tracking-[0.25em] leading-none mt-1">PROMO.COM</div>
+              <div className="text-white font-black text-base leading-none tracking-wide">MediaPlay<span className="font-medium text-white/80">Promo</span></div>
+              <div className="text-white/40 text-[10px] font-bold tracking-[0.25em] leading-none mt-1">.COM</div>
             </div>
           </Link>
         </div>
@@ -121,12 +120,10 @@ function LoginContent() {
         {/* Top bar móvil + theme toggle */}
         <div className="flex items-center justify-between p-4 sm:p-6 lg:p-8">
           <Link href="/" className="lg:hidden inline-flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center font-black text-white shadow-lg shadow-orange-500/30">
-              M
-            </div>
+            <BrandLogo className="w-9 h-9 drop-shadow-lg" />
             <div>
-              <div className="text-white font-bold text-xs leading-none">MEDIAPLAY</div>
-              <div className="text-orange-400 text-[8px] font-bold tracking-widest leading-none mt-0.5">PROMO.COM</div>
+              <div className="text-white font-bold text-xs leading-none">MediaPlay<span className="font-medium text-white/80">Promo</span></div>
+              <div className="text-white/40 text-[8px] font-bold tracking-widest leading-none mt-0.5">.COM</div>
             </div>
           </Link>
           <div className="ml-auto flex items-center gap-2">

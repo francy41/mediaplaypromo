@@ -5,6 +5,7 @@ import { Check, X, Sparkles, ArrowRight, Star, Crown, ChevronDown } from "lucide
 import { PLANS, PRICING_FAQ } from "@/lib/pricing";
 import { VideoPricingTable } from "@/components/VideoPricingTable";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export default function PricingPage() {
   const [yearly, setYearly] = useState(true);
@@ -22,10 +23,10 @@ export default function PricingPage() {
       {/* Top nav */}
       <nav className="fixed top-0 left-0 right-0 h-16 bg-[#070809]/85 backdrop-blur border-b border-white/8 flex items-center px-4 sm:px-6 lg:px-8 z-50">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center font-black text-white">M</div>
+          <BrandLogo className="w-9 h-9 drop-shadow-lg" />
           <div>
-            <div className="text-white font-bold text-sm leading-none">MEDIA</div>
-            <div className="text-cyan-400 text-[9px] font-semibold tracking-widest">PLAY PROMO</div>
+            <div className="text-white font-bold text-sm leading-none">MediaPlay<span className="font-medium text-white/80">Promo</span></div>
+            <div className="text-white/35 text-[9px] font-semibold tracking-widest leading-none mt-0.5">.COM</div>
           </div>
         </Link>
         <div className="ml-auto flex items-center gap-2 sm:gap-3">

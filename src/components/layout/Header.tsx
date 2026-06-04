@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { getCategoryBySlug } from "@/lib/categories";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { BrandLogo } from "@/components/BrandLogo";
 
 function getBreadcrumb(pathname: string) {
   const staticMap: Record<string, { title: string; crumbs: string[] }> = {
@@ -191,10 +192,10 @@ export function Header() {
           <aside className="md:hidden fixed top-0 left-0 w-72 max-w-[85vw] h-full bg-[#0c0e14] border-r border-white/10 z-50 flex flex-col overflow-y-auto scrollbar-hide animate-in slide-in-from-left duration-200">
             <div className="flex items-center justify-between px-4 h-16 border-b border-white/8 flex-shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center font-black text-white text-xs shadow-lg shadow-orange-500/30">M</div>
+                <BrandLogo className="w-8 h-8 drop-shadow-lg" />
                 <div>
-                  <div className="text-white font-bold text-sm leading-none">MEDIAPLAY</div>
-                  <div className="text-orange-400 text-[9px] font-semibold tracking-widest">PROMO.COM</div>
+                  <div className="text-white font-bold text-sm leading-none">MediaPlay<span className="font-medium text-white/80">Promo</span></div>
+                  <div className="text-white/35 text-[9px] font-semibold tracking-widest">.COM</div>
                 </div>
               </div>
               <button onClick={() => setNavDrawerOpen(false)} className="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center" aria-label="Cerrar">
