@@ -158,6 +158,7 @@ const YF_AUTO_CLIP: Product = {
   enabled: true,
   order: 1,
   salesCount: 2400,
+  landingStyle: "pro",
 
   // 3 sub-productos del pack
   subProducts: [
