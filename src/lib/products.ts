@@ -104,6 +104,8 @@ export interface Product {
   author?: string;
   /** URL de portada (imagen para card en grid). Si vacío, se renderiza el box 3D auto */
   coverImage?: string;
+  /** Link de descarga del producto (archivo/instalador). Se entrega al comprador. */
+  downloadUrl?: string;
   /** Icono principal para card si no hay cover */
   cardIcon?: LucideIcon;
   /** Gradient principal */
@@ -126,6 +128,8 @@ export interface Product {
   order?: number;
   /** Counter de ventas (para social proof) */
   salesCount?: number;
+  /** Estilo de landing: "pro" = landing de ventas completa; por defecto = showcase estándar */
+  landingStyle?: "pro" | "default";
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -401,6 +405,7 @@ const YF_AUTO_CLIP_V1: Product = {
   enabled: true,
   order: 2,
   salesCount: 1500,
+  landingStyle: "pro",
   benefits: [
     { icon: Clock, title: "Ahorra Tiempo", description: "La versión que inició la revolución." },
     { icon: Hand, title: "Más Simple", description: "Interfaz minimalista — sin distracciones." },
@@ -493,4 +498,132 @@ export function getProductBySlug(slug: string): Product | undefined {
 /** Buscar producto por slug dentro de una categoría específica */
 export function getProductInCategory(categorySlug: string, productSlug: string): Product | undefined {
   return PRODUCTS.find((p) => p.categorySlug === categorySlug && p.slug === productSlug && p.enabled);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ✏️ SISTEMA DE OVERRIDES (edición desde el panel admin)
+   Guarda solo campos serializables en localStorage. Los iconos
+   y campos no editables se preservan desde DEFAULT_PRODUCTS.
+   ═══════════════════════════════════════════════════════════════ */
+
+export const PRODUCTS_STORAGE_KEY = "mpp_products_v1";
+
+export interface SubProductOverride {
+  name?: string;
+  description?: string;
+  features?: string[];
+}
+
+export interface PriceOverride {
+  id: string;
+  name?: string;
+  description?: string;
+  price?: number;
+  /** null = quitar precio tachado */
+  originalPrice?: number | null;
+  periodLabel?: string;
+  /** null = quitar badge */
+  badge?: string | null;
+  cta?: string;
+  features?: string[];
+}
+
+export interface ProductOverride {
+  id: string;
+  name?: string;
+  version?: string;
+  tagline?: string;
+  cardDescription?: string;
+  longDescription?: string;
+  coverImage?: string;
+  downloadUrl?: string;
+  author?: string;
+  premium?: boolean;
+  enabled?: boolean;
+  salesCount?: number;
+  order?: number;
+  /** Por índice, alineado con los sub-productos por defecto */
+  subProducts?: SubProductOverride[];
+  /** Por id de tier */
+  prices?: PriceOverride[];
+}
+
+/** Aplica un override sobre el producto base preservando iconos y estructura no editable */
+export function applyProductOverride(base: Product, ov: ProductOverride): Product {
+  const next: Product = { ...base };
+
+  const str = (v: string | undefined, current: string | undefined) =>
+    v === undefined ? current : v === "" ? undefined : v;
+
+  next.name = ov.name ?? base.name;
+  next.version = str(ov.version, base.version);
+  next.tagline = ov.tagline ?? base.tagline;
+  next.cardDescription = str(ov.cardDescription, base.cardDescription);
+  next.longDescription = str(ov.longDescription, base.longDescription);
+  next.coverImage = str(ov.coverImage, base.coverImage);
+  next.downloadUrl = str(ov.downloadUrl, base.downloadUrl);
+  next.author = str(ov.author, base.author);
+  if (ov.premium !== undefined) next.premium = ov.premium;
+  if (ov.enabled !== undefined) next.enabled = ov.enabled;
+  if (typeof ov.salesCount === "number") next.salesCount = ov.salesCount;
+  if (typeof ov.order === "number") next.order = ov.order;
+
+  if (ov.subProducts && base.subProducts) {
+    next.subProducts = base.subProducts.map((sp, i) => {
+      const o = ov.subProducts![i];
+      if (!o) return sp;
+      return {
+        ...sp,
+        name: o.name ?? sp.name,
+        description: o.description ?? sp.description,
+        features: o.features ?? sp.features,
+      };
+    });
+  }
+
+  if (ov.prices) {
+    next.prices = base.prices.map((p) => {
+      const o = ov.prices!.find((x) => x.id === p.id);
+      if (!o) return p;
+      return {
+        ...p,
+        name: o.name ?? p.name,
+        description: o.description ?? p.description,
+        price: typeof o.price === "number" ? o.price : p.price,
+        originalPrice: o.originalPrice === null ? undefined : (o.originalPrice ?? p.originalPrice),
+        periodLabel: o.periodLabel ?? p.periodLabel,
+        badge: o.badge === null ? undefined : (o.badge ?? p.badge),
+        cta: o.cta ?? p.cta,
+        features: o.features ?? p.features,
+      };
+    });
+  }
+
+  return next;
+}
+
+/** Devuelve los productos por defecto con los overrides aplicados */
+export function getOverriddenProducts(overrides: ProductOverride[]): Product[] {
+  return DEFAULT_PRODUCTS.map((d) => {
+    const ov = overrides.find((o) => o.id === d.id);
+    return ov ? applyProductOverride(d, ov) : d;
+  });
+}
+
+/** Lee los overrides guardados en localStorage (solo cliente) */
+export function loadProductOverrides(): ProductOverride[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(PRODUCTS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as ProductOverride[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Catálogo resuelto (defaults + overlay de localStorage). Solo cliente. */
+export function resolveProducts(): Product[] {
+  return getOverriddenProducts(loadProductOverrides());
 }

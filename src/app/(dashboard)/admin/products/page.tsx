@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Package, Plus, Edit3, Trash2, X, Save, Eye, EyeOff, Crown, ImageIcon as Img } from "lucide-react";
+import { Package, Plus, Edit3, Trash2, X, Save, Eye, EyeOff, Crown, ImageIcon as Img, Upload } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { DEFAULT_PRODUCTS, PRODUCTS, type Product } from "@/lib/products";
 import { CATEGORIES } from "@/lib/categories";
@@ -18,6 +18,7 @@ interface ProductDraft {
   cardDescription: string;
   longDescription: string;
   coverImage: string;
+  downloadUrl: string;
   author: string;
   premium: boolean;
   enabled: boolean;
@@ -36,6 +37,7 @@ function productToDraft(p: Product): ProductDraft {
     cardDescription: p.cardDescription ?? "",
     longDescription: p.longDescription ?? "",
     coverImage: p.coverImage ?? "",
+    downloadUrl: p.downloadUrl ?? "",
     author: p.author ?? "",
     premium: p.premium ?? false,
     enabled: p.enabled,
@@ -78,6 +80,7 @@ export default function ProductsAdminPage() {
       cardDescription: p.cardDescription,
       longDescription: p.longDescription,
       coverImage: p.coverImage,
+      downloadUrl: p.downloadUrl,
       author: p.author,
       premium: p.premium,
       enabled: p.enabled,
@@ -92,6 +95,16 @@ export default function ProductsAdminPage() {
   const startEdit = (p: Product) => {
     setEditId(p.id);
     setDraft(productToDraft(p));
+  };
+
+  /** Sube una imagen desde el equipo y la guarda como data URL en el borrador */
+  const onUploadCover = (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { alert("Selecciona un archivo de imagen (JPG, PNG, WebP)."); return; }
+    if (file.size > 2 * 1024 * 1024) { alert("La imagen supera 2MB. Usa una más ligera o pega una URL."); return; }
+    const reader = new FileReader();
+    reader.onload = () => setDraft((d) => (d ? { ...d, coverImage: String(reader.result) } : d));
+    reader.readAsDataURL(file);
   };
 
   const cancelEdit = () => {
@@ -111,6 +124,7 @@ export default function ProductsAdminPage() {
             cardDescription: draft.cardDescription || undefined,
             longDescription: draft.longDescription || undefined,
             coverImage: draft.coverImage || undefined,
+            downloadUrl: draft.downloadUrl || undefined,
             author: draft.author || undefined,
             premium: draft.premium,
             enabled: draft.enabled,
@@ -284,20 +298,51 @@ export default function ProductsAdminPage() {
                         placeholder="Audio Replace + Clip Cutter + Format Converter..."
                       />
                     </Field>
-                    <Field label="🖼️ Portada / Cover URL (opcional)" full>
+                    <Field label="🖼️ Imagen del producto (portada)" full>
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <label className="inline-flex items-center gap-1.5 bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white text-xs font-bold px-3 py-2 rounded-lg cursor-pointer shadow shadow-violet-500/30 hover:-translate-y-0.5 transition-all">
+                          <Upload className="w-3.5 h-3.5" /> Subir imagen
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => onUploadCover(e.target.files?.[0])}
+                          />
+                        </label>
+                        {draft.coverImage && (
+                          <button
+                            type="button"
+                            onClick={() => setDraft({ ...draft, coverImage: "" })}
+                            className="inline-flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Quitar
+                          </button>
+                        )}
+                        <span className="text-white/35 text-[10px]">o pega una URL abajo</span>
+                      </div>
                       <input
-                        value={draft.coverImage}
+                        value={draft.coverImage.startsWith("data:") ? "" : draft.coverImage}
                         onChange={(e) => setDraft({ ...draft, coverImage: e.target.value })}
-                        placeholder="https://cdn.../yf-auto-clip.jpg"
-                        className="adm-input font-mono text-[11px]"
+                        placeholder={draft.coverImage.startsWith("data:") ? "(imagen subida desde tu equipo)" : "https://cdn.../yf-auto-clip.jpg"}
+                        disabled={draft.coverImage.startsWith("data:")}
+                        className="adm-input font-mono text-[11px] disabled:opacity-50"
                       />
                       {draft.coverImage && (
-                        <div className="mt-2 inline-block rounded-lg overflow-hidden border border-white/15 max-w-[120px]">
+                        <div className="mt-2 inline-block rounded-lg overflow-hidden border border-white/15 max-w-[160px]">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={draft.coverImage} alt="preview" className="w-full h-auto" onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0.3"; }} />
                         </div>
                       )}
-                      <p className="text-white/35 text-[10px] mt-1.5">Si está vacío, se genera un box 3D auto con el gradient del producto.</p>
+                      <p className="text-white/35 text-[10px] mt-1.5">Si está vacío, se genera un box 3D auto con el gradient del producto. Máx 2MB para subida directa.</p>
+                    </Field>
+                    <Field label="⬇️ Link de descarga (archivo / instalador)" full>
+                      <input
+                        value={draft.downloadUrl}
+                        onChange={(e) => setDraft({ ...draft, downloadUrl: e.target.value })}
+                        placeholder="https://drive.google.com/... o https://tu-cdn.com/yf-auto-clip.zip"
+                        className="adm-input font-mono text-[11px]"
+                      />
+                      <p className="text-white/35 text-[10px] mt-1.5">El comprador recibe este enlace tras pagar. (Como admin lo ves en la landing para verificarlo.)</p>
                     </Field>
                     <Field label="Autor / Brand">
                       <input value={draft.author} onChange={(e) => setDraft({ ...draft, author: e.target.value })} placeholder="by YANKYFILMS" className="adm-input" />

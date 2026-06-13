@@ -4,8 +4,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight, ArrowLeft } from "lucide-react";
 import { getCategoryBySlug } from "@/lib/categories";
-import { getProductInCategory, productsByCategory } from "@/lib/products";
+import { useResolvedProducts } from "@/lib/use-products";
 import { ProductShowcase } from "@/components/products/ProductShowcase";
+import { ProductLandingPro } from "@/components/products/ProductLandingPro";
 
 interface PageProps {
   params: Promise<{ slug: string; productSlug: string }>;
@@ -14,11 +15,15 @@ interface PageProps {
 export default function ProductDetailPage({ params }: PageProps) {
   const { slug, productSlug } = use(params);
   const category = getCategoryBySlug(slug);
-  const product = getProductInCategory(slug, productSlug);
+  const products = useResolvedProducts();
+  const product = products.find((p) => p.categorySlug === slug && p.slug === productSlug);
 
   if (!category || !product) notFound();
 
-  const relatedProducts = productsByCategory(slug).filter((p) => p.id !== product.id).slice(0, 4);
+  const relatedProducts = products
+    .filter((p) => p.categorySlug === slug && p.enabled && p.id !== product.id)
+    .sort((a, b) => (a.order ?? 99) - (b.order ?? 99))
+    .slice(0, 4);
 
   return (
     <div className="space-y-6 pb-8">
@@ -43,8 +48,10 @@ export default function ProductDetailPage({ params }: PageProps) {
         <ArrowLeft className="w-3.5 h-3.5" /> Ver todos los productos de {category.title}
       </Link>
 
-      {/* PRODUCT SHOWCASE COMPLETO */}
-      <ProductShowcase product={product} />
+      {/* LANDING DE VENTAS (pro) o SHOWCASE estándar */}
+      {product.landingStyle === "pro"
+        ? <ProductLandingPro product={product} />
+        : <ProductShowcase product={product} />}
 
       {/* Productos relacionados */}
       {relatedProducts.length > 0 && (
