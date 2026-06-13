@@ -132,6 +132,8 @@ export interface Product {
   salesCount?: number;
   /** Estilo de landing: "pro" = landing de ventas completa; por defecto = showcase estándar */
   landingStyle?: "pro" | "default";
+  /** Producto en pre-lanzamiento (muestra badge "Muy pronto") */
+  comingSoon?: boolean;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -146,11 +148,11 @@ const YF_AUTO_CLIP: Product = {
   name: "YF AUTO CLIP",
   shortName: "YF Auto Clip",
   version: "V2",
-  tagline: "Suite profesional de edición de video",
-  description: "Procesamiento masivo de video. Reemplaza audios, corta clips y convierte formatos con calidad profesional.",
-  cardDescription: "Audio Replace + Clip Cutter + Format Converter en un solo paquete",
-  longDescription: "Todo lo que necesitas para automatizar, editar y destacar tu contenido como un verdadero profesional. 3 herramientas en una sola suite — sin instalaciones complicadas, sin curvas de aprendizaje.",
-  packTagline: "PROCESAMIENTO MASIVO DE VIDEO",
+  tagline: "La nueva era de la automatización de video",
+  description: "13 herramientas para crear, automatizar y publicar tu contenido. Procesamiento masivo de video con IA.",
+  cardDescription: "13 herramientas: audio, subtítulos, color, publicación y mucho más",
+  longDescription: "Todo en una sola herramienta para crear, automatizar y publicar. 13 herramientas profesionales — audio, subtítulos, color, fusión, velocidad, publicación automática y un asistente con IA. Sin instalaciones complicadas, sin curvas de aprendizaje.",
+  packTagline: "TODO EN UNA SOLA HERRAMIENTA",
   author: "by YANKYFILMS",
   cardIcon: Layers,
   gradient: "from-violet-500 via-purple-500 to-fuchsia-600",
@@ -161,6 +163,7 @@ const YF_AUTO_CLIP: Product = {
   order: 1,
   salesCount: 2400,
   landingStyle: "pro",
+  comingSoon: true,
 
   // 3 sub-productos del pack
   subProducts: [
@@ -292,6 +295,96 @@ const YF_AUTO_CLIP: Product = {
         ctaText: "PROBAR FORMAT CONVERTER AHORA",
         idealFor: ["Creadores de contenido", "Marketing digital", "Empresas y agencias", "Educadores online", "Y mucho más..."],
       },
+    },
+    {
+      name: "SUBTITLE BURNER",
+      description: "Añade y quema subtítulos directamente en tus videos.",
+      icon: FileText,
+      color: "from-cyan-400 to-blue-600",
+      borderColor: "border-cyan-500/30",
+      bgColor: "from-cyan-500/10 to-blue-500/5",
+      features: ["Subtítulos quemados (hardsub)", "Estilos y posición personalizables", "Soporte multi-idioma"],
+    },
+    {
+      name: "WATERMARK BRAND",
+      description: "Añade tu logo o marca de agua a todos tus videos.",
+      icon: ImageIcon,
+      color: "from-fuchsia-500 to-purple-600",
+      borderColor: "border-fuchsia-500/30",
+      bgColor: "from-fuchsia-500/10 to-purple-500/5",
+      features: ["Logo o marca de agua", "Posición y opacidad ajustables", "Refuerza tu identidad de marca"],
+    },
+    {
+      name: "COLOR GRADER",
+      description: "Ajusta los colores y crea estilos visuales profesionales.",
+      icon: Sliders,
+      color: "from-pink-500 to-rose-600",
+      borderColor: "border-pink-500/30",
+      bgColor: "from-pink-500/10 to-rose-500/5",
+      features: ["Corrección de color", "LUTs y presets cinematográficos", "Estilos visuales pro"],
+    },
+    {
+      name: "VIDEO MERGER",
+      description: "Une múltiples videos en uno solo de forma rápida.",
+      icon: Layers,
+      color: "from-violet-500 to-purple-700",
+      borderColor: "border-violet-500/30",
+      bgColor: "from-violet-500/10 to-purple-500/5",
+      features: ["Une varios clips", "Orden personalizado", "Exportación en alta calidad"],
+    },
+    {
+      name: "SPEED CONTROL",
+      description: "Ajusta la velocidad de tus videos: cámara rápida o lenta.",
+      icon: FastForward,
+      color: "from-amber-400 to-orange-600",
+      borderColor: "border-amber-500/30",
+      bgColor: "from-amber-500/10 to-orange-500/5",
+      features: ["Cámara rápida y lenta", "Curvas de velocidad", "Sin pérdida de calidad"],
+    },
+    {
+      name: "PUBLISHER",
+      description: "Publica y programa tus videos en todas tus redes (vía Postiz).",
+      icon: Rocket,
+      color: "from-red-500 to-rose-600",
+      borderColor: "border-red-500/30",
+      bgColor: "from-red-500/10 to-rose-500/5",
+      features: ["YouTube, Facebook, TikTok, Instagram, LinkedIn, X", "Publicación directa", "Integración con Postiz"],
+    },
+    {
+      name: "SCHEDULER",
+      description: "Programa y automatiza tus publicaciones para ahorrar tiempo.",
+      icon: Clock,
+      color: "from-blue-400 to-indigo-600",
+      borderColor: "border-blue-500/30",
+      bgColor: "from-blue-500/10 to-indigo-500/5",
+      features: ["Calendario de publicaciones", "Mejor horario sugerido", "Automatización total"],
+    },
+    {
+      name: "AUDIO IA LOCAL",
+      description: "Convierte texto a voz con voces locales mediante IA.",
+      icon: Volume2,
+      color: "from-emerald-400 to-teal-600",
+      borderColor: "border-emerald-500/30",
+      bgColor: "from-emerald-500/10 to-teal-500/5",
+      features: ["Texto a voz (TTS)", "Voces locales", "Sin coste por uso en la nube"],
+    },
+    {
+      name: "YF ASSISTANT",
+      description: "Asistente con IA que te guía y ayuda en todo el proceso.",
+      icon: Wand2,
+      color: "from-violet-500 to-fuchsia-600",
+      borderColor: "border-violet-500/30",
+      bgColor: "from-violet-500/10 to-fuchsia-500/5",
+      features: ["Sugerencias inteligentes", "Ayuda paso a paso", "Optimiza tu flujo de trabajo"],
+    },
+    {
+      name: "VIDEO EDITOR",
+      description: "Edita, corta y mejora tus videos con herramientas avanzadas.",
+      icon: Crop,
+      color: "from-purple-500 to-indigo-600",
+      borderColor: "border-purple-500/30",
+      bgColor: "from-purple-500/10 to-indigo-500/5",
+      features: ["Edición avanzada", "Timeline multi-capa", "Mejora automática"],
     },
   ],
 

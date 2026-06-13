@@ -152,9 +152,15 @@ export function ProductLandingPro({ product }: Props) {
         <div className="relative z-10 grid lg:grid-cols-2 gap-10 lg:gap-12 items-center p-6 sm:p-10 lg:p-14">
           {/* Left */}
           <div className="text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card border-cyan-500/20 text-cyan-300 text-xs font-bold tracking-wider uppercase mb-6">
-              <Sparkles className="w-4 h-4" /> Suite profesional para creadores
-            </div>
+            {product.comingSoon ? (
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-orange-500/20 to-fuchsia-500/20 border border-orange-500/40 text-orange-300 text-xs font-black tracking-wider uppercase mb-6 glow-pulse">
+                <Rocket className="w-4 h-4" /> Muy pronto · Prepárate para el lanzamiento
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card border-cyan-500/20 text-cyan-300 text-xs font-bold tracking-wider uppercase mb-6">
+                <Sparkles className="w-4 h-4" /> Suite profesional para creadores
+              </div>
+            )}
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.05] mb-5">
               <span className="block text-white">CREA. EDITA.</span>
@@ -225,60 +231,83 @@ export function ProductLandingPro({ product }: Props) {
         </div>
       </section>
 
-      {/* ═══════════ 3 TOOLS ═══════════ */}
+      {/* ═══════════ TOOLS ═══════════ */}
       <section id="productos">
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">
-            3 HERRAMIENTAS.{" "}
+            {tools.length} HERRAMIENTAS.{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-pink-400">INFINITAS POSIBILIDADES.</span>
           </h2>
           <p className="text-white/50 text-base mt-3 max-w-2xl mx-auto">
-            Una suite de herramientas diseñadas para maximizar tu eficiencia y la calidad de tu contenido.
+            Una suite completa diseñada para crear, automatizar y publicar tu contenido sin complicaciones.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          {tools.map((tool, i) => {
-            const Icon = tool.icon;
-            const a = ACCENT[tool.accent];
-            const featured = i === 1;
-            return (
-              <div key={tool.name}
-                className={`glass-card hover-lift relative overflow-hidden rounded-2xl p-7 group ${featured ? `${a.ring} shadow-2xl ${a.shadow}` : "border-white/10"}`}
-              >
-                <div className={`absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity`}>
-                  <Icon className={`w-24 h-24 ${a.text}`} />
+        {tools.length > 4 ? (
+          /* Grid compacto (muchas herramientas) */
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {tools.map((tool, i) => {
+              const Icon = tool.icon;
+              const a = ACCENT[tool.accent];
+              return (
+                <div key={`${tool.name}-${i}`} className="glass-card hover-lift relative overflow-hidden rounded-2xl p-5 border-white/10 group">
+                  <div className={`w-12 h-12 rounded-xl ${a.bg} border ${a.ring} flex items-center justify-center mb-4`}>
+                    <Icon className={`w-6 h-6 ${a.text}`} />
+                  </div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-white/30 font-black text-xs">{String(i + 1).padStart(2, "0")}</span>
+                    <h3 className="text-white font-black text-sm tracking-wide">{tool.name}</h3>
+                  </div>
+                  <p className="text-white/50 text-xs leading-snug">{tool.description}</p>
                 </div>
-                {featured && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-pink-500 to-transparent" />}
-
-                <div className={`relative w-14 h-14 rounded-xl ${a.bg} border ${a.ring} flex items-center justify-center mb-6`}>
-                  <Icon className={`w-7 h-7 ${a.text}`} />
-                </div>
-                <h3 className="relative text-xl font-black text-white mb-3 tracking-wide">{tool.name}</h3>
-                <p className="relative text-white/55 text-sm mb-6 min-h-[64px]">{tool.description}</p>
-
-                <ul className="relative space-y-3 mb-7">
-                  {tool.features.slice(0, 4).map((f) => (
-                    <li key={f} className="flex items-start gap-3 text-sm">
-                      <CheckCircle2 className={`w-5 h-5 ${a.text} shrink-0 mt-0.5`} />
-                      <span className="text-white/75">{f}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <button onClick={() => scrollTo("precios")}
-                  className={`w-full inline-flex items-center justify-center gap-2 font-bold text-sm px-4 py-3 rounded-xl transition-all ${
-                    featured
-                      ? `bg-gradient-to-r ${a.grad} text-white shadow-lg ${a.shadow} ring-1 ring-white/20`
-                      : "bg-white/5 hover:bg-white/10 text-white border border-white/15"
-                  }`}
+              );
+            })}
+          </div>
+        ) : (
+          /* Grid detallado (pocas herramientas) */
+          <div className="grid md:grid-cols-3 gap-6">
+            {tools.map((tool, i) => {
+              const Icon = tool.icon;
+              const a = ACCENT[tool.accent];
+              const featured = tools.length === 3 && i === 1;
+              return (
+                <div key={`${tool.name}-${i}`}
+                  className={`glass-card hover-lift relative overflow-hidden rounded-2xl p-7 group ${featured ? `${a.ring} shadow-2xl ${a.shadow}` : "border-white/10"}`}
                 >
-                  {featured ? "OBTENER AHORA" : "VER DETALLES"}
-                </button>
-              </div>
-            );
-          })}
-        </div>
+                  <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <Icon className={`w-24 h-24 ${a.text}`} />
+                  </div>
+                  {featured && <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-pink-500 to-transparent" />}
+
+                  <div className={`relative w-14 h-14 rounded-xl ${a.bg} border ${a.ring} flex items-center justify-center mb-6`}>
+                    <Icon className={`w-7 h-7 ${a.text}`} />
+                  </div>
+                  <h3 className="relative text-xl font-black text-white mb-3 tracking-wide">{tool.name}</h3>
+                  <p className="relative text-white/55 text-sm mb-6 min-h-[64px]">{tool.description}</p>
+
+                  <ul className="relative space-y-3 mb-7">
+                    {tool.features.slice(0, 4).map((f) => (
+                      <li key={f} className="flex items-start gap-3 text-sm">
+                        <CheckCircle2 className={`w-5 h-5 ${a.text} shrink-0 mt-0.5`} />
+                        <span className="text-white/75">{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <button onClick={() => scrollTo("precios")}
+                    className={`w-full inline-flex items-center justify-center gap-2 font-bold text-sm px-4 py-3 rounded-xl transition-all ${
+                      featured
+                        ? `bg-gradient-to-r ${a.grad} text-white shadow-lg ${a.shadow} ring-1 ring-white/20`
+                        : "bg-white/5 hover:bg-white/10 text-white border border-white/15"
+                    }`}
+                  >
+                    {featured ? "OBTENER AHORA" : "VER DETALLES"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* ═══════════ BENEFITS ═══════════ */}
