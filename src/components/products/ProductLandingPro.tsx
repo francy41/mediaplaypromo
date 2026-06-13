@@ -14,10 +14,6 @@ interface Props {
   product: Product;
 }
 
-/** Imagen por defecto del hero (editable desde el panel → Portada del producto) */
-const DEFAULT_HERO_IMG =
-  "https://vibe.filesafe.space/1779828472610249056/attachments/50e1252b-b6ca-43da-8359-c0e8360c1a5b.jpg";
-
 /** Herramientas por defecto si el producto no define sub-productos */
 const FALLBACK_TOOLS = [
   {
@@ -86,7 +82,7 @@ export function ProductLandingPro({ product }: Props) {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [contact, setContact] = useState({ name: "", email: "", message: "" });
 
-  const heroImg = product.coverImage || DEFAULT_HERO_IMG;
+  const heroImg = product.coverImage;
   const offer = product.lifetimeOffer;
   const tools = product.subProducts?.length
     ? product.subProducts.map((sp, i) => ({
@@ -200,34 +196,20 @@ export function ProductLandingPro({ product }: Props) {
             </div>
           </div>
 
-          {/* Right — image mock */}
-          <div className="relative float-soft">
-            <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/20 to-fuchsia-500/20 rounded-2xl blur-2xl" />
-            <div className="relative glass-card rounded-2xl p-2 overflow-hidden shadow-2xl border-white/10">
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#08041a]/90 z-10 pointer-events-none" />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={heroImg} alt={product.name} className="w-full h-auto rounded-xl object-cover aspect-[4/3]"
-                onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0.25"; }}
-              />
-              <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6 z-20">
-                <div className="glass-card rounded-xl p-5 border-white/10">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-bold text-white">{product.name}</h3>
-                    <span className="bg-cyan-500/20 text-cyan-300 px-3 py-1 rounded-full text-xs font-bold">{product.version ?? "v1.0"}</span>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-cyan-500 to-fuchsia-500 w-[85%]" />
-                    </div>
-                    <div className="flex justify-between text-xs text-white/55">
-                      <span>Procesando videos...</span>
-                      <span className="text-cyan-300 font-bold">85%</span>
-                    </div>
-                  </div>
-                </div>
+          {/* Right — imagen subida (si existe) o maqueta 3D del producto */}
+          {heroImg ? (
+            <div className="relative float-soft">
+              <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/20 to-fuchsia-500/20 rounded-2xl blur-2xl" />
+              <div className="relative glass-card rounded-2xl p-2 overflow-hidden shadow-2xl border-white/10">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={heroImg} alt={product.name} className="w-full h-auto rounded-xl object-cover"
+                  onError={(e) => { (e.target as HTMLImageElement).style.opacity = "0.25"; }}
+                />
               </div>
             </div>
-          </div>
+          ) : (
+            <ProductBoxMock product={product} />
+          )}
         </div>
       </section>
 
@@ -592,6 +574,62 @@ export function ProductLandingPro({ product }: Props) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Insignia circular del monograma YF (Y dorada + F azul, estilo del logo) */
+function YFBadge() {
+  return (
+    <div className="relative w-32 h-32 sm:w-36 sm:h-36 rounded-full bg-gradient-to-br from-[#1a1f3a] to-[#070a16] border-2 border-white/10 flex items-center justify-center shadow-2xl">
+      <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-orange-500/25 via-transparent to-fuchsia-500/25" />
+      <div className="absolute inset-2 rounded-full border border-white/5" />
+      <span className="relative text-6xl font-black tracking-tighter drop-shadow-lg">
+        <span className="text-transparent bg-clip-text bg-gradient-to-br from-amber-300 to-orange-500">Y</span>
+        <span className="text-transparent bg-clip-text bg-gradient-to-br from-cyan-300 to-fuchsia-500">F</span>
+      </span>
+    </div>
+  );
+}
+
+/** Maqueta 3D vectorial de la caja del producto (cuando no hay imagen subida) */
+function ProductBoxMock({ product }: { product: Product }) {
+  const tools = (product.subProducts?.slice(0, 3).map((s) => s.name)) ?? ["AUDIO REPLACE", "CLIP CUTTER", "FORMAT CONVERTER"];
+  const extra = (product.subProducts?.length ?? 0) - 3;
+  return (
+    <div className="relative mx-auto w-full max-w-[20rem] float-soft" style={{ perspective: "1100px" }}>
+      <div className="absolute -inset-6 bg-gradient-to-tr from-cyan-500/25 via-fuchsia-500/20 to-orange-500/20 rounded-[2rem] blur-3xl pointer-events-none" />
+      <div
+        className="relative rounded-[1.5rem] border border-white/15 bg-gradient-to-br from-[#0c1124] via-[#0a0c1a] to-[#05060d] shadow-2xl overflow-hidden p-6 flex flex-col aspect-[4/5]"
+        style={{ transform: "rotateY(-7deg) rotateX(3deg)" }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute -top-16 -right-16 w-40 h-40 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none" />
+
+        <p className="relative text-center text-white/70 text-[11px] font-bold tracking-[0.35em] uppercase">YF AUTO CLIP</p>
+
+        <div className="relative flex-1 flex items-center justify-center py-4">
+          <YFBadge />
+        </div>
+
+        <div className="relative space-y-2">
+          {tools.map((t) => (
+            <div key={t} className="rounded-lg bg-gradient-to-r from-amber-400 to-orange-500 text-center py-2 text-[11px] font-black tracking-widest text-black/90 shadow-lg shadow-orange-500/20">
+              {t}
+            </div>
+          ))}
+          {extra > 0 && <p className="text-center text-cyan-300 text-[10px] font-bold pt-1">+{extra} herramientas más</p>}
+        </div>
+
+        <p className="relative text-center text-white/40 text-[9px] mt-3 leading-tight">
+          {product.packTagline ?? "Procesamiento masivo de video"}
+          {product.author ? ` · ${product.author}` : ""}{product.version ? ` · ${product.version}` : ""}
+        </p>
+      </div>
+
+      <div className="absolute -top-4 -right-3 w-14 h-14 rounded-full bg-gradient-to-br from-yellow-300 to-orange-500 flex items-center justify-center shadow-xl ring-2 ring-white/30 float-soft">
+        <Sparkles className="w-7 h-7 text-white drop-shadow" />
+      </div>
     </div>
   );
 }
