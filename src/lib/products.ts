@@ -571,6 +571,18 @@ export interface PriceOverride {
   features?: string[];
 }
 
+/** Override de la oferta de pago único (lifetime). null = desactivar la oferta. */
+export interface LifetimeOverride {
+  name: string;
+  description: string;
+  price: number;
+  originalPrice?: number | null;
+  periodLabel: string;
+  badge?: string | null;
+  cta: string;
+  features: string[];
+}
+
 export interface ProductOverride {
   id: string;
   name?: string;
@@ -589,6 +601,8 @@ export interface ProductOverride {
   subProducts?: SubProductOverride[];
   /** Por id de tier */
   prices?: PriceOverride[];
+  /** Oferta de pago único. null = desactivada. */
+  lifetimeOffer?: LifetimeOverride | null;
 }
 
 /** Aplica un override sobre el producto base preservando iconos y estructura no editable */
@@ -640,6 +654,27 @@ export function applyProductOverride(base: Product, ov: ProductOverride): Produc
         features: o.features ?? p.features,
       };
     });
+  }
+
+  if (ov.lifetimeOffer !== undefined) {
+    if (ov.lifetimeOffer === null) {
+      next.lifetimeOffer = undefined; // oferta desactivada desde el panel
+    } else {
+      const o = ov.lifetimeOffer;
+      next.lifetimeOffer = {
+        id: base.lifetimeOffer?.id ?? "lifetime",
+        billingPeriod: "lifetime",
+        stripePriceId: base.lifetimeOffer?.stripePriceId,
+        name: o.name,
+        description: o.description,
+        price: o.price,
+        originalPrice: o.originalPrice ?? undefined,
+        periodLabel: o.periodLabel,
+        badge: o.badge ?? undefined,
+        cta: o.cta,
+        features: o.features,
+      };
+    }
   }
 
   return next;
