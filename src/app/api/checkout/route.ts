@@ -25,7 +25,9 @@ export async function POST(req: NextRequest) {
     if (!product) {
       return NextResponse.json({ error: "Producto no encontrado" }, { status: 404 });
     }
-    const tier = product.prices.find((p) => p.id === tierId);
+    const tier =
+      product.prices.find((p) => p.id === tierId) ??
+      (product.lifetimeOffer?.id === tierId ? product.lifetimeOffer : undefined);
     if (!tier) {
       return NextResponse.json({ error: "Plan no encontrado" }, { status: 404 });
     }

@@ -87,6 +87,7 @@ export function ProductLandingPro({ product }: Props) {
   const [contact, setContact] = useState({ name: "", email: "", message: "" });
 
   const heroImg = product.coverImage || DEFAULT_HERO_IMG;
+  const offer = product.lifetimeOffer;
   const tools = product.subProducts?.length
     ? product.subProducts.map((sp, i) => ({
         name: sp.name,
@@ -347,6 +348,37 @@ export function ProductLandingPro({ product }: Props) {
             Acceso completo desde <span className="text-cyan-400 font-bold">€{minPrice.toFixed(2)}/mes</span>. Elige el plan que mejor se adapte a tu flujo.
           </p>
         </div>
+
+        {/* ── Oferta especial de pago único (Lifetime) ── */}
+        {offer && (
+          <div className="max-w-4xl mx-auto mb-10">
+            <div className="relative overflow-hidden rounded-3xl border border-pink-500/40 bg-gradient-to-br from-pink-500/10 via-fuchsia-500/[0.06] to-transparent p-7 sm:p-8 shadow-2xl shadow-pink-500/20">
+              <div className="absolute top-0 right-0 bg-gradient-to-r from-pink-500 to-rose-600 text-white text-[10px] font-black px-4 py-1 rounded-bl-xl uppercase tracking-wider">
+                {offer.badge ?? "Oferta de lanzamiento"}
+              </div>
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="min-w-0 text-center md:text-left">
+                  <h3 className="text-2xl font-black text-white mb-2">{offer.name}</h3>
+                  <p className="text-white/55 text-sm mb-4 max-w-md">{offer.description}</p>
+                  <div className="flex items-center justify-center md:justify-start gap-4 flex-wrap">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-5xl font-black text-white">€{offer.price}</span>
+                      {offer.originalPrice && <span className="text-white/40 text-lg line-through">€{offer.originalPrice}</span>}
+                    </div>
+                    <span className="bg-pink-500/20 text-pink-300 px-3 py-1 rounded-full text-sm font-bold border border-pink-500/30 glow-pulse">¡Últimos cupos!</span>
+                  </div>
+                </div>
+                <button onClick={() => handleBuy(offer.id)} disabled={buying === offer.id}
+                  className="shine-btn w-full md:w-auto inline-flex items-center justify-center gap-2 bg-gradient-to-r from-pink-500 to-rose-600 text-white font-black h-14 px-8 rounded-xl shadow-2xl shadow-pink-500/30 ring-1 ring-white/20 text-base transition-all hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-wait"
+                >
+                  {buying === offer.id
+                    ? <><Loader2 className="w-5 h-5 animate-spin" /> Redirigiendo...</>
+                    : <>{offer.cta} <ArrowRight className="w-5 h-5" /></>}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid md:grid-cols-3 gap-5 max-w-5xl mx-auto items-stretch">
           {product.prices.map((tier) => {

@@ -118,6 +118,8 @@ export interface Product {
   benefits: Benefit[];
   /** 6 paquetes de precio */
   prices: PriceTier[];
+  /** Oferta especial de pago único (banner destacado tipo "Licencia Lifetime") */
+  lifetimeOffer?: PriceTier;
   /** Stats sociales */
   stats?: { label: string; value: string }[];
   /** Premium product */
@@ -379,6 +381,26 @@ const YF_AUTO_CLIP: Product = {
       stripePriceId: "price_yfauto_yearly_197",
     },
   ],
+
+  lifetimeOffer: {
+    id: "lifetime",
+    name: "Licencia Lifetime (Pago Único)",
+    description: "Acceso de por vida a YF Auto Clip. Limitado a los primeros 50 usuarios. + 50% de descuento asegurado para la versión 2.0.",
+    price: 19.99,
+    originalPrice: 99,
+    billingPeriod: "lifetime",
+    periodLabel: "pago único",
+    badge: "OFERTA DE LANZAMIENTO",
+    cta: "OBTENER OFERTA AHORA",
+    features: [
+      "Acceso de por vida — sin suscripción",
+      "Las 3 herramientas YF AUTO CLIP",
+      "Actualizaciones de la v1 incluidas",
+      "50% de descuento asegurado para la v2.0",
+      "Soporte por email",
+    ],
+    stripePriceId: "price_yfauto_lifetime_1999",
+  },
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -470,6 +492,26 @@ const YF_AUTO_CLIP_V1: Product = {
       ],
     },
   ],
+
+  lifetimeOffer: {
+    id: "lifetime",
+    name: "Licencia Lifetime (Pago Único)",
+    description: "Acceso de por vida a YF Auto Clip V1. Limitado a los primeros 50 usuarios. + 50% de descuento asegurado para la versión 2.0.",
+    price: 19.99,
+    originalPrice: 99,
+    billingPeriod: "lifetime",
+    periodLabel: "pago único",
+    badge: "OFERTA DE LANZAMIENTO",
+    cta: "OBTENER OFERTA AHORA",
+    features: [
+      "Acceso de por vida — sin suscripción",
+      "YF AUTO CLIP V1 completo (3 herramientas)",
+      "Actualizaciones de la v1 incluidas",
+      "50% de descuento asegurado para la v2.0",
+      "Soporte por email",
+    ],
+    stripePriceId: "price_yfauto_v1_lifetime_1999",
+  },
 };
 
 /* ═══════════════════════════════════════════════════════════════
