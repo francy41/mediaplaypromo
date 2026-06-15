@@ -17,8 +17,13 @@ export default function RefundsPage() {
         </ul>
       </LegalSection>
 
-      <LegalSection n="2." title="Productos digitales / software">
-        <p>Los productos digitales descargables (p. ej. YF AUTO CLIP) son <strong className="text-white">no reembolsables una vez descargados o activada la licencia</strong>, al tratarse de contenido digital de entrega inmediata. Antes de comprar, revisa la descripción y los requisitos.</p>
+      <LegalSection n="2." title="Productos digitales / software (sin reembolso tras la descarga)">
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Los productos digitales descargables (p. ej. <strong className="text-white">YF AUTO CLIP</strong>) son <strong className="text-white">de entrega inmediata</strong>: el acceso/descarga se habilita al instante tras el pago.</li>
+          <li>Al completar la compra, el comprador <strong className="text-white">acepta expresamente recibir el contenido de forma inmediata</strong> y <strong className="text-white">renuncia al derecho de desistimiento</strong>. Por ello, <strong className="text-white">no se admiten reembolsos una vez descargado el archivo o activada la licencia</strong>.</li>
+          <li>Cada compra puede incluir una <strong className="text-white">clave de licencia única</strong>. En caso de reembolso aprobado o contracargo, dicha licencia <strong className="text-white">queda revocada</strong> y el software deja de estar autorizado para su uso.</li>
+          <li>Si el producto no funciona por un fallo nuestro, te damos <strong className="text-white">soporte prioritario</strong> para resolverlo antes que un reembolso. Revisa los requisitos y la descripción antes de comprar.</li>
+        </ul>
       </LegalSection>
 
       <LegalSection n="3." title="Créditos de IA consumidos">

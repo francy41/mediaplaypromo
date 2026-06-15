@@ -10,6 +10,7 @@ interface SessionInfo {
   tierName?: string | null;
   email?: string | null;
   downloadUrl?: string | null;
+  licenseKey?: string | null;
 }
 
 function SuccessContent() {
@@ -48,6 +49,14 @@ function SuccessContent() {
           {loading && (
             <div className="flex items-center justify-center gap-2 text-white/60 text-sm mb-6">
               <Loader2 className="w-4 h-4 animate-spin" /> Preparando tu descarga...
+            </div>
+          )}
+
+          {!loading && info?.licenseKey && (
+            <div className="bg-white/5 border border-cyan-500/30 rounded-xl p-4 mb-3 text-left">
+              <p className="text-white/50 text-[10px] font-bold uppercase tracking-wider mb-1">Tu clave de licencia</p>
+              <p className="text-cyan-300 font-mono font-bold text-sm sm:text-base tracking-wider break-all select-all">{info.licenseKey}</p>
+              <p className="text-white/35 text-[10px] mt-1.5">Guárdala en un lugar seguro: la necesitarás para activar el programa.</p>
             </div>
           )}
 

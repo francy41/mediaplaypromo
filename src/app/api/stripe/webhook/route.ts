@@ -75,6 +75,20 @@ export async function POST(req: NextRequest) {
             metadata: { ...meta, stripe_session: session.id, email },
           });
 
+          // Generar la clave de licencia (idempotente por session id)
+          try {
+            const { getOrCreateLicenseForSession } = await import("@/lib/license");
+            await getOrCreateLicenseForSession({
+              sessionId: session.id,
+              productSlug: meta.productSlug,
+              productName: meta.productName,
+              tierId: meta.tierId,
+              email,
+            });
+          } catch (licErr) {
+            console.error("Error generando licencia:", licErr);
+          }
+
           // Si hay usuario, actualizar su plan según el tier comprado
           if (userId && meta.tierId) {
             const planMap: Record<string, string> = {
