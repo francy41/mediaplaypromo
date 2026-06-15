@@ -97,10 +97,50 @@ export async function validateLicense(rawKey: string): Promise<{
 
 /** Revoca una clave (en reembolso/contracargo). El software dejará de validarla. */
 export async function revokeLicense(rawKey: string): Promise<boolean> {
+  return setLicenseStatus(rawKey, "revoked");
+}
+
+export interface LicenseRow {
+  id: string;
+  license_key: string;
+  product_name: string | null;
+  product_slug: string | null;
+  tier_id: string | null;
+  email: string | null;
+  status: string;
+  activation_count: number | null;
+  max_activations: number | null;
+  created_at: string | null;
+  last_validated_at: string | null;
+  stripe_session_id: string | null;
+}
+
+/** Lista las licencias (para el panel admin). */
+export async function listLicenses(limit = 300): Promise<LicenseRow[]> {
+  try {
+    const admin = createSupabaseAdminClient();
+    const { data, error } = await admin
+      .from("licenses")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) {
+      console.error("[license] list error:", error.message);
+      return [];
+    }
+    return (data ?? []) as LicenseRow[];
+  } catch (e) {
+    console.error("[license] list error:", e instanceof Error ? e.message : e);
+    return [];
+  }
+}
+
+/** Cambia el estado de una clave (active | revoked). */
+export async function setLicenseStatus(rawKey: string, status: "active" | "revoked"): Promise<boolean> {
   const key = rawKey.trim().toUpperCase();
   try {
     const admin = createSupabaseAdminClient();
-    const { error } = await admin.from("licenses").update({ status: "revoked" }).eq("license_key", key);
+    const { error } = await admin.from("licenses").update({ status }).eq("license_key", key);
     return !error;
   } catch {
     return false;
