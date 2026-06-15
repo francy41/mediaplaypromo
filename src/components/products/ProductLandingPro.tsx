@@ -1,10 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   ArrowRight, Play, Sparkles, Zap, Layers, Shield, Clock, Volume2, Scissors,
   RefreshCw, CheckCircle2, TrendingUp, Trophy, Rocket, Hand, Upload, Sliders,
-  Wand2, Download, Check, ShoppingCart, Crown, Loader2, Mail, Lock, LogIn,
+  Wand2, Download, Check, ShoppingCart, Crown, Loader2, Mail, Lock, LogIn, Copy, Ticket,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Product } from "@/lib/products";
@@ -344,6 +344,9 @@ export function ProductLandingPro({ product }: Props) {
           </p>
         </div>
 
+        {/* ── Cupón + contador 48h ── */}
+        <CouponBanner code="YFAUTOCLIP" percent={20} slug={product.slug} />
+
         {/* ── Oferta especial de pago único (Lifetime) ── */}
         {offer && (
           <div className="max-w-4xl mx-auto mb-10">
@@ -538,6 +541,78 @@ export function ProductLandingPro({ product }: Props) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Banner de cupón con contador de 48h (urgencia visual; se reinicia por visitante) */
+function CouponBanner({ code, percent, slug }: { code: string; percent: number; slug: string }) {
+  const [remaining, setRemaining] = useState<number | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const key = `mpp_offer_deadline_${slug}`;
+    let dl = 0;
+    try { dl = Number(localStorage.getItem(key) || 0); } catch {}
+    const now = Date.now();
+    if (!dl || dl < now) {
+      dl = now + 48 * 3600 * 1000;
+      try { localStorage.setItem(key, String(dl)); } catch {}
+    }
+    const tick = () => {
+      let r = dl - Date.now();
+      if (r <= 0) {
+        dl = Date.now() + 48 * 3600 * 1000;
+        try { localStorage.setItem(key, String(dl)); } catch {}
+        r = dl - Date.now();
+      }
+      setRemaining(r);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [slug]);
+
+  const fmt = (ms: number) => {
+    const s = Math.floor(ms / 1000);
+    const h = String(Math.floor(s / 3600)).padStart(2, "0");
+    const m = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
+    const sec = String(s % 60).padStart(2, "0");
+    return `${h}:${m}:${sec}`;
+  };
+
+  const copy = () => {
+    navigator.clipboard?.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }).catch(() => {});
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto mb-8 rounded-2xl border border-amber-500/40 bg-gradient-to-r from-amber-500/10 via-orange-500/[0.07] to-transparent p-4 sm:p-5">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/20 flex-shrink-0">
+            <Ticket className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <p className="text-white font-black text-sm sm:text-base leading-tight">
+              {percent}% DE DESCUENTO con el código{" "}
+              <button onClick={copy} className="inline-flex items-center gap-1 text-amber-300 hover:text-amber-200 font-mono tracking-wider">
+                {code} {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5 opacity-70" />}
+              </button>
+            </p>
+            <p className="text-white/50 text-xs mt-0.5">Aplícalo al pagar. Oferta de lanzamiento por tiempo limitado.</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 bg-black/30 border border-amber-500/30 rounded-xl px-3 py-2 flex-shrink-0">
+          <Clock className="w-4 h-4 text-amber-400" />
+          <div className="text-left">
+            <p className="text-amber-300/70 text-[9px] font-bold uppercase tracking-wider leading-none">Termina en</p>
+            <p className="text-white font-mono font-black text-lg leading-tight tabular-nums">{remaining === null ? "48:00:00" : fmt(remaining)}</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
