@@ -4,11 +4,12 @@ import { useRouter, usePathname } from "next/navigation";
 import {
   ArrowRight, Play, Sparkles, Zap, Layers, Shield, Clock, Volume2, Scissors,
   RefreshCw, CheckCircle2, TrendingUp, Trophy, Rocket, Hand, Upload, Sliders,
-  Wand2, Download, Check, ShoppingCart, Crown, Loader2, ChevronDown, Mail, Lock, LogIn,
+  Wand2, Download, Check, ShoppingCart, Crown, Loader2, Mail, Lock, LogIn,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { Product } from "@/lib/products";
 import { useAuth } from "@/lib/auth-context";
+import { EmbeddedCheckoutModal, EMBEDDED_AVAILABLE } from "./EmbeddedCheckoutModal";
 
 interface Props {
   product: Product;
@@ -61,16 +62,6 @@ const STEPS: { icon: LucideIcon; title: string; desc: string }[] = [
   { icon: Download, title: "4. EXPORTA Y PUBLICA", desc: "Obtén tus videos listos para volverse virales." },
 ];
 
-const FAQS: { q: string; a: string }[] = [
-  { q: "¿Cómo recibo el producto?", a: "Una vez completada la compra, recibirás un correo electrónico con los enlaces de descarga y tu clave de licencia única." },
-  { q: "¿Necesito experiencia previa?", a: "No. Hemos diseñado YF AUTO CLIP con una interfaz intuitiva para que cualquier persona pueda utilizarlo desde el primer minuto." },
-  { q: "¿Sirve para YouTube y TikTok?", a: "Sí. Nuestras herramientas están optimizadas para exportar en los formatos y resoluciones exactas de YouTube Shorts, TikTok e Instagram Reels." },
-  { q: "¿Tiene soporte técnico?", a: "Sí, ofrecemos soporte técnico prioritario a todos nuestros usuarios a través de nuestro portal de ayuda." },
-  { q: "¿Cómo se instala?", a: "Descargas el instalador, sigues las instrucciones en pantalla y activas el software con tu clave de licencia." },
-  { q: "¿Qué formatos de video soporta?", a: "MP4, MOV, MKV, AVI y WEBM, tanto para importación como para exportación." },
-  { q: "¿Funciona para reels y shorts?", a: "Sí, hay perfiles predeterminados para crear contenido vertical (9:16) perfecto para Reels y Shorts." },
-];
-
 export function ProductLandingPro({ product }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -79,7 +70,7 @@ export function ProductLandingPro({ product }: Props) {
 
   const [buying, setBuying] = useState<string | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState<string | null>(null);
-  const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [checkoutSecret, setCheckoutSecret] = useState<string | null>(null);
   const [contact, setContact] = useState({ name: "", email: "", message: "" });
 
   const heroImg = product.coverImage;
@@ -112,12 +103,14 @@ export function ProductLandingPro({ product }: Props) {
           productSlug: product.slug,
           tierId: priceId,
           email: user.email,
+          embedded: EMBEDDED_AVAILABLE,
           origin: typeof window !== "undefined" ? window.location.origin : undefined,
         }),
       });
       const data = await res.json();
       if (!res.ok) { alert(data.error ?? "No se pudo iniciar el pago."); return; }
-      if (data.url) window.location.href = data.url;
+      if (data.clientSecret) { setCheckoutSecret(data.clientSecret); return; } // pago embebido
+      if (data.url) window.location.href = data.url; // fallback: redirección
     } catch (e) {
       alert(e instanceof Error ? e.message : "Error de conexión con el pago.");
     } finally {
@@ -457,31 +450,6 @@ export function ProductLandingPro({ product }: Props) {
         </div>
       </section>
 
-      {/* ═══════════ FAQ ═══════════ */}
-      <section id="faq" className="max-w-3xl mx-auto w-full">
-        <div className="text-center mb-10">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight">
-            PREGUNTAS <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-400">FRECUENTES</span>
-          </h2>
-        </div>
-        <div className="space-y-3">
-          {FAQS.map((faq, i) => {
-            const open = openFaq === i;
-            return (
-              <div key={i} className="glass-card rounded-xl border-white/10 overflow-hidden">
-                <button onClick={() => setOpenFaq(open ? null : i)}
-                  className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left"
-                >
-                  <span className="font-bold text-white text-sm sm:text-base">{faq.q}</span>
-                  <ChevronDown className={`w-5 h-5 text-cyan-400 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
-                </button>
-                {open && <div className="px-5 pb-4 text-white/55 text-sm leading-relaxed">{faq.a}</div>}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
       {/* ═══════════ CONTACT ═══════════ */}
       <section id="contacto" className="grid md:grid-cols-2 gap-8 items-start">
         <div className="space-y-5">
@@ -548,6 +516,11 @@ export function ProductLandingPro({ product }: Props) {
           </button>
         </div>
       </section>
+
+      {/* ── Modal de pago embebido (sin salir de la web) ── */}
+      {checkoutSecret && (
+        <EmbeddedCheckoutModal clientSecret={checkoutSecret} onClose={() => setCheckoutSecret(null)} />
+      )}
 
       {/* ── Modal Login (usuario anónimo pulsa Comprar) ── */}
       {showLoginPrompt && (

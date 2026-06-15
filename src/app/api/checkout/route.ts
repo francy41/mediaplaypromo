@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type Stripe from "stripe";
 import { getStripe, billingToRecurring } from "@/lib/stripe/server";
 import { getProductBySlug } from "@/lib/products";
 
@@ -6,8 +7,10 @@ import { getProductBySlug } from "@/lib/products";
  * POST /api/checkout
  * Crea una sesión de Stripe Checkout para un producto + tier.
  *
- * Body: { productSlug, tierId, email?, origin }
- * Devuelve: { url } (redirigir el navegador ahí)
+ * Body: { productSlug, tierId, email?, origin, embedded? }
+ * Devuelve:
+ *   - embedded=true  → { clientSecret }  (pago dentro de la web, sin redirigir)
+ *   - embedded=false → { url }           (redirige a Stripe Checkout)
  */
 export async function POST(req: NextRequest) {
   const stripe = getStripe();
@@ -19,7 +22,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { productSlug, tierId, email, origin } = await req.json();
+    const { productSlug, tierId, email, origin, embedded } = await req.json();
 
     const product = getProductBySlug(productSlug);
     if (!product) {
@@ -39,8 +42,9 @@ export async function POST(req: NextRequest) {
     // Precio en céntimos (EUR)
     const unitAmount = Math.round(tier.price * 100);
 
-    const session = await stripe.checkout.sessions.create({
-      mode: isSubscription ? "subscription" : "payment",
+    // Parámetros comunes a ambos modos
+    const baseParams = {
+      mode: isSubscription ? "subscription" as const : "payment" as const,
       customer_email: email || undefined,
       line_items: [
         {
@@ -66,10 +70,25 @@ export async function POST(req: NextRequest) {
       ...(isSubscription
         ? { subscription_data: { metadata: { productSlug, tierId } } }
         : {}),
+      allow_promotion_codes: true,
+    };
+
+    if (embedded) {
+      // Pago embebido: el comprador paga dentro de la propia web (modal)
+      const session = await stripe.checkout.sessions.create({
+        ...baseParams,
+        ui_mode: "embedded",
+        return_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      } as unknown as Stripe.Checkout.SessionCreateParams);
+      return NextResponse.json({ clientSecret: session.client_secret });
+    }
+
+    // Modo redirección (fallback): lleva a la página hospedada de Stripe
+    const session = await stripe.checkout.sessions.create({
+      ...baseParams,
+      billing_address_collection: "auto",
       success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/categories/${product.categorySlug}/${product.slug}?canceled=1`,
-      allow_promotion_codes: true,
-      billing_address_collection: "auto",
     });
 
     return NextResponse.json({ url: session.url, id: session.id });
