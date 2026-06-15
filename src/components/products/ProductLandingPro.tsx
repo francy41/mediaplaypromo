@@ -66,7 +66,6 @@ export function ProductLandingPro({ product }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
-  const isAdmin = user?.role === "superadmin" || user?.role === "admin";
 
   const [buying, setBuying] = useState<string | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState<string | null>(null);
@@ -173,14 +172,6 @@ export function ProductLandingPro({ product }: Props) {
                 EXPLORAR {product.shortName ?? product.name} <Play className="w-5 h-5" />
               </button>
             </div>
-
-            {product.downloadUrl && isAdmin && (
-              <a href={product.downloadUrl} target="_blank" rel="noopener noreferrer"
-                className="mt-4 inline-flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/15 text-white/80 hover:text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors"
-              >
-                <Download className="w-4 h-4" /> Descargar producto (admin)
-              </a>
-            )}
 
             <div className="mt-10 flex items-center justify-center lg:justify-start gap-6 text-sm text-white/55 font-medium flex-wrap">
               <span className="flex items-center gap-2"><Zap className="w-4 h-4 text-cyan-400" /> Rendimiento Pro</span>
