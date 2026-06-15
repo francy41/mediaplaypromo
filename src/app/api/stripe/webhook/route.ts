@@ -75,16 +75,37 @@ export async function POST(req: NextRequest) {
             metadata: { ...meta, stripe_session: session.id, email },
           });
 
-          // Generar la clave de licencia (idempotente por session id)
+          // Generar la clave de licencia (idempotente) + enviar a GoHighLevel
           try {
             const { getOrCreateLicenseForSession } = await import("@/lib/license");
-            await getOrCreateLicenseForSession({
+            const lic = await getOrCreateLicenseForSession({
               sessionId: session.id,
               productSlug: meta.productSlug,
               productName: meta.productName,
               tierId: meta.tierId,
               email,
             });
+
+            // Enviar el evento de compra a GoHighLevel (automaciones / entrega / CRM)
+            try {
+              const { getProductBySlug } = await import("@/lib/products");
+              const product = meta.productSlug ? getProductBySlug(meta.productSlug) : undefined;
+              const { sendToGHL } = await import("@/lib/ghl");
+              await sendToGHL("purchase", {
+                email,
+                name: session.customer_details?.name ?? null,
+                phone: session.customer_details?.phone ?? null,
+                product: meta.productName ?? null,
+                productSlug: meta.productSlug ?? null,
+                tier: meta.tierName ?? null,
+                amount: (session.amount_total ?? 0) / 100,
+                currency: (session.currency ?? "eur").toUpperCase(),
+                licenseKey: lic?.key ?? null,
+                downloadUrl: product?.downloadUrl ?? null,
+              });
+            } catch (ghlErr) {
+              console.error("Error enviando a GHL:", ghlErr);
+            }
           } catch (licErr) {
             console.error("Error generando licencia:", licErr);
           }
