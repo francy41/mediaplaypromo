@@ -71,6 +71,13 @@ export async function POST(req: NextRequest) {
         ? { subscription_data: { metadata: { productSlug, tierId } } }
         : {}),
       allow_promotion_codes: true,
+      // Aviso legal: producto digital de descarga inmediata (base para denegar reembolsos abusivos)
+      custom_text: {
+        submit: {
+          message:
+            "Producto digital de descarga inmediata. Al completar el pago aceptas recibir el acceso al instante y reconoces que, una vez descargado, no aplican reembolsos (renuncia al derecho de desistimiento).",
+        },
+      },
     };
 
     if (embedded) {

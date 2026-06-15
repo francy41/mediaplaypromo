@@ -522,6 +522,7 @@ const YF_AUTO_CLIP_V1: Product = {
   order: 2,
   salesCount: 1500,
   landingStyle: "pro",
+  downloadUrl: "https://drive.google.com/uc?export=download&id=1HO45S3qBkuGfodiy8WCXNMOMCrT6DeX-",
   benefits: [
     { icon: Clock, title: "Ahorra Tiempo", description: "La versión que inició la revolución." },
     { icon: Hand, title: "Más Simple", description: "Interfaz minimalista — sin distracciones." },
