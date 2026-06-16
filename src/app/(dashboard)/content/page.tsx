@@ -1,7 +1,8 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { CalendarClock, Lock, Plus, Trash2, RefreshCw, Send, Film, Wand2 } from "lucide-react";
+import { CalendarClock, Lock, Plus, Trash2, RefreshCw, Send, Film, Wand2, UploadCloud, Loader2 } from "lucide-react";
 import { AdminShell, KPIGrid } from "@/components/admin/AdminShell";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 interface Post {
   id: string;
@@ -30,6 +31,10 @@ export default function ContentPlannerPage() {
   // formulario de alta
   const [bulk, setBulk] = useState("");
   const [caption, setCaption] = useState("");
+
+  // subida de archivos
+  const [uploading, setUploading] = useState(false);
+  const [upMsg, setUpMsg] = useState("");
 
   // distribución automática
   const [batchPlatforms, setBatchPlatforms] = useState<string[]>(["instagram", "tiktok", "youtube"]);
@@ -66,6 +71,36 @@ export default function ContentPlannerPage() {
     const videos = urls.map((u) => ({ video_url: u, caption: caption || null }));
     await call(secret, "POST", { action: "add", videos });
     setBulk(""); setCaption("");
+    load(secret);
+  };
+
+  const onFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    const supabase = createSupabaseBrowserClient();
+    const arr = Array.from(files);
+    let done = 0;
+    for (let i = 0; i < arr.length; i++) {
+      const file = arr[i];
+      setUpMsg(`Subiendo ${i + 1}/${arr.length}: ${file.name}`);
+      try {
+        const sr = await fetch("/api/content/upload-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+          body: JSON.stringify({ filename: file.name }),
+        });
+        const sd = await sr.json();
+        if (!sr.ok) { setUpMsg(`Error: ${sd.error ?? "subida"}`); continue; }
+        const up = await supabase.storage.from("content-videos").uploadToSignedUrl(sd.path, sd.token, file);
+        if (up.error) { setUpMsg(`Error subiendo ${file.name}: ${up.error.message}`); continue; }
+        await call(secret, "POST", { action: "add", videos: [{ video_url: sd.publicUrl, title: file.name, caption: caption || null }] });
+        done++;
+      } catch (e) {
+        setUpMsg(`Error: ${e instanceof Error ? e.message : ""}`);
+      }
+    }
+    setUpMsg(`✅ ${done} video(s) subidos a la carpeta`);
+    setUploading(false);
     load(secret);
   };
 
@@ -127,6 +162,26 @@ export default function ContentPlannerPage() {
           {/* Cargar videos (la "carpeta") */}
           <div className="glass-card rounded-2xl border border-white/10 p-5">
             <h3 className="flex items-center gap-2 text-white font-bold text-sm mb-3"><Film className="w-4 h-4 text-cyan-400" /> Cargar videos a la carpeta</h3>
+
+            {/* Subir archivos (arrastrar y soltar) */}
+            <label
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); onFiles(e.dataTransfer.files); }}
+              className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors ${uploading ? "border-cyan-500/40 bg-cyan-500/5" : "border-white/15 hover:border-cyan-500/40 hover:bg-white/[0.03]"}`}
+            >
+              <input type="file" accept="video/*" multiple className="hidden" disabled={uploading} onChange={(e) => onFiles(e.target.files)} />
+              {uploading ? (
+                <><Loader2 className="w-7 h-7 text-cyan-400 animate-spin" /><span className="text-cyan-300 text-sm font-semibold">{upMsg || "Subiendo..."}</span></>
+              ) : (
+                <><UploadCloud className="w-8 h-8 text-cyan-400" /><span className="text-white font-bold text-sm">Arrastra tus videos aquí o haz clic</span><span className="text-white/40 text-[11px]">MP4, MOV, WebM · hasta 50MB cada uno</span></>
+              )}
+            </label>
+            {!uploading && upMsg && <p className="text-green-400 text-xs mt-2">{upMsg}</p>}
+
+            <div className="my-4 flex items-center gap-3 text-white/30 text-[10px] uppercase tracking-wider">
+              <div className="flex-1 h-px bg-white/10" /> o pega URLs <div className="flex-1 h-px bg-white/10" />
+            </div>
+
             <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">URLs de video (una por línea)</label>
             <textarea value={bulk} onChange={(e) => setBulk(e.target.value)} rows={3} placeholder={"https://.../video1.mp4\nhttps://.../video2.mp4"} className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white placeholder:text-white/30 focus:outline-none focus:border-cyan-500/40 resize-none" />
             <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5 mt-3">Texto / caption (opcional, para todos)</label>
