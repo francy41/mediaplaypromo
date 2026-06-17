@@ -35,16 +35,20 @@ export async function POST(req: NextRequest) {
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { return NextResponse.json({ ok: true }); }
 
-  // Solo procesamos mensajes entrantes
+  // Procesamos mensajes entrantes (DM) y comentarios
   const eventType = (body.type ?? body.event ?? "") as string;
-  if (!eventType.toLowerCase().includes("inbound") && !eventType.toLowerCase().includes("message")) {
-    return NextResponse.json({ ok: true, skipped: true });
+  const et = eventType.toLowerCase();
+  const isComment = et.includes("comment");
+  const isMessage = et.includes("inbound") || et.includes("message");
+  if (!isComment && !isMessage) {
+    return NextResponse.json({ ok: true, skipped: `evento no manejado: ${eventType}` });
   }
 
   const conversationId = (body.conversationId ?? body.conversation_id ?? "") as string;
   const contactId = (body.contactId ?? body.contact_id ?? "") as string;
   const messageType = (body.messageType ?? body.message_type ?? "IG") as string;
-  const incomingMessage = ((body.message ?? body.body ?? "") as string).trim();
+  // El texto puede venir en distintos campos según sea DM o comentario
+  const incomingMessage = ((body.message ?? body.body ?? body.comment ?? body.commentText ?? body.text ?? "") as string).trim();
   const firstName = (body.firstName ?? body.first_name ?? body.fullName ?? "amigo") as string;
   const contactName = (body.fullName ?? body.full_name ?? firstName) as string;
   const locationId = body.locationId as string | undefined;
@@ -68,12 +72,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, skipped: "autoresponder disabled" });
   }
 
-  // Verificar trigger
-  if (config.trigger_mode === "keyword") {
-    const keywords: string[] = config.keywords ?? [];
-    if (keywords.length > 0) {
+  // Verificar trigger.
+  // - DM: respeta trigger_mode (any = responde a todos; keyword = solo si coincide).
+  // - Comentario: SIEMPRE exige palabra clave, para no enviar DM a todo el que comente algo.
+  const keywords: string[] = Array.isArray(config.keywords) ? config.keywords : [];
+  const requireKeyword = isComment || config.trigger_mode === "keyword";
+  if (requireKeyword) {
+    const kws = keywords.length > 0 ? keywords : (isComment ? ["clip"] : []);
+    if (kws.length > 0) {
       const msg = incomingMessage.toLowerCase();
-      const matched = keywords.some((kw: string) => msg.includes(kw.toLowerCase()));
+      const matched = kws.some((kw: string) => msg.includes(kw.toLowerCase()));
       if (!matched) return NextResponse.json({ ok: true, skipped: "no keyword match" });
     }
   }
@@ -108,7 +116,7 @@ export async function POST(req: NextRequest) {
   await admin.from("social_reply_log").insert({
     contact_name: contactName,
     contact_id: contactId,
-    platform: messageType,
+    platform: isComment ? `${messageType} (comentario)` : messageType,
     incoming_message: incomingMessage.slice(0, 500),
     reply_sent: renderedMessage.slice(0, 1000),
     status: result.ok ? "sent" : "failed",
