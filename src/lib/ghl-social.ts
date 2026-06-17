@@ -12,6 +12,18 @@ interface GHLPostParams {
   platforms: string[];  // ["instagram","facebook","youtube","tiktok","linkedin"]
 }
 
+/** Deriva el tipo MIME del video a partir de la extensión de la URL. GHL lo necesita. */
+function mediaTypeFromUrl(url: string): string {
+  const clean = (url.split("?")[0] || "").toLowerCase();
+  if (clean.endsWith(".mov")) return "video/quicktime";
+  if (clean.endsWith(".webm")) return "video/webm";
+  if (clean.endsWith(".avi")) return "video/x-msvideo";
+  if (clean.endsWith(".mkv")) return "video/x-matroska";
+  if (clean.endsWith(".jpg") || clean.endsWith(".jpeg")) return "image/jpeg";
+  if (clean.endsWith(".png")) return "image/png";
+  return "video/mp4";
+}
+
 function ghlHeaders(token: string) {
   return {
     Authorization: `Bearer ${token}`,
@@ -56,21 +68,26 @@ export async function postToGHL(
   if (!token || !locationId) return { ok: false, error: "GHL no configurado" };
   if (!accountIds || accountIds.length === 0) return { ok: false, error: "Sin cuentas destino" };
   try {
+    const payload = {
+      accountIds,
+      summary: p.caption,
+      media: [{ url: p.mediaUrl, type: mediaTypeFromUrl(p.mediaUrl) }],
+      status: "scheduled",
+      scheduleDate: p.scheduleDate,
+      type: "post",
+      tags: [] as string[],
+    };
     const res = await fetch(`${API}/social-media-posting/${locationId}/posts`, {
       method: "POST",
       headers: ghlHeaders(token),
-      body: JSON.stringify({
-        accountIds,
-        summary: p.caption,
-        media: [{ url: p.mediaUrl }],
-        type: "post",
-        scheduleDate: p.scheduleDate,
-      }),
+      body: JSON.stringify(payload),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const m = (data && (data.message || data.error)) || `HTTP ${res.status}`;
-      return { ok: false, error: `GHL post: ${typeof m === "string" ? m : JSON.stringify(m)}` };
+      // Mostramos el cuerpo crudo de GHL para poder diagnosticar qué campo le falta
+      const m = (data && (data.message || data.error));
+      const detail = typeof m === "string" ? m : JSON.stringify(data).slice(0, 300);
+      return { ok: false, error: `GHL post (${res.status}): ${detail || "sin detalle"}` };
     }
     return { ok: true, postId: data?.id ?? data?.post?.id ?? data?._id };
   } catch (e) {
