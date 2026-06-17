@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import type Stripe from "stripe";
 import { getStripe, billingToRecurring } from "@/lib/stripe/server";
 import { getProductBySlug } from "@/lib/products";
 
@@ -83,17 +82,10 @@ export async function POST(req: NextRequest) {
       },
     };
 
-    if (embedded) {
-      // Pago embebido: el comprador paga dentro de la propia web (modal)
-      const session = await stripe.checkout.sessions.create({
-        ...baseParams,
-        ui_mode: "embedded",
-        return_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      } as unknown as Stripe.Checkout.SessionCreateParams);
-      return NextResponse.json({ clientSecret: session.client_secret });
-    }
-
-    // Modo redirección (fallback): lleva a la página hospedada de Stripe
+    // Checkout con REDIRECCIÓN (página hospedada de Stripe).
+    // Es el método más estable y a prueba de cambios de API; evita el modo
+    // embebido (ui_mode) que Stripe ha ido renombrando y rompe el modal.
+    void embedded; // ignorado a propósito: siempre usamos redirección
     const session = await stripe.checkout.sessions.create({
       ...baseParams,
       billing_address_collection: "auto",
