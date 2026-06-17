@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
-import { createGHLSocialPost, postToGHL, resolveAccountIds, getGHLAccounts, GHL_SOCIAL_ENABLED } from "@/lib/ghl-social";
+import { createGHLSocialPost, postToGHL, resolveAccountIds, resolveGHLUserId, getGHLAccounts, GHL_SOCIAL_ENABLED } from "@/lib/ghl-social";
 
 export const maxDuration = 60;
 
@@ -126,12 +126,14 @@ export async function POST(req: NextRequest) {
       const [hh, mm] = time.split(":").map((n: string) => Number(n));
       const start = body.startDate ? new Date(body.startDate) : new Date(Date.now() + 86400000);
 
-      // Resolver cuentas UNA sola vez; si falla, no marcamos cientos de filas con error
+      // Resolver cuentas + userId UNA sola vez; si falla, no marcamos cientos de filas con error
       let accountIds: string[] = [];
       if (GHL_SOCIAL_ENABLED) {
         const r = await resolveAccountIds(platforms);
         if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
         accountIds = r.accountIds;
+        const u = await resolveGHLUserId();
+        if (!u.ok) return NextResponse.json({ error: u.error }, { status: 400 });
       }
 
       let scheduled = 0;
@@ -169,12 +171,14 @@ export async function POST(req: NextRequest) {
       const totalDays = Math.min(rawDays, MAX_BATCH);
       const capped = rawDays > MAX_BATCH;
 
-      // Resolver cuentas UNA sola vez; si falla, abortamos sin crear basura
+      // Resolver cuentas + userId UNA sola vez; si falla, abortamos sin crear basura
       let accountIds: string[] = [];
       if (GHL_SOCIAL_ENABLED) {
         const r = await resolveAccountIds(platforms);
         if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
         accountIds = r.accountIds;
+        const u = await resolveGHLUserId();
+        if (!u.ok) return NextResponse.json({ error: u.error }, { status: 400 });
       }
 
       let scheduled = 0;

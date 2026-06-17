@@ -58,6 +58,33 @@ export async function resolveAccountIds(
   return { ok: true, accountIds, connected };
 }
 
+let cachedUserId: string | null = null;
+
+/** Resuelve el userId de GHL (obligatorio al crear posts). Usa GHL_USER_ID o lo busca por API. */
+export async function resolveGHLUserId(): Promise<{ ok: boolean; userId?: string; error?: string }> {
+  if (process.env.GHL_USER_ID) return { ok: true, userId: process.env.GHL_USER_ID };
+  if (cachedUserId) return { ok: true, userId: cachedUserId };
+  const token = process.env.GHL_API_TOKEN;
+  const locationId = process.env.GHL_LOCATION_ID;
+  if (!token || !locationId) return { ok: false, error: "GHL no configurado" };
+  try {
+    const res = await fetch(`${API}/users/?locationId=${locationId}`, { headers: ghlHeaders(token) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const m = (data && (data.message || data.error)) || `HTTP ${res.status}`;
+      return { ok: false, error: `GHL users (${res.status}): ${typeof m === "string" ? m : JSON.stringify(m)}. Define GHL_USER_ID en Vercel.` };
+    }
+    const users: unknown[] = Array.isArray(data?.users) ? data.users : (Array.isArray(data) ? data : []);
+    const first = (users[0] ?? {}) as Record<string, unknown>;
+    const id = first.id ?? first._id;
+    if (!id) return { ok: false, error: "GHL no devolvió usuarios. Define GHL_USER_ID en Vercel." };
+    cachedUserId = String(id);
+    return { ok: true, userId: cachedUserId };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "error" };
+  }
+}
+
 /** Publica en GHL usando accountIds ya resueltos (no vuelve a pedir cuentas). */
 export async function postToGHL(
   accountIds: string[],
@@ -67,6 +94,10 @@ export async function postToGHL(
   const locationId = process.env.GHL_LOCATION_ID;
   if (!token || !locationId) return { ok: false, error: "GHL no configurado" };
   if (!accountIds || accountIds.length === 0) return { ok: false, error: "Sin cuentas destino" };
+
+  const u = await resolveGHLUserId();
+  if (!u.ok || !u.userId) return { ok: false, error: u.error ?? "No se pudo resolver el userId de GHL" };
+
   try {
     const payload = {
       accountIds,
@@ -75,6 +106,7 @@ export async function postToGHL(
       status: "scheduled",
       scheduleDate: p.scheduleDate,
       type: "post",
+      userId: u.userId,
       tags: [] as string[],
     };
     const res = await fetch(`${API}/social-media-posting/${locationId}/posts`, {
