@@ -35,16 +35,6 @@ export async function POST(req: NextRequest) {
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { return NextResponse.json({ ok: true }); }
 
-  // DEBUG TEMPORAL: capturar el payload crudo que envía GHL para diagnóstico.
-  try {
-    await createSupabaseAdminClient().from("social_reply_log").insert({
-      platform: "DEBUG",
-      incoming_message: JSON.stringify(body).slice(0, 2000),
-      reply_sent: req.nextUrl.search.slice(0, 200),
-      status: "debug",
-    });
-  } catch { /* noop */ }
-
   // GHL (workflow webhook) envía los datos del disparador en `triggerData`.
   // Ej comentario IG: triggerData.igCommentOnPost.ig.body = "texto del comentario".
   const eventType = (body.type ?? body.event ?? "") as string;
