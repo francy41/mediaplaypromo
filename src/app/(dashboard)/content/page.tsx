@@ -1,8 +1,29 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { CalendarClock, Lock, Plus, Trash2, RefreshCw, Send, Film, Wand2, UploadCloud, Loader2 } from "lucide-react";
+import { CalendarClock, Lock, Plus, Trash2, RefreshCw, Send, Film, Wand2, UploadCloud, Loader2, Repeat2, RotateCcw, Sparkles } from "lucide-react";
 import { AdminShell, KPIGrid } from "@/components/admin/AdminShell";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+
+const SALES_LINK = "https://mediaplaypromo.com/categories/editor-video/yf-auto-clip-v1";
+
+const CAPTION_TEMPLATES = [
+  {
+    label: "🎬 Reels / TikTok",
+    text: `¿Sigues editando videos uno por uno? 😵‍💫\n\nProcesa 100 clips en menos de 1 hora con YF Auto Clip ⚡\n\n✅ Audio replace masivo en segundos\n✅ Corte automático de clips\n✅ Convierte formatos al instante\n✅ 100% local — sin subir nada a la nube\n\n+2,800 creadores en LATAM ya ahorra horas cada semana 🔥\n\n🔗 Consíguelo aquí 👇\n${SALES_LINK}\n\n#edicióndevideo #creadordecontenido #automatización #YFAutoClip #videoedit #contentcreator #reels #tiktokedit #productividad #marketingdigital #herramientasdigitales #youtubetips #videocontent #emprendedores #workflow`,
+  },
+  {
+    label: "📸 Instagram",
+    text: `Hace 3 meses tardaba 6 horas editando 20 videos. Ahora tardo 45 minutos para 100. 🤯\n\nLa diferencia: YF Auto Clip.\n\nUna sola herramienta que automatiza todo:\n🎬 Audio replace en lote\n✂️ Corte y recorte al segundo\n🔄 Conversión de formatos\n💻 Todo en tu PC, sin internet\n\nSin suscripciones. Sin cuentas cloud. Sin complicaciones.\n\n¿Quieres recuperar tu tiempo? 👇\n${SALES_LINK}\n\n#creadordecontenido #edicióndevideo #YFAutoClip #productividad #automatización #youtubetips #videocreator #contentcreator #herramientasdigitales #emprendimientodigital #reels #shortvideo #videoedit #workflow`,
+  },
+  {
+    label: "▶️ YouTube",
+    text: `🔥 YF Auto Clip — Edita 100 videos en 1 hora\n\n¿Cuántas horas pierdes cada semana editando manualmente? Con YF Auto Clip automatizas la edición masiva de videos sin experiencia previa.\n\n⚡ QUÉ PUEDES HACER:\n• Audio replace automático en lote\n• Corte y recorte de clips al segundo exacto\n• Conversión de formatos (MP4, MOV, WebM y más)\n• 100% local — privacidad total, sin subir a servidores externos\n\n📊 RESULTADOS REALES:\n• Ahorra entre 3-8 horas de trabajo por semana\n• Procesa 100+ videos en menos de 1 hora\n• Más de 2,800 creadores en toda Latinoamérica ya lo usan\n\n💰 OBTÉN YF AUTO CLIP:\n${SALES_LINK}\n\n━━━━━━━━━━━━━━━━━━━━━━━━\n🔔 Suscríbete para más herramientas de productividad para creadores\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n#YFAutoClip #edicióndevideo #automatización #creadordecontenido #productividad`,
+  },
+  {
+    label: "⏰ Urgencia / CTA",
+    text: `⏰ ¿Cuánto tiempo más vas a perder editando videos a mano?\n\nLa realidad: editar 20 videos manualmente = 4-6 horas de tu vida.\nCon YF Auto Clip: 20 videos = 12 minutos. ⚡\n\n🎯 Audio replace masivo\n🎯 Corte automático de clips\n🎯 Conversión de formatos\n🎯 Sin suscripciones ni cloud\n\n+2,800 creadores ya lo tienen. ¿Cuándo lo consigues tú?\n\n👉 PRECIO ESPECIAL:\n${SALES_LINK}\n\nCódigo de descuento: YFAUTOCLIP 🎁\n\n#YFAutoClip #edicióndevideo #herramientasdigitales #creadordecontenido #automatización #productividad #contentcreator #videoedit #emprendedoreslatinos #marketingdigital #reels #tiktok #youtube #workflow`,
+  },
+];
 
 interface Post {
   id: string;
@@ -30,7 +51,8 @@ export default function ContentPlannerPage() {
 
   // formulario de alta
   const [bulk, setBulk] = useState("");
-  const [caption, setCaption] = useState("");
+  const [caption, setCaption] = useState(CAPTION_TEMPLATES[0].text);
+  const [activeTemplate, setActiveTemplate] = useState(0);
 
   // subida de archivos
   const [uploading, setUploading] = useState(false);
@@ -40,6 +62,8 @@ export default function ContentPlannerPage() {
   const [batchPlatforms, setBatchPlatforms] = useState<string[]>(["instagram", "tiktok", "youtube"]);
   const [batchTime, setBatchTime] = useState("10:00");
   const [batchStart, setBatchStart] = useState("");
+  const [loopMode, setLoopMode] = useState(false);
+  const [batchEnd, setBatchEnd] = useState("");
 
   const call = useCallback((sec: string, method: string, body?: unknown) =>
     fetch("/api/content", {
@@ -70,7 +94,7 @@ export default function ContentPlannerPage() {
     if (urls.length === 0) return;
     const videos = urls.map((u) => ({ video_url: u, caption: caption || null }));
     await call(secret, "POST", { action: "add", videos });
-    setBulk(""); setCaption("");
+    setBulk(""); setCaption(CAPTION_TEMPLATES[0].text); setActiveTemplate(0);
     load(secret);
   };
 
@@ -107,9 +131,27 @@ export default function ContentPlannerPage() {
   const del = async (id: string) => { await call(secret, "POST", { action: "delete", id }); load(secret); };
 
   const runBatch = async () => {
-    if (!confirm("¿Programar todos los videos en cola, 1 por día?")) return;
+    if (loopMode) {
+      if (!batchEnd) return alert("Selecciona una fecha de fin para el bucle.");
+      const cycles = batchEnd ? Math.ceil((new Date(batchEnd).getTime() - new Date(batchStart || Date.now() + 86400000).getTime()) / (86400000 * queued)) + 1 : 1;
+      if (!confirm(`¿Programar ${queued} video(s) en bucle hasta el ${batchEnd}? (~${Math.max(1, cycles)} ciclos)`)) return;
+      setLoading(true);
+      const r = await call(secret, "POST", { action: "batch-loop", platforms: batchPlatforms, time: batchTime, startDate: batchStart || undefined, endDate: batchEnd });
+      const d = await r.json();
+      if (d.ok) alert(`✅ ${d.scheduled} publicaciones programadas en ${d.cycles} ciclo(s)`);
+      else alert(`Error: ${d.error}`);
+    } else {
+      if (!confirm("¿Programar todos los videos en cola, 1 por día?")) return;
+      setLoading(true);
+      await call(secret, "POST", { action: "batch", platforms: batchPlatforms, time: batchTime, startDate: batchStart || undefined });
+    }
+    load(secret);
+  };
+
+  const recycle = async () => {
+    if (!confirm(`¿Volver a encolar los ${published} videos publicados para repetir el ciclo?`)) return;
     setLoading(true);
-    await call(secret, "POST", { action: "batch", platforms: batchPlatforms, time: batchTime, startDate: batchStart || undefined });
+    await call(secret, "POST", { action: "recycle" });
     load(secret);
   };
 
@@ -149,7 +191,7 @@ export default function ContentPlannerPage() {
         <div className="space-y-4">
           {!ghlEnabled && (
             <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.06] p-4 text-sm text-amber-200/90">
-              ⚠️ La publicación a redes aún no está conectada. Puedes cargar y programar videos (quedan listos), pero para que **publique solo** falta conectar GoHighLevel: conecta tus redes en GHL Social Planner y pásame el <b>token de la API</b> (Private Integration). En cuanto lo configures, todo lo programado se enviará a GHL.
+              ⚠️ La publicación a redes aún no está conectada. Puedes cargar y programar videos (quedan listos), pero para que <b>publique solo</b> falta conectar GoHighLevel: conecta tus redes en GHL Social Planner y pásame el <b>token de la API</b> (Private Integration). En cuanto lo configures, todo lo programado se enviará a GHL.
             </div>
           )}
 
@@ -163,7 +205,6 @@ export default function ContentPlannerPage() {
           <div className="glass-card rounded-2xl border border-white/10 p-5">
             <h3 className="flex items-center gap-2 text-white font-bold text-sm mb-3"><Film className="w-4 h-4 text-cyan-400" /> Cargar videos a la carpeta</h3>
 
-            {/* Subir archivos (arrastrar y soltar) */}
             <label
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); onFiles(e.dataTransfer.files); }}
@@ -184,32 +225,116 @@ export default function ContentPlannerPage() {
 
             <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">URLs de video (una por línea)</label>
             <textarea value={bulk} onChange={(e) => setBulk(e.target.value)} rows={3} placeholder={"https://.../video1.mp4\nhttps://.../video2.mp4"} className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white placeholder:text-white/30 focus:outline-none focus:border-cyan-500/40 resize-none" />
-            <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5 mt-3">Texto / caption (opcional, para todos)</label>
-            <input value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="🔥 Mira esto... #YFAutoClip" className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-cyan-500/40" />
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider">Texto / caption (para todos los videos)</label>
+                <span className="text-white/30 text-[10px]">{caption.length} chars</span>
+              </div>
+              <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                <Sparkles className="w-3 h-3 text-pink-400 flex-shrink-0" />
+                {CAPTION_TEMPLATES.map((t, i) => (
+                  <button key={i} type="button"
+                    onClick={() => { setActiveTemplate(i); setCaption(t.text); }}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors ${activeTemplate === i ? "bg-pink-500/25 text-pink-200 border border-pink-500/40" : "bg-white/5 text-white/45 border border-white/10 hover:text-white/80 hover:border-white/20"}`}>
+                    {t.label}
+                  </button>
+                ))}
+                <button type="button"
+                  onClick={() => { setActiveTemplate(-1); setCaption(""); }}
+                  className="px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors bg-white/5 text-white/30 border border-white/10 hover:text-white/60">
+                  Limpiar
+                </button>
+              </div>
+              <textarea
+                value={caption}
+                onChange={(e) => { setCaption(e.target.value); setActiveTemplate(-1); }}
+                rows={8}
+                placeholder="Escribe o selecciona un template de marketing arriba..."
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-cyan-500/40 resize-y leading-relaxed"
+              />
+              <p className="text-white/30 text-[10px] mt-1">💡 Los templates incluyen copy optimizado + hashtags + enlace de ventas para YF Auto Clip</p>
+            </div>
             <button onClick={addVideos} className="mt-3 inline-flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-bold px-4 py-2 rounded-lg shadow shadow-cyan-500/30"><Plus className="w-3.5 h-3.5" /> Añadir a la cola</button>
-            <p className="text-white/35 text-[10px] mt-2">Cada URL debe ser pública (el video accesible directamente). Pronto añadiremos subida directa.</p>
           </div>
 
           {/* Distribución automática */}
           <div className="glass-card rounded-2xl border border-violet-500/25 bg-violet-500/[0.03] p-5">
-            <h3 className="flex items-center gap-2 text-white font-bold text-sm mb-3"><Wand2 className="w-4 h-4 text-violet-400" /> Programar automático (1 por día)</h3>
-            <div className="grid sm:grid-cols-2 gap-3 mb-3">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="flex items-center gap-2 text-white font-bold text-sm">
+                <Wand2 className="w-4 h-4 text-violet-400" /> Programar automático
+              </h3>
+              {/* Toggle modo bucle */}
+              <button
+                onClick={() => setLoopMode(!loopMode)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                  loopMode
+                    ? "bg-violet-500/20 border-violet-400/40 text-violet-300"
+                    : "bg-white/5 border-white/10 text-white/50 hover:text-white/80"
+                }`}
+              >
+                <Repeat2 className="w-3.5 h-3.5" />
+                Modo bucle {loopMode ? "ON" : "OFF"}
+              </button>
+            </div>
+
+            {loopMode && (
+              <div className="mb-3 rounded-xl border border-violet-500/30 bg-violet-500/[0.06] p-3 text-xs text-violet-200/80">
+                <Repeat2 className="w-3.5 h-3.5 inline mr-1.5 text-violet-400" />
+                Los <b>{queued} videos en cola</b> se repetirán cíclicamente 1 por día hasta la fecha de fin. El ciclo se reinicia automáticamente cuando termina la lista.
+              </div>
+            )}
+
+            <div className={`grid gap-3 mb-3 ${loopMode ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
               <div>
                 <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Empezar el</label>
                 <input type="date" value={batchStart} onChange={(e) => setBatchStart(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/40" />
               </div>
+              {loopMode && (
+                <div>
+                  <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Repetir hasta</label>
+                  <input type="date" value={batchEnd} onChange={(e) => setBatchEnd(e.target.value)} className="w-full bg-white/5 border border-violet-400/30 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/40" />
+                </div>
+              )}
               <div>
                 <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Hora</label>
                 <input type="time" value={batchTime} onChange={(e) => setBatchTime(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/40" />
               </div>
             </div>
+
             <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Redes</label>
-            <div className="flex flex-wrap gap-2 mb-3">
+            <div className="flex flex-wrap gap-2 mb-4">
               {PLATFORMS.map((p) => (
                 <button key={p} onClick={() => togglePlat(p)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-colors ${batchPlatforms.includes(p) ? "bg-violet-500/25 text-violet-200 border border-violet-500/40" : "bg-white/5 text-white/50 border border-white/10"}`}>{p}</button>
               ))}
             </div>
-            <button onClick={runBatch} disabled={queued === 0 || loading} className="shine-btn inline-flex items-center gap-1.5 bg-gradient-to-r from-pink-500 to-violet-600 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-lg shadow-violet-500/30 disabled:opacity-50"><Send className="w-3.5 h-3.5" /> Programar los {queued} en cola, 1 por día</button>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={runBatch}
+                disabled={queued === 0 || loading}
+                className="shine-btn inline-flex items-center gap-1.5 bg-gradient-to-r from-pink-500 to-violet-600 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-lg shadow-violet-500/30 disabled:opacity-50"
+              >
+                {loopMode ? <Repeat2 className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
+                {loopMode ? `Programar bucle (${queued} videos en ciclo)` : `Programar los ${queued} en cola, 1 por día`}
+              </button>
+
+              {published > 0 && (
+                <button
+                  onClick={recycle}
+                  disabled={loading}
+                  className="inline-flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-bold px-4 py-2.5 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Reciclar {published} publicadas → cola
+                </button>
+              )}
+            </div>
+
+            {loopMode && (
+              <p className="text-white/35 text-[10px] mt-2">
+                Tip: cuando los videos se publiquen, usa <b>Reciclar publicadas</b> para volverlos a encolar y repetir el ciclo indefinidamente.
+              </p>
+            )}
           </div>
 
           {/* Tabla */}
