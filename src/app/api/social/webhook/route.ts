@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   const direction = (body.direction ?? "") as string;
   if (direction.toLowerCase() === "outbound") return NextResponse.json({ ok: true, skipped: true });
 
-  if (!conversationId) return NextResponse.json({ ok: true, skipped: "no conversationId" });
+  if (!conversationId && !contactId) return NextResponse.json({ ok: true, skipped: "no contactId/conversationId" });
 
   const admin = createSupabaseAdminClient();
 
@@ -86,16 +86,21 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Evitar duplicados: si ya respondimos a esta conversación en los últimos 60 min, no volver a responder
+  // Evitar duplicados: si ya respondimos a este contacto en los últimos 60 min, no volver a responder.
+  // Para comentarios no hay conversationId, así que deduplicamos por contactId.
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const { data: recent } = await admin
-    .from("social_reply_log")
-    .select("id")
-    .eq("conversation_id", conversationId)
-    .gte("created_at", oneHourAgo)
-    .limit(1);
-  if (recent && recent.length > 0) {
-    return NextResponse.json({ ok: true, skipped: "already replied recently" });
+  const dedupColumn = contactId ? "contact_id" : "conversation_id";
+  const dedupValue = contactId || conversationId;
+  if (dedupValue) {
+    const { data: recent } = await admin
+      .from("social_reply_log")
+      .select("id")
+      .eq(dedupColumn, dedupValue)
+      .gte("created_at", oneHourAgo)
+      .limit(1);
+    if (recent && recent.length > 0) {
+      return NextResponse.json({ ok: true, skipped: "already replied recently" });
+    }
   }
 
   // Construir mensaje
@@ -108,9 +113,9 @@ export async function POST(req: NextRequest) {
     codigo: "YFAUTOCLIP",
   });
 
-  // Enviar respuesta
+  // Enviar respuesta (por contactId; conversationId si existe)
   const convType = ghlMessageTypeToConvType(messageType);
-  const result = await sendConversationReply(conversationId, renderedMessage, convType);
+  const result = await sendConversationReply({ contactId, conversationId, message: renderedMessage, type: convType });
 
   // Guardar log
   await admin.from("social_reply_log").insert({
