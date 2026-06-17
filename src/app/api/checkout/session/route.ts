@@ -3,6 +3,9 @@ import { getStripe } from "@/lib/stripe/server";
 import { getProductBySlug } from "@/lib/products";
 import { getOrCreateLicenseForSession } from "@/lib/license";
 
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 /**
  * GET /api/checkout/session?session_id=cs_xxx
  * Verifica que la sesión esté pagada y devuelve el acceso (link de descarga)

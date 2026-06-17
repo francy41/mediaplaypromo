@@ -3,6 +3,9 @@ import type Stripe from "stripe";
 import { getStripe, billingToRecurring } from "@/lib/stripe/server";
 import { getProductBySlug } from "@/lib/products";
 
+export const runtime = "nodejs";
+export const maxDuration = 30;
+
 /**
  * POST /api/checkout
  * Crea una sesión de Stripe Checkout para un producto + tier.
@@ -100,7 +103,16 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ url: session.url, id: session.id });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Error creando checkout";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    // Distinguimos el tipo de error de Stripe para diagnóstico claro
+    const err = e as { type?: string; message?: string; code?: string };
+    const type = err?.type ?? "";
+    let msg = err?.message ?? "Error creando checkout";
+    if (type === "StripeConnectionError") {
+      msg = "No se pudo conectar con Stripe (red). Inténtalo de nuevo en unos segundos.";
+    } else if (type === "StripeAuthenticationError") {
+      msg = "Clave de Stripe inválida. Revisa STRIPE_SECRET_KEY en Vercel.";
+    }
+    console.error("[checkout] Stripe error:", type, err?.code, err?.message);
+    return NextResponse.json({ error: msg, stripeType: type || undefined }, { status: 500 });
   }
 }

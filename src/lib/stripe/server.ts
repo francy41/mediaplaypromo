@@ -9,10 +9,17 @@ let _stripe: Stripe | null = null;
 
 export function getStripe(): Stripe | null {
   if (_stripe) return _stripe;
-  const key = process.env.STRIPE_SECRET_KEY;
+  // .trim() por si la key se pegó en Vercel con un salto de línea o espacio (causa fallos raros)
+  const key = process.env.STRIPE_SECRET_KEY?.trim();
   if (!key) return null;
-  // apiVersion omitido a propósito: usa la versión fijada por el SDK instalado
-  _stripe = new Stripe(key, { typescript: true });
+  _stripe = new Stripe(key, {
+    typescript: true,
+    // Cliente Fetch: en Vercel/serverless el cliente HTTP de Node a veces falla la conexión
+    // ("StripeConnectionError"). El fetch client es estable en este entorno.
+    httpClient: Stripe.createFetchHttpClient(),
+    maxNetworkRetries: 2,
+    timeout: 20000,
+  });
   return _stripe;
 }
 
