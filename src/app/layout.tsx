@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { ThemeProvider } from "@/lib/theme-context";
+import { GhlChatWidget } from "@/components/GhlChatWidget";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mediaplaypromo.com"),
@@ -72,6 +73,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
+        <GhlChatWidget />
       </body>
     </html>
   );
