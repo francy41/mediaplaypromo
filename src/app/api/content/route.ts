@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
-import { createGHLSocialPost, getGHLAccounts, GHL_SOCIAL_ENABLED } from "@/lib/ghl-social";
+import { createGHLSocialPost, postToGHL, resolveAccountIds, getGHLAccounts, GHL_SOCIAL_ENABLED } from "@/lib/ghl-social";
 
 export const maxDuration = 60;
+
+// Tope de seguridad: nunca generar más de esto en un lote (evita crear cientos de filas,
+// saturar GHL con "Too Many Requests" y exceder el límite de 60s de la función serverless).
+const MAX_BATCH = 60;
+const THROTTLE_MS = 250; // pausa entre llamadas a GHL para no recibir "Too Many Requests"
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function authed(req: NextRequest): boolean {
   const secret = process.env.LICENSE_ADMIN_SECRET;
@@ -15,6 +22,21 @@ async function pushAndStatus(post: { caption: string | null; video_url: string }
   let ghl: GhlResult = { ok: false };
   if (GHL_SOCIAL_ENABLED) {
     ghl = await createGHLSocialPost({ caption: post.caption ?? "", mediaUrl: post.video_url, scheduleDate: scheduledAt, platforms });
+  }
+  return {
+    scheduled_at: scheduledAt,
+    platforms,
+    status: ghl.ok || !GHL_SOCIAL_ENABLED ? "scheduled" : "failed",
+    ghl_post_id: ghl.postId ?? null,
+    error: ghl.ok ? null : (GHL_SOCIAL_ENABLED ? ghl.error ?? null : null),
+  };
+}
+
+// Igual que pushAndStatus pero con accountIds ya resueltos (no vuelve a pedir cuentas)
+async function pushWithAccounts(post: { caption: string | null; video_url: string }, scheduledAt: string, platforms: string[], accountIds: string[]) {
+  let ghl: GhlResult = { ok: false };
+  if (GHL_SOCIAL_ENABLED) {
+    ghl = await postToGHL(accountIds, { caption: post.caption ?? "", mediaUrl: post.video_url, scheduleDate: scheduledAt, platforms });
   }
   return {
     scheduled_at: scheduledAt,
@@ -103,14 +125,24 @@ export async function POST(req: NextRequest) {
       const time: string = body.time || "10:00";
       const [hh, mm] = time.split(":").map((n: string) => Number(n));
       const start = body.startDate ? new Date(body.startDate) : new Date(Date.now() + 86400000);
+
+      // Resolver cuentas UNA sola vez; si falla, no marcamos cientos de filas con error
+      let accountIds: string[] = [];
+      if (GHL_SOCIAL_ENABLED) {
+        const r = await resolveAccountIds(platforms);
+        if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
+        accountIds = r.accountIds;
+      }
+
       let scheduled = 0;
       for (let i = 0; i < list.length; i++) {
         const d = new Date(start);
         d.setDate(d.getDate() + i);
         d.setHours(hh || 10, mm || 0, 0, 0);
-        const upd = await pushAndStatus(list[i], d.toISOString(), platforms);
+        const upd = await pushWithAccounts(list[i], d.toISOString(), platforms, accountIds);
         await admin.from("content_posts").update(upd).eq("id", list[i].id);
         scheduled++;
+        if (GHL_SOCIAL_ENABLED && i < list.length - 1) await sleep(THROTTLE_MS);
       }
       return NextResponse.json({ ok: true, scheduled });
     }
@@ -132,7 +164,18 @@ export async function POST(req: NextRequest) {
       const end = body.endDate ? new Date(body.endDate) : new Date(Date.now() + 30 * 86400000);
 
       const msPerDay = 86400000;
-      const totalDays = Math.max(1, Math.floor((end.getTime() - start.getTime()) / msPerDay) + 1);
+      const rawDays = Math.max(1, Math.floor((end.getTime() - start.getTime()) / msPerDay) + 1);
+      // Tope de seguridad: nunca generamos más de MAX_BATCH publicaciones de una vez.
+      const totalDays = Math.min(rawDays, MAX_BATCH);
+      const capped = rawDays > MAX_BATCH;
+
+      // Resolver cuentas UNA sola vez; si falla, abortamos sin crear basura
+      let accountIds: string[] = [];
+      if (GHL_SOCIAL_ENABLED) {
+        const r = await resolveAccountIds(platforms);
+        if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
+        accountIds = r.accountIds;
+      }
 
       let scheduled = 0;
       const toInsert: Record<string, unknown>[] = [];
@@ -144,7 +187,7 @@ export async function POST(req: NextRequest) {
         d.setHours(hh || 10, mm || 0, 0, 0);
         const isoDate = d.toISOString();
 
-        const upd = await pushAndStatus(template, isoDate, platforms);
+        const upd = await pushWithAccounts(template, isoDate, platforms, accountIds);
 
         if (i < list.length) {
           // Primera pasada: actualiza la fila original
@@ -159,13 +202,20 @@ export async function POST(req: NextRequest) {
           });
         }
         scheduled++;
+        if (GHL_SOCIAL_ENABLED && i < totalDays - 1) await sleep(THROTTLE_MS);
       }
 
       if (toInsert.length > 0) {
         await admin.from("content_posts").insert(toInsert);
       }
 
-      return NextResponse.json({ ok: true, scheduled, cycles: Math.ceil(totalDays / list.length) });
+      return NextResponse.json({
+        ok: true,
+        scheduled,
+        cycles: Math.ceil(totalDays / list.length),
+        capped,
+        note: capped ? `Se programaron ${totalDays} publicaciones (tope de seguridad). Cuando se publiquen, usa "Reciclar" para continuar el ciclo.` : undefined,
+      });
     }
 
     // Reciclar publicadas: vuelve al estado "queued" para repetir ciclo

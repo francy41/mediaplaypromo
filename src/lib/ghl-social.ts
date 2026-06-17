@@ -12,52 +12,53 @@ interface GHLPostParams {
   platforms: string[];  // ["instagram","facebook","youtube","tiktok","linkedin"]
 }
 
+function ghlHeaders(token: string) {
+  return {
+    Authorization: `Bearer ${token}`,
+    Version: "2021-07-28",
+    "Content-Type": "application/json",
+  };
+}
+
 /**
- * Crea un post PROGRAMADO en GoHighLevel Social Planner.
- * GHL publica en la fecha indicada. No rompe si no está configurado.
+ * Resuelve los accountIds de GHL que coinciden con las plataformas pedidas.
+ * Hace UNA sola llamada a la API: úsalo una vez por lote, no por publicación.
  */
-export async function createGHLSocialPost(
+export async function resolveAccountIds(
+  platforms: string[]
+): Promise<{ ok: boolean; accountIds: string[]; connected: string[]; error?: string }> {
+  const acc = await getGHLAccounts();
+  if (!acc.ok) return { ok: false, accountIds: [], connected: [], error: acc.error };
+  const accounts = acc.accounts ?? [];
+  if (accounts.length === 0) {
+    return { ok: false, accountIds: [], connected: [], error: "GHL no tiene cuentas conectadas. Conecta tus redes en Social Planner." };
+  }
+  const connected = accounts.map((a) => a.platform || "?");
+  const wanted = (platforms ?? []).map((s) => String(s ?? "").toLowerCase()).filter(Boolean);
+  const matched = accounts.filter((a) => {
+    const plat = String(a.platform ?? "").toLowerCase();
+    return wanted.length === 0 || (plat !== "" && wanted.some((w) => plat.includes(w) || w.includes(plat)));
+  });
+  const accountIds = matched.map((a) => a.id).filter(Boolean);
+  if (accountIds.length === 0) {
+    return { ok: false, accountIds: [], connected, error: `Ninguna red conectada coincide con [${wanted.join(", ")}]. Conectadas: ${connected.join(", ")}` };
+  }
+  return { ok: true, accountIds, connected };
+}
+
+/** Publica en GHL usando accountIds ya resueltos (no vuelve a pedir cuentas). */
+export async function postToGHL(
+  accountIds: string[],
   p: GHLPostParams
 ): Promise<{ ok: boolean; postId?: string; error?: string }> {
   const token = process.env.GHL_API_TOKEN;
   const locationId = process.env.GHL_LOCATION_ID;
   if (!token || !locationId) return { ok: false, error: "GHL no configurado" };
-
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    Version: "2021-07-28",
-    "Content-Type": "application/json",
-  };
-
+  if (!accountIds || accountIds.length === 0) return { ok: false, error: "Sin cuentas destino" };
   try {
-    // 1) cuentas sociales conectadas en GHL
-    const accRes = await fetch(`${API}/social-media-posting/${locationId}/accounts`, { headers });
-    const accData = await accRes.json().catch(() => ({}));
-    if (!accRes.ok) {
-      const m = (accData && (accData.message || accData.error)) || `HTTP ${accRes.status}`;
-      return { ok: false, error: `GHL cuentas: ${typeof m === "string" ? m : JSON.stringify(m)}` };
-    }
-    const accounts = listAccounts(accData);
-    if (accounts.length === 0) {
-      return { ok: false, error: "GHL no devolvió cuentas conectadas. Conecta tus redes en Social Planner." };
-    }
-
-    const wanted = (p.platforms ?? []).map((s) => String(s ?? "").toLowerCase()).filter(Boolean);
-    const matched = accounts.filter((a) => {
-      const plat = String(a.platform ?? "").toLowerCase();
-      return wanted.length === 0 || (plat !== "" && wanted.some((w) => plat.includes(w) || w.includes(plat)));
-    });
-    const accountIds = matched.map((a) => a.id).filter(Boolean);
-
-    if (accountIds.length === 0) {
-      const have = accounts.map((a) => a.platform || "?").join(", ") || "ninguna";
-      return { ok: false, error: `Ninguna cuenta conectada coincide con [${wanted.join(", ")}]. Conectadas: ${have}` };
-    }
-
-    // 2) crear el post programado
     const res = await fetch(`${API}/social-media-posting/${locationId}/posts`, {
       method: "POST",
-      headers,
+      headers: ghlHeaders(token),
       body: JSON.stringify({
         accountIds,
         summary: p.caption,
@@ -75,6 +76,18 @@ export async function createGHLSocialPost(
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "error" };
   }
+}
+
+/**
+ * Crea un post PROGRAMADO en GoHighLevel Social Planner (resuelve cuentas + publica).
+ * Para muchos posts a la vez usa resolveAccountIds + postToGHL para no saturar la API.
+ */
+export async function createGHLSocialPost(
+  p: GHLPostParams
+): Promise<{ ok: boolean; postId?: string; error?: string }> {
+  const r = await resolveAccountIds(p.platforms ?? []);
+  if (!r.ok) return { ok: false, error: r.error };
+  return postToGHL(r.accountIds, p);
 }
 
 /** Diagnóstico: devuelve las cuentas sociales conectadas en GHL */
