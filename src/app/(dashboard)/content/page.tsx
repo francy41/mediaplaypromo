@@ -155,12 +155,32 @@ export default function ContentPlannerPage() {
     load(secret);
   };
 
+  const clearFailed = async () => {
+    if (!confirm("¿Eliminar todas las publicaciones con ERROR?")) return;
+    setLoading(true);
+    await call(secret, "POST", { action: "clear", scope: "failed" });
+    load(secret);
+  };
+
+  const [diag, setDiag] = useState<string>("");
+  const checkGhl = async () => {
+    setDiag("Consultando GHL...");
+    const r = await call(secret, "POST", { action: "ghl-accounts" });
+    const d = await r.json();
+    if (d.ok && d.accounts?.length) {
+      setDiag(`✅ Cuentas conectadas en GHL: ${d.accounts.map((a: { platform?: string }) => a.platform || "?").join(", ")}`);
+    } else {
+      setDiag(`⚠️ ${d.error || "No hay cuentas conectadas en GHL Social Planner."}`);
+    }
+  };
+
   const togglePlat = (p: string) =>
     setBatchPlatforms((cur) => (cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p]));
 
   const queued = posts.filter((p) => p.status === "queued").length;
   const scheduled = posts.filter((p) => p.status === "scheduled").length;
   const published = posts.filter((p) => p.status === "published").length;
+  const failed = posts.filter((p) => p.status === "failed").length;
 
   return (
     <AdminShell
@@ -200,6 +220,19 @@ export default function ContentPlannerPage() {
             { label: "Programados", value: scheduled, gradient: "from-pink-500 to-violet-600" },
             { label: "Publicados", value: published, gradient: "from-green-500 to-emerald-600" },
           ]} />
+
+          {/* Diagnóstico y limpieza */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={checkGhl} className="inline-flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-xs font-semibold px-3 py-2 rounded-xl transition-colors">
+              <RefreshCw className="w-3.5 h-3.5 text-cyan-400" /> Verificar redes conectadas
+            </button>
+            {failed > 0 && (
+              <button onClick={clearFailed} className="inline-flex items-center gap-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-300 text-xs font-semibold px-3 py-2 rounded-xl transition-colors">
+                <Trash2 className="w-3.5 h-3.5" /> Limpiar {failed} con error
+              </button>
+            )}
+            {diag && <span className="text-xs text-white/70">{diag}</span>}
+          </div>
 
           {/* Cargar videos (la "carpeta") */}
           <div className="glass-card rounded-2xl border border-white/10 p-5">

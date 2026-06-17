@@ -21,6 +21,7 @@ const mainNav = [
   { label: "Facturación",    href: "/billing/invoices",   icon: Receipt,         iconBg: "bg-green-500/20",   iconColor: "text-green-400" },
   { label: "Licencias",      href: "/licenses",           icon: Scale,           iconBg: "bg-indigo-500/20",  iconColor: "text-indigo-400" },
   { label: "Planificador",   href: "/content",            icon: CalendarClock,   iconBg: "bg-pink-500/20",    iconColor: "text-pink-400" },
+  { label: "Auto DM",        href: "/social-replies",     icon: MessageSquare,   iconBg: "bg-green-500/20",   iconColor: "text-green-400" },
   { label: "Notificaciones", href: "/notifications",      icon: Bell,            iconBg: "bg-red-500/20",     iconColor: "text-red-400",   badge: 12 },
   { label: "Ajustes",        href: "/settings",           icon: Settings,        iconBg: "bg-slate-500/20",   iconColor: "text-slate-400" },
 ];
