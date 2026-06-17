@@ -35,6 +35,16 @@ export async function POST(req: NextRequest) {
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { return NextResponse.json({ ok: true }); }
 
+  // DEBUG TEMPORAL: capturar el payload crudo que envía GHL para diagnóstico.
+  try {
+    await createSupabaseAdminClient().from("social_reply_log").insert({
+      platform: "DEBUG",
+      incoming_message: JSON.stringify(body).slice(0, 2000),
+      reply_sent: req.nextUrl.search.slice(0, 200),
+      status: "debug",
+    });
+  } catch { /* noop */ }
+
   // Procesamos mensajes entrantes (DM) y comentarios
   const eventType = (body.type ?? body.event ?? "") as string;
   const et = eventType.toLowerCase();
