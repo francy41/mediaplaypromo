@@ -6,7 +6,8 @@ export const maxDuration = 60;
 
 // Tope de seguridad: nunca generar más de esto en un lote (evita crear cientos de filas,
 // saturar GHL con "Too Many Requests" y exceder el límite de 60s de la función serverless).
-const MAX_BATCH = 60;
+// Bajado a 40 porque ahora puede haber 2 llamadas por post (TikTok va en envío aparte).
+const MAX_BATCH = 40;
 const THROTTLE_MS = 250; // pausa entre llamadas a GHL para no recibir "Too Many Requests"
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -32,18 +33,26 @@ async function pushAndStatus(post: { caption: string | null; video_url: string }
   };
 }
 
-// Igual que pushAndStatus pero con accountIds ya resueltos (no vuelve a pedir cuentas)
-async function pushWithAccounts(post: { caption: string | null; video_url: string }, scheduledAt: string, platforms: string[], accountIds: string[]) {
-  let ghl: GhlResult = { ok: false };
-  if (GHL_SOCIAL_ENABLED) {
-    ghl = await postToGHL(accountIds, { caption: post.caption ?? "", mediaUrl: post.video_url, scheduleDate: scheduledAt, platforms });
+// Publica usando grupos de cuentas ya resueltos (TikTok va en su propio grupo).
+// Hace 1 llamada por grupo y agrega el resultado.
+async function pushWithGroups(post: { caption: string | null; video_url: string }, scheduledAt: string, platforms: string[], groups: string[][]) {
+  if (!GHL_SOCIAL_ENABLED) {
+    return { scheduled_at: scheduledAt, platforms, status: "scheduled", ghl_post_id: null, error: null };
   }
+  const results: GhlResult[] = [];
+  for (let i = 0; i < groups.length; i++) {
+    results.push(await postToGHL(groups[i], { caption: post.caption ?? "", mediaUrl: post.video_url, scheduleDate: scheduledAt, platforms }));
+    if (i < groups.length - 1) await sleep(THROTTLE_MS);
+  }
+  const okAny = results.some((r) => r.ok);
+  const errors = results.filter((r) => !r.ok).map((r) => r.error).filter(Boolean) as string[];
   return {
     scheduled_at: scheduledAt,
     platforms,
-    status: ghl.ok || !GHL_SOCIAL_ENABLED ? "scheduled" : "failed",
-    ghl_post_id: ghl.postId ?? null,
-    error: ghl.ok ? null : (GHL_SOCIAL_ENABLED ? ghl.error ?? null : null),
+    // scheduled si al menos un grupo entró; el error guarda lo que falló (ej. TikTok)
+    status: okAny || groups.length === 0 ? "scheduled" : "failed",
+    ghl_post_id: results.find((r) => r.ok)?.postId ?? null,
+    error: errors.length ? errors.join(" | ") : null,
   };
 }
 
@@ -127,11 +136,11 @@ export async function POST(req: NextRequest) {
       const start = body.startDate ? new Date(body.startDate) : new Date(Date.now() + 86400000);
 
       // Resolver cuentas + userId UNA sola vez; si falla, no marcamos cientos de filas con error
-      let accountIds: string[] = [];
+      let groups: string[][] = [];
       if (GHL_SOCIAL_ENABLED) {
         const r = await resolveAccountIds(platforms);
         if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
-        accountIds = r.accountIds;
+        groups = r.groups;
         const u = await resolveGHLUserId();
         if (!u.ok) return NextResponse.json({ error: u.error }, { status: 400 });
       }
@@ -141,7 +150,7 @@ export async function POST(req: NextRequest) {
         const d = new Date(start);
         d.setDate(d.getDate() + i);
         d.setHours(hh || 10, mm || 0, 0, 0);
-        const upd = await pushWithAccounts(list[i], d.toISOString(), platforms, accountIds);
+        const upd = await pushWithGroups(list[i], d.toISOString(), platforms, groups);
         await admin.from("content_posts").update(upd).eq("id", list[i].id);
         scheduled++;
         if (GHL_SOCIAL_ENABLED && i < list.length - 1) await sleep(THROTTLE_MS);
@@ -172,11 +181,11 @@ export async function POST(req: NextRequest) {
       const capped = rawDays > MAX_BATCH;
 
       // Resolver cuentas + userId UNA sola vez; si falla, abortamos sin crear basura
-      let accountIds: string[] = [];
+      let groups: string[][] = [];
       if (GHL_SOCIAL_ENABLED) {
         const r = await resolveAccountIds(platforms);
         if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
-        accountIds = r.accountIds;
+        groups = r.groups;
         const u = await resolveGHLUserId();
         if (!u.ok) return NextResponse.json({ error: u.error }, { status: 400 });
       }
@@ -191,7 +200,7 @@ export async function POST(req: NextRequest) {
         d.setHours(hh || 10, mm || 0, 0, 0);
         const isoDate = d.toISOString();
 
-        const upd = await pushWithAccounts(template, isoDate, platforms, accountIds);
+        const upd = await pushWithGroups(template, isoDate, platforms, groups);
 
         if (i < list.length) {
           // Primera pasada: actualiza la fila original

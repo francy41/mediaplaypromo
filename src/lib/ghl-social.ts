@@ -38,12 +38,12 @@ function ghlHeaders(token: string) {
  */
 export async function resolveAccountIds(
   platforms: string[]
-): Promise<{ ok: boolean; accountIds: string[]; connected: string[]; error?: string }> {
+): Promise<{ ok: boolean; accountIds: string[]; groups: string[][]; connected: string[]; error?: string }> {
   const acc = await getGHLAccounts();
-  if (!acc.ok) return { ok: false, accountIds: [], connected: [], error: acc.error };
+  if (!acc.ok) return { ok: false, accountIds: [], groups: [], connected: [], error: acc.error };
   const accounts = acc.accounts ?? [];
   if (accounts.length === 0) {
-    return { ok: false, accountIds: [], connected: [], error: "GHL no tiene cuentas conectadas. Conecta tus redes en Social Planner." };
+    return { ok: false, accountIds: [], groups: [], connected: [], error: "GHL no tiene cuentas conectadas. Conecta tus redes en Social Planner." };
   }
   const connected = accounts.map((a) => a.platform || "?");
   const wanted = (platforms ?? []).map((s) => String(s ?? "").toLowerCase()).filter(Boolean);
@@ -53,9 +53,20 @@ export async function resolveAccountIds(
   });
   const accountIds = matched.map((a) => a.id).filter(Boolean);
   if (accountIds.length === 0) {
-    return { ok: false, accountIds: [], connected, error: `Ninguna red conectada coincide con [${wanted.join(", ")}]. Conectadas: ${connected.join(", ")}` };
+    return { ok: false, accountIds: [], groups: [], connected, error: `Ninguna red conectada coincide con [${wanted.join(", ")}]. Conectadas: ${connected.join(", ")}` };
   }
-  return { ok: true, accountIds, connected };
+
+  // TikTok no acepta ir mezclado con otras plataformas en el mismo post de GHL.
+  // Lo separamos en su propio grupo; el resto va junto.
+  const isTikTok = (plat?: string) => {
+    const p = String(plat ?? "").toLowerCase();
+    return p.includes("tiktok") || p === "tt";
+  };
+  const tiktokIds = matched.filter((a) => isTikTok(a.platform)).map((a) => a.id).filter(Boolean);
+  const otherIds = matched.filter((a) => !isTikTok(a.platform)).map((a) => a.id).filter(Boolean);
+  const groups = [otherIds, tiktokIds].filter((g) => g.length > 0);
+
+  return { ok: true, accountIds, groups, connected };
 }
 
 let cachedUserId: string | null = null;
