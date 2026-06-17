@@ -45,23 +45,37 @@ export async function POST(req: NextRequest) {
     });
   } catch { /* noop */ }
 
-  // Procesamos mensajes entrantes (DM) y comentarios
+  // GHL (workflow webhook) envía los datos del disparador en `triggerData`.
+  // Ej comentario IG: triggerData.igCommentOnPost.ig.body = "texto del comentario".
   const eventType = (body.type ?? body.event ?? "") as string;
   const et = eventType.toLowerCase();
-  const isComment = et.includes("comment");
-  const isMessage = et.includes("inbound") || et.includes("message");
-  if (!isComment && !isMessage) {
-    return NextResponse.json({ ok: true, skipped: `evento no manejado: ${eventType}` });
-  }
+
+  const triggerData = (body.triggerData ?? {}) as Record<string, unknown>;
+  const triggerKey = Object.keys(triggerData)[0] ?? "";
+  const tk = triggerKey.toLowerCase();
+  const triggerObj = (triggerData[triggerKey] ?? {}) as Record<string, unknown>;
+  const platObj = ((triggerObj.ig ?? triggerObj.instagram ?? triggerObj.fb ?? triggerObj.facebook ??
+    triggerObj.tiktok ?? triggerObj.tt ?? triggerObj) ?? {}) as Record<string, unknown>;
+
+  const isComment = tk.includes("comment") || et.includes("comment");
 
   const conversationId = (body.conversationId ?? body.conversation_id ?? "") as string;
-  const contactId = (body.contactId ?? body.contact_id ?? "") as string;
-  const messageType = (body.messageType ?? body.message_type ?? "IG") as string;
-  // El texto puede venir en distintos campos según sea DM o comentario
-  const incomingMessage = ((body.message ?? body.body ?? body.comment ?? body.commentText ?? body.text ?? "") as string).trim();
-  const firstName = (body.firstName ?? body.first_name ?? body.fullName ?? "amigo") as string;
-  const contactName = (body.fullName ?? body.full_name ?? firstName) as string;
-  const locationId = body.locationId as string | undefined;
+  const contactObj = (body.contact ?? {}) as Record<string, unknown>;
+  const contactId = (body.contactId ?? body.contact_id ?? contactObj.id ?? "") as string;
+
+  // Texto del comentario/mensaje: busca en triggerData anidado y en campos planos
+  const triggerBody = (platObj.body ?? platObj.body_exact_match ?? platObj.message ?? platObj.text ?? "") as string;
+  const incomingMessage = String(body.message ?? body.body ?? body.comment ?? body.commentText ?? body.text ?? triggerBody ?? "").trim();
+
+  const firstName = (body.firstName ?? body.first_name ?? body.full_name ?? body.fullName ?? "amigo") as string;
+  const contactName = (body.full_name ?? body.fullName ?? firstName) as string;
+
+  // Plataforma para el tipo de mensaje de respuesta
+  let messageType = "IG";
+  if (triggerObj.fb || triggerObj.facebook || tk.includes("fb") || tk.includes("facebook")) messageType = "FB";
+  else if (triggerObj.ig || triggerObj.instagram || tk.includes("ig") || tk.includes("instagram")) messageType = "IG";
+  else if (triggerObj.tiktok || triggerObj.tt || tk.includes("tiktok")) messageType = "TikTok";
+  else if (body.messageType || body.message_type) messageType = String(body.messageType ?? body.message_type);
 
   // Ignorar mensajes propios (outbound) si GHL los incluye
   const direction = (body.direction ?? "") as string;
@@ -82,18 +96,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, skipped: "autoresponder disabled" });
   }
 
-  // Verificar trigger.
-  // - DM: respeta trigger_mode (any = responde a todos; keyword = solo si coincide).
-  // - Comentario: SIEMPRE exige palabra clave, para no enviar DM a todo el que comente algo.
+  // Trigger: responde a CUALQUIER comentario y DM.
+  // Solo filtra por palabra clave si el modo es "keyword" explícitamente.
   const keywords: string[] = Array.isArray(config.keywords) ? config.keywords : [];
-  const requireKeyword = isComment || config.trigger_mode === "keyword";
-  if (requireKeyword) {
-    const kws = keywords.length > 0 ? keywords : (isComment ? ["clip"] : []);
-    if (kws.length > 0) {
-      const msg = incomingMessage.toLowerCase();
-      const matched = kws.some((kw: string) => msg.includes(kw.toLowerCase()));
-      if (!matched) return NextResponse.json({ ok: true, skipped: "no keyword match" });
-    }
+  if (config.trigger_mode === "keyword" && keywords.length > 0) {
+    const msg = incomingMessage.toLowerCase();
+    const matched = keywords.some((kw: string) => msg.includes(kw.toLowerCase()));
+    if (!matched) return NextResponse.json({ ok: true, skipped: "no keyword match" });
   }
 
   // Evitar duplicados: si ya respondimos a este contacto en los últimos 60 min, no volver a responder.
