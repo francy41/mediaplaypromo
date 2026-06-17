@@ -13,8 +13,8 @@ export function GhlChatWidget() {
 
   return (
     <Script
-      src="https://widgets.leadconnectorhq.com/loader.js"
-      data-resources-url="https://widgets.leadconnectorhq.com/chat-widget/loader.js"
+      src="https://beta.leadconnectorhq.com/loader.js"
+      data-resources-url="https://beta.leadconnectorhq.com/chat-widget/loader.js"
       data-widget-id={widgetId}
       strategy="afterInteractive"
     />
