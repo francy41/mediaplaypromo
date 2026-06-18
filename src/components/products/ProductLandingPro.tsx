@@ -116,6 +116,10 @@ export function ProductLandingPro({ product }: Props) {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const heroImg = product.coverImage;
+  const ytId = (() => {
+    const m = (product.videoUrl ?? "").match(/(?:v=|youtu\.be\/|embed\/)([\w-]{11})/);
+    return m ? m[1] : "";
+  })();
   const offer = product.lifetimeOffer;
   const tools = product.subProducts?.length
     ? product.subProducts.map((sp, i) => ({
@@ -245,8 +249,23 @@ export function ProductLandingPro({ product }: Props) {
             </div>
           </div>
 
-          {/* Right — imagen subida (si existe) o maqueta 3D del producto */}
-          {heroImg ? (
+          {/* Right — video demo (YouTube) > imagen subida > maqueta 3D */}
+          {ytId ? (
+            <div className="relative float-soft">
+              <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/20 to-fuchsia-500/20 rounded-2xl blur-2xl" />
+              <div className="relative glass-card rounded-2xl p-2 overflow-hidden shadow-2xl border-white/10">
+                <div className="relative w-full rounded-xl overflow-hidden" style={{ aspectRatio: "16 / 9" }}>
+                  <iframe
+                    src={`https://www.youtube.com/embed/${ytId}`}
+                    title={`${product.name} — demo`}
+                    className="absolute inset-0 w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                </div>
+              </div>
+            </div>
+          ) : heroImg ? (
             <div className="relative float-soft">
               <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/20 to-fuchsia-500/20 rounded-2xl blur-2xl" />
               <div className="relative glass-card rounded-2xl p-2 overflow-hidden shadow-2xl border-white/10">

@@ -106,6 +106,8 @@ export interface Product {
   coverImage?: string;
   /** Link de descarga del producto (archivo/instalador). Se entrega al comprador. */
   downloadUrl?: string;
+  /** Video demo/tutorial (URL de YouTube). Se muestra en el hero de la landing. */
+  videoUrl?: string;
   /** Icono principal para card si no hay cover */
   cardIcon?: LucideIcon;
   /** Gradient principal */
@@ -523,6 +525,7 @@ const YF_AUTO_CLIP_V1: Product = {
   salesCount: 1500,
   landingStyle: "pro",
   downloadUrl: "https://drive.google.com/uc?export=download&id=1HO45S3qBkuGfodiy8WCXNMOMCrT6DeX-",
+  videoUrl: "https://www.youtube.com/watch?v=xoN20TGnfR4",
   benefits: [
     { icon: Clock, title: "Ahorra Tiempo", description: "La versión que inició la revolución." },
     { icon: Hand, title: "Más Simple", description: "Interfaz minimalista — sin distracciones." },
