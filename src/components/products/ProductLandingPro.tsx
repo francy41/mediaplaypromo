@@ -10,6 +10,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { Product } from "@/lib/products";
 import { useAuth } from "@/lib/auth-context";
+import { metaTrack } from "@/lib/meta-pixel";
 import { EmbeddedCheckoutModal, EMBEDDED_AVAILABLE } from "./EmbeddedCheckoutModal";
 
 interface Props {
@@ -135,6 +136,9 @@ export function ProductLandingPro({ product }: Props) {
   const handleBuy = async (priceId: string) => {
     if (!user) { setShowLoginPrompt(priceId); return; }
     setBuying(priceId);
+    // Evento Meta Pixel: inicio de checkout (para optimizar campañas hacia compradores)
+    const t = product.prices.find((p) => p.id === priceId) ?? (product.lifetimeOffer?.id === priceId ? product.lifetimeOffer : undefined);
+    metaTrack("InitiateCheckout", { value: t?.price, currency: "EUR", content_name: `${product.name}${t ? " · " + t.name : ""}` });
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",

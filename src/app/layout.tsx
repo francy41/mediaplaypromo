@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { ThemeProvider } from "@/lib/theme-context";
 import { GhlChatWidget } from "@/components/GhlChatWidget";
+import { MetaPixel } from "@/components/MetaPixel";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mediaplaypromo.com"),
@@ -68,6 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es" className="h-full" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
+        <MetaPixel />
       </head>
       <body className="min-h-full antialiased">
         <ThemeProvider>

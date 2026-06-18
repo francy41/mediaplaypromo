@@ -46,6 +46,9 @@ export async function GET(req: NextRequest) {
       productName: session.metadata?.productName ?? product?.name ?? null,
       tierName: session.metadata?.tierName ?? null,
       email,
+      // Importe para el evento de conversión (Meta Pixel Purchase)
+      amountTotal: typeof session.amount_total === "number" ? session.amount_total / 100 : null,
+      currency: (session.currency ?? "eur").toUpperCase(),
       // Solo entregamos el acceso si el pago está confirmado
       downloadUrl: paid ? (product?.downloadUrl ?? null) : null,
       licenseKey,

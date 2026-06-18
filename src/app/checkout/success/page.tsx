@@ -1,14 +1,17 @@
 "use client";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle2, ArrowRight, LayoutDashboard, Download, Loader2 } from "lucide-react";
+import { metaTrack } from "@/lib/meta-pixel";
 
 interface SessionInfo {
   paid: boolean;
   productName?: string | null;
   tierName?: string | null;
   email?: string | null;
+  amountTotal?: number | null;
+  currency?: string | null;
   downloadUrl?: string | null;
   licenseKey?: string | null;
 }
@@ -18,6 +21,7 @@ function SuccessContent() {
   const sessionId = sp.get("session_id");
   const [info, setInfo] = useState<SessionInfo | null>(null);
   const [loading, setLoading] = useState(!!sessionId);
+  const tracked = useRef(false);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -27,6 +31,17 @@ function SuccessContent() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [sessionId]);
+
+  // Evento de conversión Meta Pixel: Purchase (una sola vez, solo si está pagado)
+  useEffect(() => {
+    if (tracked.current || !info?.paid) return;
+    tracked.current = true;
+    metaTrack("Purchase", {
+      value: info.amountTotal ?? undefined,
+      currency: info.currency ?? "EUR",
+      content_name: info.productName ?? undefined,
+    });
+  }, [info]);
 
   return (
     <div className="always-dark min-h-screen bg-[#070809] text-white flex items-center justify-center p-4" style={{ colorScheme: "dark" }}>
