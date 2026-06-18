@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe/server";
 import { getProductBySlug } from "@/lib/products";
 import { getOrCreateLicenseForSession } from "@/lib/license";
+import { recordAffiliateSale } from "@/lib/affiliate";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -39,6 +40,18 @@ export async function GET(req: NextRequest) {
         email,
       });
       licenseKey = lic?.key ?? null;
+
+      // Atribuir la venta a un afiliado si vino con ?ref (idempotente por session_id)
+      const ref = session.metadata?.ref;
+      if (ref) {
+        await recordAffiliateSale({
+          sessionId: session.id,
+          code: ref,
+          amount: typeof session.amount_total === "number" ? session.amount_total / 100 : null,
+          productName: session.metadata?.productName ?? product?.name ?? null,
+          email,
+        });
+      }
     }
 
     return NextResponse.json({

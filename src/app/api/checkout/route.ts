@@ -24,7 +24,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { productSlug, tierId, email, origin, embedded } = await req.json();
+    const { productSlug, tierId, email, origin, embedded, ref } = await req.json();
+    const affiliateRef = typeof ref === "string" ? ref.trim().toLowerCase().slice(0, 60) : "";
 
     const product = getProductBySlug(productSlug);
     if (!product) {
@@ -68,6 +69,7 @@ export async function POST(req: NextRequest) {
         tierId,
         productName: product.name,
         tierName: tier.name,
+        ...(affiliateRef ? { ref: affiliateRef } : {}),
       },
       ...(isSubscription
         ? { subscription_data: { metadata: { productSlug, tierId } } }

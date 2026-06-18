@@ -11,6 +11,7 @@ import type { LucideIcon } from "lucide-react";
 import type { Product } from "@/lib/products";
 import { useAuth } from "@/lib/auth-context";
 import { metaTrack } from "@/lib/meta-pixel";
+import { getStoredRef } from "@/components/ReferralCapture";
 import { EmbeddedCheckoutModal, EMBEDDED_AVAILABLE } from "./EmbeddedCheckoutModal";
 
 interface Props {
@@ -149,6 +150,7 @@ export function ProductLandingPro({ product }: Props) {
           email: user.email,
           embedded: EMBEDDED_AVAILABLE,
           origin: typeof window !== "undefined" ? window.location.origin : undefined,
+          ref: getStoredRef() || undefined, // código de afiliado (atribución)
         }),
       });
       const data = await res.json();

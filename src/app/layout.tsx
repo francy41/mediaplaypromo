@@ -4,6 +4,7 @@ import { AuthProvider } from "@/lib/auth-context";
 import { ThemeProvider } from "@/lib/theme-context";
 import { GhlChatWidget } from "@/components/GhlChatWidget";
 import { MetaPixel } from "@/components/MetaPixel";
+import { ReferralCapture } from "@/components/ReferralCapture";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mediaplaypromo.com"),
@@ -76,6 +77,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
         <GhlChatWidget />
+        <ReferralCapture />
       </body>
     </html>
   );
