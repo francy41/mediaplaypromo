@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   LayoutGrid, Image as ImageIcon, Users, ShoppingBag, UserCheck, Globe,
   CreditCard, Sparkles, Film, FolderTree, BarChart3, Settings, Shield, Bell,
-  Database, Mail, Bot, FileText, Palette, Activity, Server, Lock, Layers, Package
+  Database, Mail, Bot, FileText, Palette, Activity, Server, Lock, Layers, Package, Plug
 } from "lucide-react";
 
 export interface AdminModule {
@@ -68,6 +68,9 @@ export const ADMIN_MODULES: AdminModule[] = [
     status: "soon", kpi: { label: "Enviadas", value: 0 } },
 
   // ── Sistema ──
+  { id: "integrations", title: "Integraciones / APIs", description: "Claves de API de proveedores (MUAPI, NVIDIA…) en un solo sitio, seguras con RLS", href: "/integrations",
+    icon: Plug, group: "Sistema", iconBg: "bg-indigo-500/15", iconText: "text-indigo-400",
+    status: "live", kpi: { label: "Server-only", value: "RLS" } },
   { id: "ai-tools", title: "AI Tools & API", description: "Claves OpenAI, ElevenLabs, créditos", href: "/admin/ai-tools",
     icon: Sparkles, group: "Sistema", iconBg: "bg-violet-500/15", iconText: "text-violet-400",
     status: "soon", kpi: { label: "Providers", value: 0 } },
