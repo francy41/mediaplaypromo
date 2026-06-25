@@ -1,7 +1,11 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { Plug, Lock, Plus, Trash2, RefreshCw, KeyRound, Check, X } from "lucide-react";
+import {
+  Plug, Lock, Plus, Trash2, RefreshCw, KeyRound, Check, X, Power,
+  Loader2, Zap, CheckCircle2, AlertCircle, ExternalLink, Pencil,
+} from "lucide-react";
 import { AdminShell, KPIGrid } from "@/components/admin/AdminShell";
+import { PROVIDER_CATALOG, catalogByCategory, type ProviderSpec } from "@/lib/integration-providers";
 
 const SECRET_STORE = "mpp_license_admin_secret";
 
@@ -15,6 +19,25 @@ interface Row {
   has_key: boolean;
 }
 
+interface TestState {
+  loading?: boolean;
+  ok?: boolean;
+  message?: string;
+}
+
+type Status = "connected" | "inactive" | "unset";
+
+function statusOf(row?: Row): Status {
+  if (!row || !row.has_key) return "unset";
+  return row.enabled ? "connected" : "inactive";
+}
+
+const STATUS_META: Record<Status, { label: string; cls: string; dot: string }> = {
+  connected: { label: "Conectada", cls: "bg-emerald-500/15 border-emerald-500/30 text-emerald-300", dot: "bg-emerald-400" },
+  inactive: { label: "Inactiva", cls: "bg-amber-500/15 border-amber-500/30 text-amber-300", dot: "bg-amber-400" },
+  unset: { label: "Sin configurar", cls: "bg-white/5 border-white/10 text-white/40", dot: "bg-white/30" },
+};
+
 export default function IntegrationsPage() {
   const [secret, setSecret] = useState("");
   const [input, setInput] = useState("");
@@ -23,11 +46,17 @@ export default function IntegrationsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // formulario
-  const [provider, setProvider] = useState("");
-  const [label, setLabel] = useState("");
-  const [apiKey, setApiKey] = useState("");
-  const [baseUrl, setBaseUrl] = useState("");
+  // editor inline: provider que se está editando
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draftLabel, setDraftLabel] = useState("");
+  const [draftKey, setDraftKey] = useState("");
+  const [draftBase, setDraftBase] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // alta de proveedor personalizado
+  const [customId, setCustomId] = useState("");
+
+  const [tests, setTests] = useState<Record<string, TestState>>({});
 
   const load = useCallback(async (sec: string) => {
     setLoading(true); setError(null);
@@ -46,17 +75,32 @@ export default function IntegrationsPage() {
     if (s) load(s);
   }, [load]);
 
-  const save = async () => {
-    if (!provider.trim()) return;
-    const r = await fetch("/api/integrations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-admin-secret": secret },
-      body: JSON.stringify({ provider, label, api_key: apiKey, base_url: baseUrl, enabled: true }),
-    });
-    const d = await r.json();
-    if (!d.ok) { alert(d.error ?? "No se pudo guardar (¿creaste la tabla api_integrations?)"); return; }
-    setProvider(""); setLabel(""); setApiKey(""); setBaseUrl("");
-    load(secret);
+  const byProvider = Object.fromEntries(rows.map((r) => [r.provider, r])) as Record<string, Row>;
+  const customRows = rows.filter((r) => !PROVIDER_CATALOG.some((p) => p.id === r.provider));
+
+  const openEditor = (id: string, row?: Row, spec?: ProviderSpec) => {
+    setEditing(id);
+    setDraftLabel(row?.label ?? spec?.label ?? "");
+    setDraftKey("");
+    setDraftBase(row?.base_url ?? spec?.defaultBaseUrl ?? "");
+    setTests((t) => ({ ...t, [id]: {} }));
+  };
+
+  const closeEditor = () => { setEditing(null); setDraftKey(""); };
+
+  const save = async (id: string) => {
+    setSaving(true);
+    try {
+      const r = await fetch("/api/integrations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+        body: JSON.stringify({ provider: id, label: draftLabel, api_key: draftKey, base_url: draftBase, enabled: true }),
+      });
+      const d = await r.json();
+      if (!d.ok) { alert(d.error ?? "No se pudo guardar (¿creaste la tabla api_integrations?)"); return; }
+      closeEditor();
+      await load(secret);
+    } finally { setSaving(false); }
   };
 
   const toggle = async (row: Row) => {
@@ -78,12 +122,30 @@ export default function IntegrationsPage() {
     load(secret);
   };
 
-  const active = rows.filter((r) => r.enabled && r.has_key).length;
+  const test = async (id: string, useDraft = false) => {
+    setTests((t) => ({ ...t, [id]: { loading: true } }));
+    try {
+      const payload: Record<string, string> = { provider: id };
+      if (useDraft && draftKey.trim()) payload.api_key = draftKey.trim();
+      if (useDraft && draftBase.trim()) payload.base_url = draftBase.trim();
+      const r = await fetch("/api/integrations/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+        body: JSON.stringify(payload),
+      });
+      const d = await r.json();
+      setTests((t) => ({ ...t, [id]: { ok: d.ok, message: d.message } }));
+    } catch {
+      setTests((t) => ({ ...t, [id]: { ok: false, message: "Error de red" } }));
+    }
+  };
+
+  const connectedCount = rows.filter((r) => r.enabled && r.has_key).length;
 
   return (
     <AdminShell
       title="Integraciones / APIs"
-      description="Gestiona las claves de API de tus proveedores (MUAPI, NVIDIA…) en un solo sitio, de forma segura."
+      description="Conecta tus proveedores de IA (MUAPI, OpenAI, NVIDIA, ElevenLabs…). Las claves se guardan con RLS server-only y se usan automáticamente en la generación."
       icon={Plug}
       iconGradient="from-indigo-500 to-violet-600"
       status="live"
@@ -106,82 +168,197 @@ export default function IntegrationsPage() {
           </form>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-5">
           <KPIGrid kpis={[
-            { label: "Integraciones", value: rows.length, gradient: "from-indigo-500 to-violet-600" },
-            { label: "Activas", value: active, gradient: "from-emerald-500 to-teal-600" },
+            { label: "Conectadas", value: connectedCount, gradient: "from-emerald-500 to-teal-600" },
+            { label: "Catálogo", value: PROVIDER_CATALOG.length, gradient: "from-indigo-500 to-violet-600" },
+            { label: "Personalizadas", value: customRows.length, gradient: "from-fuchsia-500 to-purple-600" },
           ]} />
 
-          {/* Añadir / actualizar */}
-          <div className="glass-card rounded-2xl border border-white/10 p-5">
-            <h3 className="flex items-center gap-2 text-white font-bold text-sm mb-1"><KeyRound className="w-4 h-4 text-indigo-400" /> Añadir / actualizar API</h3>
-            <p className="text-white/40 text-[11px] mb-3">El proveedor es un identificador corto (ej. <b>nvidia</b>, <b>muapi</b>). La clave se guarda cifrada y nunca se muestra completa.</p>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Proveedor (id)</label>
-                <input value={provider} onChange={(e) => setProvider(e.target.value)} placeholder="nvidia" className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/40" />
+          {/* ── Proveedores del catálogo, agrupados por categoría ── */}
+          {catalogByCategory().map(({ category, items }) => (
+            <section key={category}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-white/85 font-bold text-sm">{category}</h3>
+                <span className="text-white/35 text-xs">{items.length} proveedores</span>
               </div>
-              <div>
-                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Nombre visible</label>
-                <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="NVIDIA API" className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/40" />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                {items.map((spec) => (
+                  <ProviderCard
+                    key={spec.id}
+                    id={spec.id} spec={spec} row={byProvider[spec.id]}
+                    editing={editing === spec.id}
+                    draftLabel={draftLabel} draftKey={draftKey} draftBase={draftBase} saving={saving}
+                    test={tests[spec.id]}
+                    onOpen={() => openEditor(spec.id, byProvider[spec.id], spec)}
+                    onClose={closeEditor}
+                    onChangeLabel={setDraftLabel} onChangeKey={setDraftKey} onChangeBase={setDraftBase}
+                    onSave={() => save(spec.id)} onToggle={() => byProvider[spec.id] && toggle(byProvider[spec.id])}
+                    onDelete={() => del(spec.id)} onTest={(useDraft) => test(spec.id, useDraft)}
+                  />
+                ))}
               </div>
-              <div>
-                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">API Key</label>
-                <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="nvapi-..." className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/40" />
-              </div>
-              <div>
-                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Base URL (opcional)</label>
-                <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://integrate.api.nvidia.com/v1" className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/40" />
-              </div>
-            </div>
-            <button onClick={save} className="mt-3 inline-flex items-center gap-1.5 bg-gradient-to-r from-indigo-500 to-violet-600 text-white text-xs font-bold px-4 py-2 rounded-lg shadow shadow-indigo-500/30"><Plus className="w-3.5 h-3.5" /> Guardar</button>
-          </div>
+            </section>
+          ))}
 
-          {/* Lista */}
-          <div className="glass-card rounded-2xl border border-white/10 overflow-hidden">
-            <div className="overflow-x-auto scrollbar-hide">
-              <table className="w-full text-sm min-w-[640px]">
-                <thead>
-                  <tr className="border-b border-white/8 text-white/45 text-[10px] uppercase tracking-wider">
-                    <th className="text-left font-bold px-4 py-3">Proveedor</th>
-                    <th className="text-left font-bold px-4 py-3">Clave</th>
-                    <th className="text-left font-bold px-4 py-3">Base URL</th>
-                    <th className="text-center font-bold px-4 py-3">Estado</th>
-                    <th className="text-right font-bold px-4 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.provider} className="border-b border-white/5 hover:bg-white/[0.02]">
-                      <td className="px-4 py-3">
-                        <div className="text-white font-semibold text-xs">{r.label || r.provider}</div>
-                        <div className="text-white/40 text-[11px]">id: {r.provider}</div>
-                      </td>
-                      <td className="px-4 py-3"><span className="font-mono text-indigo-300 text-[11px]">{r.api_key_masked ?? "— sin clave —"}</span></td>
-                      <td className="px-4 py-3 text-white/50 text-[11px] truncate max-w-[200px]">{r.base_url || "—"}</td>
-                      <td className="px-4 py-3 text-center">
-                        <button onClick={() => toggle(r)} className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border ${r.enabled ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300" : "bg-white/5 border-white/10 text-white/40"}`}>
-                          {r.enabled ? <><Check className="w-3 h-3" /> Activa</> : <><X className="w-3 h-3" /> Inactiva</>}
-                        </button>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button onClick={() => del(r.provider)} className="inline-flex items-center gap-1 bg-white/5 hover:bg-red-500/15 border border-white/10 hover:border-red-500/30 text-white/60 hover:text-red-300 text-[11px] px-2.5 py-1.5 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
-                      </td>
-                    </tr>
-                  ))}
-                  {rows.length === 0 && (
-                    <tr><td colSpan={5} className="px-4 py-10 text-center text-white/40 text-sm">Aún no hay integraciones. Añade tu primera API arriba (ej. NVIDIA).</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+          {/* ── Personalizadas ── */}
+          {customRows.length > 0 && (
+            <section>
+              <h3 className="text-white/85 font-bold text-sm mb-3">Personalizadas</h3>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                {customRows.map((row) => (
+                  <ProviderCard
+                    key={row.provider}
+                    id={row.provider} row={row}
+                    editing={editing === row.provider}
+                    draftLabel={draftLabel} draftKey={draftKey} draftBase={draftBase} saving={saving}
+                    test={tests[row.provider]}
+                    onOpen={() => openEditor(row.provider, row)}
+                    onClose={closeEditor}
+                    onChangeLabel={setDraftLabel} onChangeKey={setDraftKey} onChangeBase={setDraftBase}
+                    onSave={() => save(row.provider)} onToggle={() => toggle(row)}
+                    onDelete={() => del(row.provider)} onTest={(useDraft) => test(row.provider, useDraft)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ── Añadir personalizada ── */}
+          <div className="glass-card rounded-2xl border border-white/10 p-5">
+            <h3 className="flex items-center gap-2 text-white font-bold text-sm mb-1"><KeyRound className="w-4 h-4 text-indigo-400" /> Añadir API personalizada</h3>
+            <p className="text-white/40 text-[11px] mb-3">Para un proveedor que no esté en el catálogo. El id es corto (solo letras, números, <code>-</code> y <code>_</code>).</p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const id = customId.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+                if (!id) return;
+                setCustomId("");
+                openEditor(id, byProvider[id]);
+              }}
+              className="flex flex-wrap items-end gap-3"
+            >
+              <div className="flex-1 min-w-[200px]">
+                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Proveedor (id)</label>
+                <input value={customId} onChange={(e) => setCustomId(e.target.value)} placeholder="replicate" className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/40" />
+              </div>
+              <button type="submit" className="inline-flex items-center gap-1.5 bg-gradient-to-r from-indigo-500 to-violet-600 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow shadow-indigo-500/30"><Plus className="w-3.5 h-3.5" /> Configurar</button>
+            </form>
           </div>
 
           <p className="text-white/35 text-[11px]">
-            🔒 Las claves se guardan con RLS (solo el servidor las lee) y en la web nunca se muestran completas. El sistema usa <code>getIntegration(&quot;proveedor&quot;)</code> para leerlas del lado servidor.
+            🔒 Las claves se guardan con RLS (solo el servidor las lee) y nunca se muestran completas. La generación usa <code>getIntegration(&quot;proveedor&quot;)</code> del lado servidor (BD → fallback al entorno).
           </p>
         </div>
       )}
     </AdminShell>
+  );
+}
+
+function ProviderCard(props: {
+  id: string;
+  spec?: ProviderSpec;
+  row?: Row;
+  editing: boolean;
+  draftLabel: string; draftKey: string; draftBase: string; saving: boolean;
+  test?: TestState;
+  onOpen: () => void; onClose: () => void;
+  onChangeLabel: (v: string) => void; onChangeKey: (v: string) => void; onChangeBase: (v: string) => void;
+  onSave: () => void; onToggle: () => void; onDelete: () => void; onTest: (useDraft: boolean) => void;
+}) {
+  const { id, spec, row, editing, draftLabel, draftKey, draftBase, saving, test } = props;
+  const status = statusOf(row);
+  const sm = STATUS_META[status];
+  const Icon = spec?.icon ?? Plug;
+  const accent = spec?.accent ?? "from-slate-500 to-slate-700";
+  const title = row?.label || spec?.label || id;
+
+  return (
+    <div className="glass-card rounded-2xl border border-white/10 p-4">
+      <div className="flex items-start gap-3">
+        <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${accent} flex items-center justify-center flex-shrink-0 ring-1 ring-white/15 shadow-lg`}>
+          <Icon className="w-5 h-5 text-white drop-shadow" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h4 className="text-white font-bold text-sm leading-tight">{title}</h4>
+            {spec && <span className="text-[9px] font-bold text-white/45 bg-white/5 border border-white/10 rounded-full px-1.5 py-px">{spec.category}</span>}
+          </div>
+          <p className="text-white/40 text-[11px] mt-0.5">id: {id}</p>
+        </div>
+        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${sm.cls}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${sm.dot}`} /> {sm.label}
+        </span>
+      </div>
+
+      {spec && <p className="text-white/45 text-[11px] mt-2.5 leading-snug">{spec.description}</p>}
+      {spec?.note && <p className="text-amber-300/80 text-[10px] mt-1.5 flex items-start gap-1"><AlertCircle className="w-3 h-3 mt-px flex-shrink-0" /> {spec.note}</p>}
+
+      {row?.has_key && (
+        <p className="mt-2 text-[11px]"><span className="text-white/40">Clave: </span><span className="font-mono text-indigo-300">{row.api_key_masked}</span></p>
+      )}
+
+      {/* Resultado del test */}
+      {test && !test.loading && test.message && (
+        <p className={`mt-2 inline-flex items-center gap-1.5 text-[11px] font-semibold ${test.ok ? "text-emerald-300" : "text-red-300"}`}>
+          {test.ok ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />} {test.message}
+        </p>
+      )}
+
+      {/* Editor inline */}
+      {editing ? (
+        <div className="mt-3 space-y-2.5 border-t border-white/8 pt-3">
+          {!spec && (
+            <div>
+              <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1">Nombre visible</label>
+              <input value={draftLabel} onChange={(e) => props.onChangeLabel(e.target.value)} placeholder="Mi proveedor" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/40" />
+            </div>
+          )}
+          <div>
+            <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1">API Key {row?.has_key && <span className="text-white/30 normal-case font-normal">(deja vacío para mantener la actual)</span>}</label>
+            <input type="password" value={draftKey} onChange={(e) => props.onChangeKey(e.target.value)} placeholder={spec?.keyPlaceholder ?? "tu api key…"} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/40" />
+          </div>
+          <div>
+            <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1">Base URL {spec && <span className="text-white/30 normal-case font-normal">(opcional)</span>}</label>
+            <input value={draftBase} onChange={(e) => props.onChangeBase(e.target.value)} placeholder={spec?.defaultBaseUrl ?? "https://api.proveedor.com"} className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/40" />
+          </div>
+          <div className="flex items-center gap-2 flex-wrap pt-1">
+            <button disabled={saving} onClick={props.onSave} className="inline-flex items-center gap-1.5 bg-gradient-to-r from-indigo-500 to-violet-600 text-white text-xs font-bold px-3.5 py-2 rounded-lg shadow shadow-indigo-500/30 disabled:opacity-60">
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Guardar
+            </button>
+            <button onClick={() => props.onTest(true)} className="inline-flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold px-3 py-2 rounded-lg">
+              {test?.loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5 text-amber-400" />} Probar
+            </button>
+            <button onClick={props.onClose} className="inline-flex items-center gap-1.5 text-white/50 hover:text-white text-xs font-semibold px-3 py-2 rounded-lg">
+              <X className="w-3.5 h-3.5" /> Cancelar
+            </button>
+            {spec?.docsUrl && (
+              <a href={spec.docsUrl} target="_blank" rel="noreferrer" className="ml-auto inline-flex items-center gap-1 text-indigo-300 hover:text-indigo-200 text-[11px] font-semibold">
+                Obtener clave <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 flex-wrap mt-3 border-t border-white/8 pt-3">
+          <button onClick={props.onOpen} className="inline-flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">
+            {row?.has_key ? <><Pencil className="w-3.5 h-3.5" /> Editar</> : <><Plus className="w-3.5 h-3.5" /> Conectar</>}
+          </button>
+          {row?.has_key && (
+            <>
+              <button onClick={() => props.onTest(false)} className="inline-flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">
+                {test?.loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5 text-amber-400" />} Probar
+              </button>
+              <button onClick={props.onToggle} className="inline-flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 text-xs font-semibold px-3 py-1.5 rounded-lg" title={row.enabled ? "Desactivar" : "Activar"}>
+                <Power className={`w-3.5 h-3.5 ${row.enabled ? "text-emerald-400" : "text-white/40"}`} />
+              </button>
+              <button onClick={props.onDelete} className="inline-flex items-center gap-1 bg-white/5 hover:bg-red-500/15 border border-white/10 hover:border-red-500/30 text-white/60 hover:text-red-300 text-xs px-2.5 py-1.5 rounded-lg transition-colors">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

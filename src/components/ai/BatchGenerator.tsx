@@ -4,7 +4,7 @@ import {
   Plus, Trash2, Play, Loader2, Download, RefreshCw, Upload, FileText,
   CheckCircle2, AlertCircle, DollarSign, TrendingUp, Sparkles, Wand2, ImagePlus, X
 } from "lucide-react";
-import { MUAPI_MODELS } from "@/lib/ai/muapi";
+import { MUAPI_MODELS } from "@/lib/ai/muapi-models";
 import { getRealCostUSD, getCustomerPriceUSD, getAdminProfitUSD, ADMIN_MARGIN_PCT } from "@/lib/pricing";
 
 type JobState =

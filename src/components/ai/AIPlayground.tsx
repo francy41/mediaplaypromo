@@ -6,7 +6,7 @@ import {
   Image as ImageIcon, Video as VideoIcon, Zap, Crown, Wand2, FolderDown, CheckCircle2,
   Layers, ArrowRight, Clock, XCircle, Upload, ImagePlus, X
 } from "lucide-react";
-import { MUAPI_MODELS } from "@/lib/ai/muapi";
+import { MUAPI_MODELS } from "@/lib/ai/muapi-models";
 import { getCost } from "@/lib/pricing";
 import { trackGeneration } from "@/lib/stats";
 import { usePathname } from "next/navigation";
