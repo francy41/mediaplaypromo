@@ -1,0 +1,68 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/server";
+
+export const runtime = "nodejs";
+
+function authed(req: NextRequest): boolean {
+  const secret = process.env.LICENSE_ADMIN_SECRET;
+  return !!secret && req.headers.get("x-admin-secret") === secret;
+}
+
+/** Enmascara la clave: muestra solo los primeros/últimos caracteres. */
+function mask(k?: string | null): string | null {
+  if (!k) return null;
+  if (k.length <= 8) return "••••";
+  return `${k.slice(0, 4)}••••${k.slice(-4)}`;
+}
+
+/** GET /api/integrations — lista proveedores (claves enmascaradas, nunca en claro). */
+export async function GET(req: NextRequest) {
+  if (!authed(req)) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  try {
+    const admin = createSupabaseAdminClient();
+    const { data, error } = await admin
+      .from("api_integrations")
+      .select("provider,label,base_url,enabled,api_key,updated_at")
+      .order("provider", { ascending: true });
+    const integrations = (data ?? []).map((r: Record<string, unknown>) => ({
+      provider: r.provider,
+      label: r.label,
+      base_url: r.base_url,
+      enabled: r.enabled,
+      updated_at: r.updated_at,
+      api_key_masked: mask(r.api_key as string | null),
+      has_key: !!r.api_key,
+    }));
+    return NextResponse.json({ integrations, error: error?.message });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "error", integrations: [] }, { status: 500 });
+  }
+}
+
+/** POST /api/integrations — crear/actualizar o borrar un proveedor. */
+export async function POST(req: NextRequest) {
+  if (!authed(req)) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const body = await req.json().catch(() => ({}));
+  const admin = createSupabaseAdminClient();
+
+  if (body.action === "delete") {
+    const { error } = await admin.from("api_integrations").delete().eq("provider", String(body.provider ?? "").toLowerCase());
+    return NextResponse.json({ ok: !error, error: error?.message });
+  }
+
+  const provider = String(body.provider ?? "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+  if (!provider) return NextResponse.json({ error: "Proveedor inválido (solo letras, números, - y _)" }, { status: 400 });
+
+  const row: Record<string, unknown> = {
+    provider,
+    label: body.label ? String(body.label).trim() : null,
+    base_url: body.base_url ? String(body.base_url).trim() : null,
+    enabled: body.enabled !== false,
+    updated_at: new Date().toISOString(),
+  };
+  // Solo sobreescribimos la clave si mandan una nueva (editar label/url no la borra).
+  if (body.api_key && String(body.api_key).trim()) row.api_key = String(body.api_key).trim();
+
+  const { error } = await admin.from("api_integrations").upsert(row, { onConflict: "provider" });
+  return NextResponse.json({ ok: !error, provider, error: error?.message });
+}
