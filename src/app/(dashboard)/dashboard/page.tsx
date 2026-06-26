@@ -4,6 +4,7 @@ import {
   TrendingUp, TrendingDown, Users, DollarSign, Zap, Layers,
   Video, Image as ImageIcon, Mic, Sparkles, Upload, LayoutGrid,
   Download, Calendar, MoreVertical, ArrowUpRight, Play,
+  Clapperboard, ArrowRight,
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -99,6 +100,27 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      {/* ── Mega Editor — destacado arriba del todo ── */}
+      <Link href="/editor" className="group block relative overflow-hidden rounded-[20px] border border-violet-500/20 bg-gradient-to-r from-violet-600/20 via-fuchsia-600/15 to-cyan-500/10 p-5 sm:p-6 hover:border-violet-400/40 transition-all">
+        <div className="absolute -top-16 -right-10 w-64 h-64 bg-violet-500/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 left-1/3 w-64 h-64 bg-fuchsia-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative flex items-center gap-4 sm:gap-5 flex-wrap">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-lg shadow-violet-500/30 ring-1 ring-white/15 flex-shrink-0">
+            <Clapperboard className="w-7 h-7 sm:w-8 sm:h-8 text-white drop-shadow" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-white font-black text-xl sm:text-2xl tracking-tight">Mega Editor de Video IA</h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-fuchsia-500/20 text-fuchsia-200 border border-fuchsia-400/30">NUEVO</span>
+            </div>
+            <p className="text-white/55 text-sm mt-1">Prompt → escenas, voz, música y subtítulos → MP4. Estilo CapCut, potenciado con IA.</p>
+          </div>
+          <span className="inline-flex items-center gap-2 bg-white text-[#111217] text-sm font-bold px-5 py-2.5 rounded-xl shadow-lg group-hover:gap-3 transition-all flex-shrink-0">
+            Abrir editor <ArrowRight className="w-4 h-4" />
+          </span>
+        </div>
+      </Link>
 
       {/* ── KPI cards ── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
