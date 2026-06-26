@@ -51,6 +51,11 @@ export default function EditorPage() {
   const [previewIndex, setPreviewIndex] = useState(-1);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // render
+  const [rendering, setRendering] = useState(false);
+  const [renderPct, setRenderPct] = useState(0);
+  const [renderMsg, setRenderMsg] = useState("");
+
   useEffect(() => {
     let s = ""; try { s = localStorage.getItem(SECRET_STORE) ?? ""; } catch {}
     if (s) { setSecret(s); setAuthed(true); }
@@ -144,6 +149,27 @@ export default function EditorPage() {
     a.click();
   };
 
+  const renderMp4 = async () => {
+    stopPreview();
+    setRendering(true); setRenderPct(0); setRenderMsg("Iniciando…"); setError(null);
+    try {
+      const { renderVideo } = await import("@/lib/ai/render-video");
+      const blob = await renderVideo(
+        scenes.map((s) => ({ seconds: s.seconds, media: s.media })),
+        aspect, secret,
+        (msg, pct) => { setRenderMsg(msg); setRenderPct(pct); },
+      );
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `mpp-video-${Date.now()}.mp4`;
+      a.click();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error al renderizar");
+    } finally {
+      setRendering(false);
+    }
+  };
+
   if (!authed) {
     return (
       <AdminShell title="Mega Editor de Video IA" description="Crea videos largos con IA: guión, clips, transiciones, voz y montaje. Solo SuperAdmin." icon={Clapperboard} iconGradient="from-violet-500 to-fuchsia-600" status="beta" breadcrumb={[{ label: "Mega Editor" }]}>
@@ -228,7 +254,15 @@ export default function EditorPage() {
                   <Download className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <p className="text-white/35 text-[10px] pt-1">Render a MP4 = fase 2 (motor de render). Por ahora: preview reproducible + exportar proyecto.</p>
+              <button onClick={renderMp4} disabled={rendering} className="w-full inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:opacity-95 text-white text-xs font-bold px-3 py-2.5 rounded-lg shadow shadow-violet-500/30 disabled:opacity-60">
+                {rendering ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {renderMsg} {renderPct}%</> : <><Film className="w-3.5 h-3.5" /> Renderizar MP4 (gratis)</>}
+              </button>
+              {rendering && (
+                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-600 transition-all" style={{ width: `${renderPct}%` }} />
+                </div>
+              )}
+              <p className="text-white/35 text-[10px] pt-1">Render en tu navegador (v1 sin audio embebido). Recomendado ≤ ~90s; videos largos pueden ir lentos.</p>
             </div>
           )}
         </div>
