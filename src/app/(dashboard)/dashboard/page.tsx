@@ -101,23 +101,29 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Mega Editor — destacado arriba del todo ── */}
-      <Link href="/editor" className="group block relative overflow-hidden rounded-[20px] border border-violet-500/20 bg-gradient-to-r from-violet-600/20 via-fuchsia-600/15 to-cyan-500/10 p-5 sm:p-6 hover:border-violet-400/40 transition-all">
-        <div className="absolute -top-16 -right-10 w-64 h-64 bg-violet-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 left-1/3 w-64 h-64 bg-fuchsia-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative flex items-center gap-4 sm:gap-5 flex-wrap">
-          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-lg shadow-violet-500/30 ring-1 ring-white/15 flex-shrink-0">
-            <Clapperboard className="w-7 h-7 sm:w-8 sm:h-8 text-white drop-shadow" />
+      {/* ── Mega Editor — hero grande arriba del todo ── */}
+      <Link href="/editor" className="group block relative overflow-hidden rounded-[24px] border border-violet-500/25 bg-gradient-to-br from-violet-600/25 via-fuchsia-600/15 to-cyan-500/10 p-7 sm:p-10 hover:border-violet-400/50 transition-all">
+        <div className="absolute -top-20 -right-12 w-80 h-80 bg-violet-500/25 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-28 left-1/4 w-80 h-80 bg-fuchsia-500/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/2 right-10 w-56 h-56 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative flex items-center gap-6 sm:gap-8 flex-wrap">
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-2xl shadow-violet-500/40 ring-1 ring-white/20 flex-shrink-0 group-hover:scale-105 transition-transform">
+            <Clapperboard className="w-10 h-10 sm:w-12 sm:h-12 text-white drop-shadow" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-white font-black text-xl sm:text-2xl tracking-tight">Mega Editor de Video IA</h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-fuchsia-500/20 text-fuchsia-200 border border-fuchsia-400/30">NUEVO</span>
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-fuchsia-500/20 text-fuchsia-200 border border-fuchsia-400/30 tracking-wider">★ DESTACADO · NUEVO</span>
             </div>
-            <p className="text-white/55 text-sm mt-1">Prompt → escenas, voz, música y subtítulos → MP4. Estilo CapCut, potenciado con IA.</p>
+            <h2 className="text-white font-black text-3xl sm:text-5xl tracking-tight mt-2 leading-[1.05]">Mega Editor de Video IA</h2>
+            <p className="text-white/60 text-base sm:text-lg mt-3 max-w-2xl">Del prompt al MP4: genera escenas, voz, música y subtítulos automáticamente. Estilo CapCut, potenciado con IA.</p>
+            <div className="flex items-center gap-2 flex-wrap mt-4">
+              {["Texto → Video", "Voz + Música", "Subtítulos quemados", "NVIDIA · MUAPI · Pexels", "Render MP4 gratis"].map((t) => (
+                <span key={t} className="text-[11px] sm:text-xs font-semibold text-white/75 bg-white/[0.06] border border-white/10 rounded-full px-3 py-1.5">{t}</span>
+              ))}
+            </div>
           </div>
-          <span className="inline-flex items-center gap-2 bg-white text-[#111217] text-sm font-bold px-5 py-2.5 rounded-xl shadow-lg group-hover:gap-3 transition-all flex-shrink-0">
-            Abrir editor <ArrowRight className="w-4 h-4" />
+          <span className="inline-flex items-center gap-2 bg-white text-[#111217] text-base font-bold px-7 py-3.5 rounded-2xl shadow-xl group-hover:gap-3.5 transition-all flex-shrink-0">
+            Abrir editor <ArrowRight className="w-5 h-5" />
           </span>
         </div>
       </Link>
