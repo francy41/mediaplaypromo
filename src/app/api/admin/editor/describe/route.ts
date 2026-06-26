@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getIntegration } from "@/lib/integrations";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 function authed(req: NextRequest): boolean {
   const secret = process.env.LICENSE_ADMIN_SECRET;
