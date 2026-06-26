@@ -38,23 +38,30 @@ export async function POST(req: NextRequest) {
 
     type Result =
       | { index: number; status: "queued"; jobId: string }
+      | { index: number; status: "completed"; output: string[] }
       | { index: number; status: "error"; error: string };
 
     const results: Result[] = [];
+    const TERMINAL = new Set(["completed", "succeeded"]);
 
     // Procesamiento por chunks (concurrency limit)
     for (let i = 0; i < prompts.length; i += concurrency) {
       const chunk = prompts.slice(i, i + concurrency);
       const settled = await Promise.allSettled(
         chunk.map((prompt, idx) =>
-          createGen(provider, body.model, { prompt, ...body.shared }).then((job) => ({ jobId: job.id, index: i + idx }))
+          createGen(provider, body.model, { prompt, ...body.shared }).then((job) => ({ job, index: i + idx }))
         )
       );
 
       settled.forEach((s, idx) => {
         const globalIdx = i + idx;
         if (s.status === "fulfilled") {
-          results.push({ index: globalIdx, status: "queued", jobId: s.value.jobId });
+          const job = s.value.job;
+          if (TERMINAL.has(job.status)) {
+            results.push({ index: globalIdx, status: "completed", output: job.output ?? [] });
+          } else {
+            results.push({ index: globalIdx, status: "queued", jobId: job.id });
+          }
         } else {
           const err = s.reason;
           const msg = err instanceof MuapiError ? err.message : (err instanceof Error ? err.message : "Error");
@@ -64,7 +71,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Reporte financiero del batch
-    const successful = results.filter((r) => r.status === "queued").length;
+    const successful = results.filter((r) => r.status === "queued" || r.status === "completed").length;
     const realCost      = getRealCostUSD(body.model) * successful;
     const customerPrice = getCustomerPriceUSD(body.model) * successful;
     const adminProfit   = getAdminProfitUSD(body.model) * successful;

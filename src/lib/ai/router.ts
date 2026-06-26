@@ -140,6 +140,34 @@ async function replicateStatus(predId: string, fullId: string): Promise<GenJob> 
   };
 }
 
+/* ───────────────────────── NVIDIA (imagen, síncrono) ───────────────────────── */
+
+async function nvidiaCreate(model: string, input: GenInput): Promise<GenJob> {
+  const { key } = await keyFor("nvidia", "https://ai.api.nvidia.com");
+  // El genai endpoint no usa la base OpenAI; siempre ai.api.nvidia.com.
+  const w = Math.min(Number(input.width) || 1024, 1024);
+  const h = Math.min(Number(input.height) || 1024, 1024);
+  const body: Record<string, unknown> = { prompt: input.prompt, width: w, height: h };
+  if (/schnell/.test(model)) body.steps = 4;
+  if (typeof input.seed === "number") body.seed = input.seed;
+
+  const res = await fetch(`https://ai.api.nvidia.com/v1/genai/${model}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+  const data = await res.json().catch(() => ({} as Record<string, unknown>)) as Record<string, unknown>;
+  if (!res.ok) {
+    throw new Error((data.detail as string) || (data.message as string) || (data.title as string) || `NVIDIA error ${res.status}`);
+  }
+  const art = (data.artifacts as Array<{ base64?: string }> | undefined)?.[0];
+  const b64 = art?.base64 || (data.image as string | undefined);
+  if (!b64) throw new Error("NVIDIA no devolvió imagen.");
+  const mime = b64.startsWith("/9j/") ? "image/jpeg" : b64.startsWith("iVBOR") ? "image/png" : "image/jpeg";
+  return { id: `nvidia::${model}::sync`, status: "completed", output: [`data:${mime};base64,${b64}`] };
+}
+
 /* ───────────────────────── API pública del router ───────────────────────── */
 
 /** Lanza una generación con el proveedor indicado. Devuelve job con id prefijado. */
@@ -151,7 +179,8 @@ export async function createGen(provider: string, model: string, input: GenInput
   }
   if (p === "fal") return falCreate(model, input);
   if (p === "replicate") return replicateCreate(model, input);
-  throw new Error(`Proveedor de video no soportado: ${p}`);
+  if (p === "nvidia") return nvidiaCreate(model, input);
+  throw new Error(`Proveedor no soportado: ${p}`);
 }
 
 /** Consulta el estado de un job (id prefijado o id antiguo de Muapi). */
@@ -159,6 +188,7 @@ export async function getGenJob(jobId: string): Promise<GenJob> {
   const { provider, model, rawId } = parseId(jobId);
   if (provider === "fal") return falStatus(model, rawId, jobId);
   if (provider === "replicate") return replicateStatus(rawId, jobId);
+  if (provider === "nvidia") return { id: jobId, status: "completed", output: [] }; // síncrono: resultado ya entregado al crear
   // muapi (o id antiguo)
   const j = await muapiGetJob(rawId);
   return { id: jobId, status: j.status, output: toArr(j.output ?? j.urls ?? j.result_url), error: j.error };

@@ -62,3 +62,28 @@ export const VIDEO_PROVIDERS: VideoProvider[] = [
 export function getVideoProvider(id: string): VideoProvider | undefined {
   return VIDEO_PROVIDERS.find((p) => p.id === id);
 }
+
+/* ── Proveedores de IMAGEN ── */
+export const IMAGE_PROVIDERS: VideoProvider[] = [
+  {
+    id: "muapi",
+    label: "MUAPI",
+    note: "Premium · Flux, HiDream, Grok…",
+    defaultReady: true,
+    models: MUAPI_MODELS.image.map((m) => ({ slug: m.slug, label: m.label, category: m.category, priceHint: m.priceHint })),
+  },
+  {
+    id: "nvidia",
+    label: "NVIDIA",
+    note: "Gratis con tus créditos de NVIDIA",
+    models: [
+      { slug: "black-forest-labs/flux.1-schnell", label: "⚡ FLUX.1 Schnell (gratis)", category: "FLUX", priceHint: "Gratis" },
+      { slug: "black-forest-labs/flux.1-dev",     label: "FLUX.1 Dev (gratis)",        category: "FLUX", priceHint: "Gratis" },
+    ],
+  },
+];
+
+/** Proveedores disponibles para un tipo de generación. */
+export function providersFor(kind: "image" | "video"): VideoProvider[] {
+  return kind === "video" ? VIDEO_PROVIDERS : IMAGE_PROVIDERS;
+}
