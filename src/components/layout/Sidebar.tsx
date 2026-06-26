@@ -10,7 +10,7 @@ import {
   ShoppingBag, Zap, Scale, Bell, Settings, ChevronLeft,
   ChevronRight, Globe, MessageSquare, Star, Shield,
   Video, Film, Mic, Image, BookOpen, Layout, ChevronDown, GalleryHorizontal,
-  Bot, Filter, Mail, CalendarClock, Briefcase, Sparkles, Palette, Radio, Layers, Package, Plug
+  Bot, Filter, Mail, CalendarClock, Briefcase, Sparkles, Palette, Radio, Layers, Package, Plug, Clapperboard
 } from "lucide-react";
 
 const mainNav = [
@@ -171,6 +171,21 @@ export function Sidebar() {
                 <Link href="/admin" className="text-[9px] text-fuchsia-400 hover:text-fuchsia-300 font-bold uppercase tracking-wider">Hub</Link>
               </div>
             )}
+            {/* ★ Featured: Mega Editor de Video IA */}
+            <Link
+              href="/editor"
+              title="Mega Editor de Video IA"
+              className={cn(
+                "flex items-center gap-2.5 rounded-xl mb-1.5 bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 border border-violet-500/30 hover:from-violet-500/30 hover:to-fuchsia-500/30 transition-all",
+                collapsed ? "px-2 py-2 justify-center" : "px-2.5 py-2"
+              )}
+            >
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center flex-shrink-0 shadow shadow-violet-500/40">
+                <Clapperboard className="w-3.5 h-3.5 text-white" />
+              </div>
+              {!collapsed && <span className="text-[12px] font-bold text-white truncate flex-1">Mega Editor IA</span>}
+              {!collapsed && <span className="text-[8px] font-black bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">NUEVO</span>}
+            </Link>
             {[
               { label: "Control Hub",        href: "/admin",            icon: Star,    iconBg: "bg-fuchsia-500/20", iconColor: "text-fuchsia-400" },
               { label: "Integraciones API",  href: "/integrations",     icon: Plug,    iconBg: "bg-indigo-500/20",  iconColor: "text-indigo-400" },

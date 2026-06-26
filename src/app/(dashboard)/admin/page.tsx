@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   Crown, ArrowRight, TrendingUp, TrendingDown, Users, DollarSign,
   Activity, Sparkles, Globe, ShieldCheck, Eye, X, ArrowUpRight,
-  CheckCircle2, AlertCircle, Server, Wallet, Search, Filter, Download, MoreVertical
+  CheckCircle2, AlertCircle, Server, Wallet, Search, Filter, Download, MoreVertical, Clapperboard
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -116,6 +116,22 @@ export default function SuperAdminHub() {
           </div>
         </div>
       </div>
+
+      {/* ── ★ Featured: Mega Editor de Video IA ── */}
+      <Link href="/editor" className="glass-card relative overflow-hidden rounded-3xl border border-violet-500/30 p-5 sm:p-6 flex items-center gap-4 group">
+        <div className="absolute -top-16 -right-10 w-72 h-72 bg-gradient-to-br from-violet-500 to-fuchsia-600 opacity-20 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-lg shadow-violet-500/40 flex-shrink-0">
+          <Clapperboard className="w-7 h-7 text-white" />
+        </div>
+        <div className="relative flex-1 min-w-0">
+          <span className="inline-flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-violet-200 mb-1">NUEVO · IA</span>
+          <h2 className="text-white font-black text-lg sm:text-xl leading-tight">Mega Editor de Video IA</h2>
+          <p className="text-white/55 text-xs sm:text-sm">Prompt → guión, clips reales, transiciones, voz y montaje. Crea videos largos automáticamente.</p>
+        </div>
+        <div className="relative inline-flex items-center gap-1.5 bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg shadow-violet-500/30 group-hover:-translate-y-0.5 transition-transform flex-shrink-0">
+          Abrir <ArrowRight className="w-4 h-4" />
+        </div>
+      </Link>
 
       {/* ── KPI cards (5) ── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">

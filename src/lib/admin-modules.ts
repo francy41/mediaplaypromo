@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   LayoutGrid, Image as ImageIcon, Users, ShoppingBag, UserCheck, Globe,
   CreditCard, Sparkles, Film, FolderTree, BarChart3, Settings, Shield, Bell,
-  Database, Mail, Bot, FileText, Palette, Activity, Server, Lock, Layers, Package, Plug
+  Database, Mail, Bot, FileText, Palette, Activity, Server, Lock, Layers, Package, Plug, Clapperboard
 } from "lucide-react";
 
 export interface AdminModule {
@@ -20,6 +20,9 @@ export interface AdminModule {
 
 export const ADMIN_MODULES: AdminModule[] = [
   // ── Contenido ──
+  { id: "editor", title: "Mega Editor de Video IA", description: "Crea videos largos con IA: guión, clips reales, transiciones, voz y montaje", href: "/editor",
+    icon: Clapperboard, group: "Contenido", iconBg: "bg-violet-500/15", iconText: "text-violet-400",
+    status: "beta", kpi: { label: "IA", value: "Auto" } },
   { id: "cats", title: "Categorías", description: "CRUD de las 18 categorías IA", href: "/admin/categories",
     icon: FolderTree, group: "Contenido", iconBg: "bg-orange-500/15", iconText: "text-orange-400",
     status: "live", kpi: { label: "Total", value: 18 } },
