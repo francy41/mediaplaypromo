@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createGeneration, MuapiError, type MuapiGenerateRequest } from "@/lib/ai/muapi";
+import { MuapiError, type MuapiGenerateRequest } from "@/lib/ai/muapi";
+import { createGen } from "@/lib/ai/router";
 import { getAdminProfitUSD, getCustomerPriceUSD, getRealCostUSD, ADMIN_MARGIN_PCT } from "@/lib/pricing";
 
 /**
@@ -17,11 +18,13 @@ import { getAdminProfitUSD, getCustomerPriceUSD, getRealCostUSD, ADMIN_MARGIN_PC
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json() as {
+      provider?: string;
       model: string;
       prompts: string[];
       shared?: Partial<MuapiGenerateRequest>;
       concurrency?: number;
     };
+    const provider = body.provider ?? "muapi";
 
     if (!body.model || !Array.isArray(body.prompts) || body.prompts.length === 0) {
       return NextResponse.json({ error: "Faltan model o prompts" }, { status: 400 });
@@ -44,11 +47,7 @@ export async function POST(req: NextRequest) {
       const chunk = prompts.slice(i, i + concurrency);
       const settled = await Promise.allSettled(
         chunk.map((prompt, idx) =>
-          createGeneration({
-            model: body.model,
-            prompt,
-            ...body.shared,
-          }).then((job) => ({ jobId: job.id, index: i + idx }))
+          createGen(provider, body.model, { prompt, ...body.shared }).then((job) => ({ jobId: job.id, index: i + idx }))
         )
       );
 

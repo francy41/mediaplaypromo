@@ -7,6 +7,7 @@ import {
   Layers, ArrowRight, Clock, XCircle, Upload, ImagePlus, X
 } from "lucide-react";
 import { MUAPI_MODELS } from "@/lib/ai/muapi-models";
+import { VIDEO_PROVIDERS, getVideoProvider } from "@/lib/ai/provider-models";
 import { getCost } from "@/lib/pricing";
 import { trackGeneration } from "@/lib/stats";
 import { usePathname } from "next/navigation";
@@ -51,7 +52,11 @@ const TERMINAL_OK: JobStatus[] = ["completed", "succeeded"];
 const TERMINAL_FAIL: JobStatus[] = ["failed", "cancelled"];
 
 export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", defaultModel, placeholder }: Props) {
-  const models = MUAPI_MODELS[kind];
+  const isVideo = kind === "video";
+  // Selector de proveedor (solo video). Imagen sigue siendo MUAPI.
+  const [providerId, setProviderId] = useState<string>("muapi");
+  const currentProvider = isVideo ? getVideoProvider(providerId) : undefined;
+  const models = isVideo ? (currentProvider?.models ?? VIDEO_PROVIDERS[0].models) : MUAPI_MODELS.image;
   const families = Array.from(new Set(models.map((m) => m.category)));
 
   const [family, setFamily] = useState<string>(() => {
@@ -102,6 +107,17 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [family]);
+
+  // Al cambiar de proveedor (video): resetea familia y modelo al primero del proveedor.
+  const providerInit = useRef(true);
+  useEffect(() => {
+    if (providerInit.current) { providerInit.current = false; return; } // no pisar defaultModel al montar
+    const ms = getVideoProvider(providerId)?.models ?? [];
+    const fams = Array.from(new Set(ms.map((m) => m.category)));
+    setFamily(fams[0] ?? "");
+    setModel(ms[0]?.slug ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [providerId]);
 
   // Polling de todos los jobs activos
   useEffect(() => {
@@ -175,7 +191,7 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
         const res = await fetch("/api/ai/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ model, prompt, ...shared }),
+          body: JSON.stringify({ provider: providerId, model, prompt, ...shared }),
         });
         const job = await res.json();
         if (!res.ok) {
@@ -190,7 +206,7 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
         const res = await fetch("/api/ai/batch", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ model, prompts, shared, concurrency: 5 }),
+          body: JSON.stringify({ provider: providerId, model, prompts, shared, concurrency: 5 }),
         });
         const data = await res.json();
         if (!res.ok) {
@@ -293,7 +309,7 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
           </div>
           <div className="min-w-0">
             <h3 className="text-white font-bold text-base">Playground · {kind === "image" ? "Imagen" : "Video"}</h3>
-            <p className="text-white/45 text-xs">{models.length} modelos · powered by Muapi.ai</p>
+            <p className="text-white/45 text-xs">{models.length} modelos · {isVideo ? (currentProvider?.label ?? "MUAPI") : "Muapi.ai"}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -325,6 +341,33 @@ export function AIPlayground({ kind, gradient = "from-cyan-500 to-blue-600", def
           ))}
         </div>
       </div>
+
+      {/* Proveedor / API (solo video) */}
+      {isVideo && (
+        <div>
+          <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">
+            Proveedor / API
+          </label>
+          <select
+            value={providerId}
+            onChange={(e) => setProviderId(e.target.value)}
+            disabled={isWorking}
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500/40 disabled:opacity-50"
+          >
+            {VIDEO_PROVIDERS.map((p) => (
+              <option key={p.id} value={p.id} className="bg-[#0f1219]">
+                {p.label}{p.note ? ` — ${p.note}` : ""}
+              </option>
+            ))}
+          </select>
+          {currentProvider && !currentProvider.defaultReady && (
+            <p className="text-white/40 text-[10px] mt-1.5">
+              Necesita su API key conectada en{" "}
+              <Link href="/integrations" className="text-cyan-400 hover:text-cyan-300 underline">Integraciones API</Link>.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Family pills */}
       <div>

@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getJob, MuapiError } from "@/lib/ai/muapi";
+import { MuapiError } from "@/lib/ai/muapi";
+import { getGenJob } from "@/lib/ai/router";
 
 /**
  * GET /api/ai/status/[id]
- * Polling endpoint para conocer el estado de un job de Muapi.
+ * Polling del estado de un job. El id está prefijado con el proveedor
+ * (provider::model::rawId); los ids antiguos sin prefijo se tratan como Muapi.
  */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const job = await getJob(id);
+    const job = await getGenJob(id);
     return NextResponse.json(job);
   } catch (e) {
     if (e instanceof MuapiError) {

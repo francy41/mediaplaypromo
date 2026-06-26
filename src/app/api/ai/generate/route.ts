@@ -1,28 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createGeneration, MuapiError, type MuapiGenerateRequest } from "@/lib/ai/muapi";
+import { MuapiError } from "@/lib/ai/muapi";
+import { createGen, type GenInput } from "@/lib/ai/router";
 
 /**
  * POST /api/ai/generate
- * Inicia un job de generación en Muapi. Devuelve el job_id para polling.
+ * Inicia un job de generación con el proveedor elegido. Devuelve job_id (prefijado) para polling.
  *
- * Body: MuapiGenerateRequest
+ * Body: { provider?: "muapi"|"fal"|"replicate", model, prompt, ...input }
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as MuapiGenerateRequest;
+    const body = (await req.json()) as { provider?: string; model?: string } & GenInput;
+    const { provider = "muapi", model, ...input } = body;
 
-    if (!body.model || !body.prompt) {
+    if (!model || !input.prompt) {
       return NextResponse.json(
         { error: "Faltan campos requeridos: model y prompt" },
         { status: 400 }
       );
     }
 
-    // Rate limit / cuota — TODO: añadir cuando esté Supabase
-    // const userId = await getUserFromCookie(req);
-    // await assertCanGenerate(userId);
-
-    const job = await createGeneration(body);
+    const job = await createGen(provider, model, input);
     return NextResponse.json(job, { status: 202 });
   } catch (e) {
     if (e instanceof MuapiError) {
