@@ -6,6 +6,9 @@ import {
   ChevronLeft, ChevronRight, FolderInput, Upload, X, Music, Subtitles,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { MUAPI_MODELS } from "@/lib/ai/muapi-models";
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const SECRET_STORE = "mpp_license_admin_secret";
 const PRODUCTION_QUEUE = "mpp_production_queue";
@@ -36,13 +39,14 @@ const ASPECTS = [
   { v: "1:1", label: "1:1 Cuadrado", cls: "aspect-square" },
 ];
 const SOURCE_DEFS = [
+  { id: "muapi", label: "MUAPI (video IA)" },
   { id: "pexels-video", label: "Pexels Video" },
   { id: "pexels-photo", label: "Pexels Fotos" },
   { id: "wikimedia", label: "Wikimedia" },
   { id: "archive", label: "Archive" },
   { id: "nvidia", label: "NVIDIA IA" },
 ];
-const SOURCE_ORDER = ["pexels-video", "wikimedia", "archive", "pexels-photo", "nvidia"]; // prioridad de la cadena por escena
+const SOURCE_ORDER = ["muapi", "pexels-video", "wikimedia", "archive", "pexels-photo", "nvidia"]; // prioridad de la cadena por escena
 const EFFECTS: { v: Effect; label: string }[] = [
   { v: "none", label: "Sin efecto" }, { v: "zoom", label: "Zoom (Ken Burns)" },
   { v: "bw", label: "Blanco y negro" }, { v: "blur", label: "Desenfoque" }, { v: "bright", label: "Brillo+" },
@@ -99,8 +103,9 @@ export default function EditorPage() {
   const [prompt, setPrompt] = useState("");
   const [duration, setDuration] = useState(60);
   const [aspect, setAspect] = useState("16:9");
-  const [sources, setSources] = useState<Record<string, boolean>>({ "pexels-video": true, "pexels-photo": false, "wikimedia": true, "archive": false, "nvidia": true });
+  const [sources, setSources] = useState<Record<string, boolean>>({ "muapi": false, "pexels-video": true, "pexels-photo": false, "wikimedia": true, "archive": false, "nvidia": true });
   const toggleSource = (id: string) => setSources((s) => ({ ...s, [id]: !s[id] }));
+  const [muapiModel, setMuapiModel] = useState("wan2.2-5b-fast-t2v");
   const [voice, setVoice] = useState(true);
   const [voiceCode, setVoiceCode] = useState("es");
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -176,6 +181,30 @@ export default function EditorPage() {
     } catch { return []; }
   }, [secret]);
 
+  const muapiVideo = useCallback(async (prompt: string): Promise<Media | undefined> => {
+    try {
+      const r = await fetch("/api/ai/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: "muapi", model: muapiModel, prompt, aspect_ratio: aspect, duration: 5 }) });
+      const job = await r.json();
+      if (!job.id || job.error) return undefined;
+      const OK = ["completed", "succeeded"];
+      if (OK.includes(job.status)) {
+        const u0 = Array.isArray(job.output) ? job.output[0] : job.output;
+        if (u0) return { type: "video", thumb: u0, url: u0 };
+      }
+      for (let i = 0; i < 120; i++) {
+        await sleep(3000);
+        const sr = await fetch(`/api/ai/status/${encodeURIComponent(job.id)}`);
+        const st = await sr.json().catch(() => ({}));
+        if (OK.includes(st.status)) {
+          const url = (Array.isArray(st.output) ? st.output[0] : st.output) || (Array.isArray(st.urls) ? st.urls[0] : st.result_url);
+          return url ? { type: "video", thumb: url, url } : undefined;
+        }
+        if (["failed", "cancelled", "canceled"].includes(st.status)) return undefined;
+      }
+      return undefined;
+    } catch { return undefined; }
+  }, [muapiModel, aspect]);
+
   const nvidiaImage = useCallback(async (p: string, refDescription?: string): Promise<Media | undefined> => {
     try {
       const prompt = refDescription ? `${refDescription}. ${p}` : p;
@@ -190,6 +219,7 @@ export default function EditorPage() {
     // Recorre las fuentes SELECCIONADAS en orden de prioridad y devuelve el primer clip encontrado.
     for (const sid of SOURCE_ORDER) {
       if (!sources[sid]) continue;
+      if (sid === "muapi") { const v = await muapiVideo(visual || query); if (v) return [v]; continue; }
       if (sid === "nvidia") { const m = await nvidiaImage(visual || query, refDesc); if (m) return [m]; continue; }
       if (sid === "wikimedia") { const w = await wikimedia(query); if (w.length) return w; continue; }
       if (sid === "archive") { const a = await archive(query); if (a.length) return a; continue; }
@@ -198,7 +228,7 @@ export default function EditorPage() {
       if (p.length) return p;
     }
     return [];
-  }, [sources, pexels, wikimedia, archive, nvidiaImage, refDesc]);
+  }, [sources, pexels, wikimedia, archive, nvidiaImage, muapiVideo, refDesc]);
 
   /* ── Generar storyboard (IA) ── */
   const generate = async () => {
@@ -476,6 +506,21 @@ export default function EditorPage() {
                 </div>
                 <p className="text-white/35 text-[10px] mt-1">Cada escena prueba las fuentes marcadas en orden (video real → IA) y usa la primera con resultado. Para <b>personajes/historias</b> marca <b>NVIDIA IA</b>.</p>
               </div>
+              {sources.muapi && (
+                <div>
+                  <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Modelo MUAPI · video IA real</label>
+                  <select value={muapiModel} onChange={(e) => setMuapiModel(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40">
+                    {Array.from(new Set(MUAPI_MODELS.video.map((m) => m.category))).map((cat) => (
+                      <optgroup key={cat} label={cat} className="bg-[#0f1219]">
+                        {MUAPI_MODELS.video.filter((m) => m.category === cat).map((m) => (
+                          <option key={m.slug} value={m.slug} className="bg-[#0f1219]">{m.label} · {m.priceHint}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <p className="text-amber-300/80 text-[10px] mt-1">⚠️ MUAPI genera <b>video IA real</b>, pero es <b>de pago</b> (gasta tu saldo MUAPI) y <b>tarda</b> (~30 s a varios min por escena). Empieza con <b>Wan 2.2 5B Fast</b> (~$0.02) para probar. Genera ~5 s por escena; el render lo ajusta a tu duración.</p>
+                </div>
+              )}
               {sources.nvidia && (
                 <div>
                   <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Imagen de referencia · NVIDIA (opcional)</label>

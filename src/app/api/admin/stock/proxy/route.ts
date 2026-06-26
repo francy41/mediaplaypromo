@@ -8,7 +8,12 @@ function authed(req: NextRequest): boolean {
 }
 
 // Allowlist de hosts (evita SSRF / proxy abierto).
-const ALLOWED = [/(^|\.)pexels\.com$/i, /(^|\.)archive\.org$/i, /(^|\.)wikimedia\.org$/i];
+// Incluye CDNs de salida de MUAPI y de los proveedores que MUAPI reenvía (Veo/Kling/Sora/Wan… via S3/GCS/CloudFront).
+const ALLOWED = [
+  /(^|\.)pexels\.com$/i, /(^|\.)archive\.org$/i, /(^|\.)wikimedia\.org$/i,
+  /(^|\.)muapi\.ai$/i, /(^|\.)fal\.media$/i, /(^|\.)replicate\.delivery$/i,
+  /(^|\.)amazonaws\.com$/i, /(^|\.)cloudfront\.net$/i, /(^|\.)googleapis\.com$/i,
+];
 
 /**
  * GET /api/admin/stock/proxy?url=<media url>
