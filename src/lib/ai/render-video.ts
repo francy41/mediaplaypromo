@@ -9,10 +9,12 @@ import { toBlobURL } from "@ffmpeg/util";
 export interface RenderScene {
   seconds: number;
   media?: { type: "video" | "photo"; url: string };
-  effect?: string;   // none | bw | blur | bright | zoom
-  startSec?: number; // recorte: segundo de inicio (solo video)
+  effect?: string;     // none | bw | blur | bright | zoom
+  startSec?: number;   // recorte: segundo de inicio (solo video)
+  narration?: string;  // texto para la voz (TTS)
 }
 type Progress = (msg: string, pct: number) => void;
+interface RenderOpts { ttsLang?: string } // "es" | "en" → genera narración con voz
 
 function effectFilter(effect?: string): string {
   switch (effect) {
@@ -57,7 +59,15 @@ async function loadBytes(mediaUrl: string, secret: string): Promise<Uint8Array> 
   return new Uint8Array(await r.arrayBuffer());
 }
 
-export async function renderVideo(scenes: RenderScene[], aspect: string, secret: string, onProgress: Progress): Promise<Blob> {
+async function ttsBytes(text: string, lang: string, secret: string): Promise<Uint8Array | null> {
+  try {
+    const r = await fetch("/api/admin/editor/tts", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-secret": secret }, body: JSON.stringify({ text, lang }) });
+    if (!r.ok) return null;
+    return new Uint8Array(await r.arrayBuffer());
+  } catch { return null; }
+}
+
+export async function renderVideo(scenes: RenderScene[], aspect: string, secret: string, onProgress: Progress, opts: RenderOpts = {}): Promise<Blob> {
   const [W, H] = DIMS[aspect] ?? DIMS["16:9"];
   onProgress("Cargando motor de render…", 3);
   const f = await getFF();
@@ -94,13 +104,47 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
   await f.writeFile("list.txt", new TextEncoder().encode(segs.map((s) => `file ${s}`).join("\n")));
   await f.exec(["-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "out.mp4"]);
 
-  const data = (await f.readFile("out.mp4")) as Uint8Array;
+  // ── Audio: narración con voz (Google TTS gratis), best-effort ──
+  let finalFile = "out.mp4";
+  const aSegs: string[] = [];
+  if (opts.ttsLang && usable.some((s) => (s.narration || "").trim())) {
+    try {
+      onProgress("Generando narración…", 92);
+      for (let i = 0; i < usable.length; i++) {
+        const s = usable[i];
+        const sec = Math.min(Math.max(Math.round(s.seconds) || 4, 2), 12);
+        const aseg = `a${i}.m4a`;
+        const narration = (s.narration || "").trim();
+        let made = false;
+        if (narration) {
+          const mp3 = await ttsBytes(narration, opts.ttsLang, secret);
+          if (mp3 && mp3.length > 200) {
+            await f.writeFile(`n${i}.mp3`, mp3);
+            await f.exec(["-i", `n${i}.mp3`, "-af", "apad", "-t", String(sec), "-ar", "44100", "-ac", "2", "-c:a", "aac", aseg]);
+            try { await f.deleteFile(`n${i}.mp3`); } catch { /* noop */ }
+            made = true;
+          }
+        }
+        if (!made) {
+          await f.exec(["-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100", "-t", String(sec), "-c:a", "aac", aseg]);
+        }
+        aSegs.push(aseg);
+      }
+      onProgress("Montando audio…", 97);
+      await f.writeFile("alist.txt", new TextEncoder().encode(aSegs.map((a) => `file ${a}`).join("\n")));
+      await f.exec(["-f", "concat", "-safe", "0", "-i", "alist.txt", "-c", "copy", "audio.m4a"]);
+      await f.exec(["-i", "out.mp4", "-i", "audio.m4a", "-c:v", "copy", "-c:a", "aac", "-shortest", "final.mp4"]);
+      finalFile = "final.mp4";
+    } catch { finalFile = "out.mp4"; }
+  }
+
+  const data = (await f.readFile(finalFile)) as Uint8Array;
   onProgress("¡Listo!", 100);
 
   // limpieza
   for (const s of segs) { try { await f.deleteFile(s); } catch { /* noop */ } }
-  try { await f.deleteFile("list.txt"); } catch { /* noop */ }
-  try { await f.deleteFile("out.mp4"); } catch { /* noop */ }
+  for (const a of aSegs) { try { await f.deleteFile(a); } catch { /* noop */ } }
+  for (const fn of ["list.txt", "alist.txt", "audio.m4a", "out.mp4", "final.mp4"]) { try { await f.deleteFile(fn); } catch { /* noop */ } }
 
   return new Blob([data as unknown as BlobPart], { type: "video/mp4" });
 }

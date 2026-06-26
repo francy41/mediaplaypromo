@@ -245,8 +245,9 @@ export default function EditorPage() {
     try {
       const { renderVideo } = await import("@/lib/ai/render-video");
       const blob = await renderVideo(
-        clips.map((c) => ({ seconds: c.seconds, media: c.media, effect: c.effect, startSec: c.startSec })),
+        clips.map((c) => ({ seconds: c.seconds, media: c.media, effect: c.effect, startSec: c.startSec, narration: c.narration })),
         aspect, secret, (msg, pct) => { setRenderMsg(msg); setRenderPct(pct); },
+        { ttsLang: voice ? lang : undefined },
       );
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `mpp-video-${Date.now()}.mp4`; a.click();
     } catch (e) { setError(e instanceof Error ? e.message : "Error al renderizar"); }
@@ -376,7 +377,7 @@ export default function EditorPage() {
                 </button>
               </div>
               {rendering && <><div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-600 transition-all" style={{ width: `${renderPct}%` }} /></div><p className="text-white/45 text-[10px]">{renderMsg}</p></>}
-              <p className="text-white/35 text-[10px] pt-1">Render en navegador (v1 sin audio). Mejor ≤ ~90s.</p>
+              <p className="text-white/35 text-[10px] pt-1">Render en navegador {voice ? "con voz (Google TTS gratis)" : "(voz OFF → sin audio)"}. Mejor ≤ ~90s.</p>
             </div>
           )}
         </div>
