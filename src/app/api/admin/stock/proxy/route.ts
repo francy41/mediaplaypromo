@@ -8,7 +8,7 @@ function authed(req: NextRequest): boolean {
 }
 
 // Allowlist de hosts (evita SSRF / proxy abierto).
-const ALLOWED = [/(^|\.)pexels\.com$/i, /(^|\.)archive\.org$/i];
+const ALLOWED = [/(^|\.)pexels\.com$/i, /(^|\.)archive\.org$/i, /(^|\.)wikimedia\.org$/i];
 
 /**
  * GET /api/admin/stock/proxy?url=<media url>

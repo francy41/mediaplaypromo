@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIntegration } from "@/lib/integrations";
+import { searchWikimediaCommons } from "@/lib/media-sources";
 
 export const runtime = "nodejs";
 
@@ -36,7 +37,8 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get("q") || "").trim();
-  const source = searchParams.get("source") === "archive" ? "archive" : "pexels";
+  const srcParam = searchParams.get("source") || "";
+  const source = srcParam === "archive" || srcParam === "wikimedia" ? srcParam : "pexels";
   const type = searchParams.get("type") === "video" ? "video" : "photo";
   const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
   if (!q) return NextResponse.json({ results: [], page });
@@ -66,6 +68,19 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ results, page });
     } catch (e) {
       return NextResponse.json({ results: [], error: e instanceof Error ? e.message : "Error de red" });
+    }
+  }
+
+  /* ── Wikimedia Commons — videos libres con URL directa reproducible ── */
+  if (source === "wikimedia") {
+    try {
+      const items = await searchWikimediaCommons(q, 24);
+      const results = items
+        .filter((it) => it.videoUrl && it.thumbnail)
+        .map((it) => ({ id: it.id, type: "video" as const, thumb: it.thumbnail as string, url: it.videoUrl as string, title: it.title, author: "Wikimedia Commons" }));
+      return NextResponse.json({ results, page });
+    } catch (e) {
+      return NextResponse.json({ results: [], error: e instanceof Error ? e.message : "Error Wikimedia" });
     }
   }
 

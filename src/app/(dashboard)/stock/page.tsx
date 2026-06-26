@@ -11,7 +11,7 @@ const SECRET_STORE = "mpp_license_admin_secret";
 const PRODUCTION_QUEUE = "mpp_production_queue";
 
 interface ProdItem { type: "video" | "photo"; url: string; thumb: string; title?: string }
-type Source = "pexels" | "archive";
+type Source = "pexels" | "archive" | "wikimedia";
 type MediaType = "photo" | "video";
 
 interface StockItem {
@@ -122,11 +122,14 @@ export default function StockPage() {
           <button onClick={() => switchSource("archive")} className={`inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl transition-all ${source === "archive" ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow" : "bg-white/5 border border-white/10 text-white/60 hover:text-white"}`}>
             <Clapperboard className="w-3.5 h-3.5" /> Archivo & Documentales
           </button>
+          <button onClick={() => switchSource("wikimedia")} className={`inline-flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl transition-all ${source === "wikimedia" ? "bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow" : "bg-white/5 border border-white/10 text-white/60 hover:text-white"}`}>
+            <Film className="w-3.5 h-3.5" /> Wikimedia
+          </button>
         </div>
 
         {/* Buscador + (subtabs Pexels) */}
         <div className="glass-card rounded-2xl border border-white/10 p-4">
-          {!isArchive && (
+          {source === "pexels" && (
             <div className="flex items-center gap-2 mb-3">
               <button onClick={() => switchType("photo")} className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg transition-all ${type === "photo" ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-300" : "bg-white/5 border border-white/10 text-white/60 hover:text-white"}`}>
                 <ImageIcon className="w-3.5 h-3.5" /> Fotos

@@ -74,7 +74,7 @@ export default function EditorPage() {
   const [tab, setTab] = useState<"ai" | "media">("ai");
 
   // media browser
-  const [mSource, setMSource] = useState<"video" | "photo" | "archive">("video");
+  const [mSource, setMSource] = useState<"video" | "photo" | "archive" | "wikimedia">("video");
   const [mQuery, setMQuery] = useState("");
   const [mResults, setMResults] = useState<Media[]>([]);
   const [mLoading, setMLoading] = useState(false);
@@ -167,6 +167,10 @@ export default function EditorPage() {
         const r = await fetch(`/api/admin/stock?q=${encodeURIComponent(mQuery)}&source=archive&media=video`, { headers: { "x-admin-secret": secret } });
         const d = await r.json();
         setMResults((d.results ?? []).map((m: { thumb: string }) => ({ type: "photo" as const, thumb: m.thumb, url: m.thumb })));
+      } else if (mSource === "wikimedia") {
+        const r = await fetch(`/api/admin/stock?q=${encodeURIComponent(mQuery)}&source=wikimedia`, { headers: { "x-admin-secret": secret } });
+        const d = await r.json();
+        setMResults((d.results ?? []).filter((m: { url?: string }) => m.url).map((m: { thumb: string; url: string }) => ({ type: "video" as const, thumb: m.thumb, url: m.url })));
       } else {
         setMResults(await pexels(mQuery, mSource, orientationFor(aspect)));
       }
@@ -326,7 +330,7 @@ export default function EditorPage() {
           ) : (
             <div className="glass-card rounded-2xl border border-white/10 p-4 space-y-3">
               <div className="flex gap-1.5">
-                {([["video", "Video"], ["photo", "Fotos"], ["archive", "Archive"]] as const).map(([v, l]) => (
+                {([["video", "Video"], ["photo", "Fotos"], ["wikimedia", "Wiki"], ["archive", "Archive"]] as const).map(([v, l]) => (
                   <button key={v} onClick={() => setMSource(v)} className={`flex-1 text-[11px] font-bold py-1.5 rounded-lg transition-all ${mSource === v ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-300" : "bg-white/5 border border-white/10 text-white/60 hover:text-white"}`}>{l}</button>
                 ))}
               </div>
