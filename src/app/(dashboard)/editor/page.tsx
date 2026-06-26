@@ -56,25 +56,42 @@ export default function EditorPage() {
   const [renderPct, setRenderPct] = useState(0);
   const [renderMsg, setRenderMsg] = useState("");
 
+  // voces del narrador (Web Speech)
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [voiceURI, setVoiceURI] = useState("");
+
   useEffect(() => {
     let s = ""; try { s = localStorage.getItem(SECRET_STORE) ?? ""; } catch {}
     if (s) { setSecret(s); setAuthed(true); }
   }, []);
 
+  // Cargar voces disponibles del navegador
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    const load = () => setVoices(window.speechSynthesis.getVoices());
+    load();
+    window.speechSynthesis.addEventListener("voiceschanged", load);
+    return () => window.speechSynthesis.removeEventListener("voiceschanged", load);
+  }, []);
+
   const aspectCls = ASPECTS.find((a) => a.v === aspect)?.cls ?? "aspect-video";
   const totalSec = scenes.reduce((a, s) => a + s.seconds, 0);
+  const langVoices = voices.filter((v) => v.lang.toLowerCase().startsWith(lang));
 
-  /* ── Buscar media para una escena (Pexels: video → foto) ── */
-  const fetchMedia = useCallback(async (query: string): Promise<Media | undefined> => {
+  const orientationFor = (a: string) => (a === "9:16" ? "portrait" : a === "1:1" ? "square" : "landscape");
+
+  /* ── Candidatos de media para una escena (Pexels: video → foto, según formato) ── */
+  const fetchCandidates = useCallback(async (query: string, orientation: string): Promise<Media[]> => {
+    const out: Media[] = [];
     for (const t of ["video", "photo"] as const) {
       try {
-        const r = await fetch(`/api/admin/stock?q=${encodeURIComponent(query)}&source=pexels&type=${t}`, { headers: { "x-admin-secret": secret } });
+        const r = await fetch(`/api/admin/stock?q=${encodeURIComponent(query)}&source=pexels&type=${t}&orientation=${orientation}`, { headers: { "x-admin-secret": secret } });
         const d = await r.json();
-        const m = (d.results ?? [])[0];
-        if (m) return { type: t, thumb: m.thumb, url: m.url };
+        for (const m of (d.results ?? [])) if (m?.url) out.push({ type: t, thumb: m.thumb, url: m.url });
       } catch { /* sigue */ }
+      if (out.length >= 6) break; // con videos suele bastar → más consistente
     }
-    return undefined;
+    return out;
   }, [secret]);
 
   /* ── Generar storyboard ── */
@@ -96,8 +113,15 @@ export default function EditorPage() {
         id: `sc-${Date.now()}-${i}`, narration: s.narration, query: s.query, seconds: s.seconds, transition: "fade" as Transition, loadingMedia: true,
       }));
       setScenes(base);
-      // Cargar media en paralelo
-      const withMedia = await Promise.all(base.map(async (sc) => ({ ...sc, media: await fetchMedia(sc.query), loadingMedia: false })));
+      // Cargar candidatos en paralelo y asignar sin repetir (coherencia)
+      const orientation = orientationFor(aspect);
+      const candLists = await Promise.all(base.map((sc) => fetchCandidates(sc.query, orientation)));
+      const used = new Set<string>();
+      const withMedia = base.map((sc, i) => {
+        const pick = candLists[i].find((c) => !used.has(c.url)) ?? candLists[i][0];
+        if (pick) used.add(pick.url);
+        return { ...sc, media: pick, loadingMedia: false };
+      });
       setScenes(withMedia);
     } catch { setError("Error de conexión."); }
     finally { setGenerating(false); }
@@ -107,8 +131,11 @@ export default function EditorPage() {
   const removeScene = (id: string) => setScenes((p) => p.filter((s) => s.id !== id));
   const reSearch = async (id: string, query: string) => {
     updateScene(id, { loadingMedia: true });
-    const m = await fetchMedia(query);
-    updateScene(id, { media: m, loadingMedia: false });
+    const cands = await fetchCandidates(query, orientationFor(aspect));
+    const used = new Set(scenes.filter((s) => s.id !== id).map((s) => s.media?.url).filter(Boolean) as string[]);
+    const cur = scenes.find((s) => s.id === id)?.media?.url;
+    const pick = cands.find((c) => !used.has(c.url) && c.url !== cur) ?? cands.find((c) => !used.has(c.url)) ?? cands[0];
+    updateScene(id, { media: pick, loadingMedia: false });
   };
 
   /* ── Preview player ── */
@@ -118,9 +145,11 @@ export default function EditorPage() {
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       u.lang = lang === "en" ? "en-US" : "es-ES";
+      const v = voices.find((x) => x.voiceURI === voiceURI);
+      if (v) u.voice = v;
       window.speechSynthesis.speak(u);
     } catch { /* noop */ }
-  }, [voice, lang]);
+  }, [voice, lang, voices, voiceURI]);
 
   const stopPreview = useCallback(() => {
     if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
@@ -232,6 +261,24 @@ export default function EditorPage() {
             <button onClick={() => setVoice((v) => !v)} className={`w-full inline-flex items-center justify-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border transition-all ${voice ? "bg-violet-500/15 border-violet-500/30 text-violet-200" : "bg-white/5 border-white/10 text-white/50"}`}>
               {voice ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />} Narración con voz {voice ? "ON" : "OFF"}
             </button>
+            {voice && (
+              <div>
+                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Voz del narrador</label>
+                {langVoices.length > 0 ? (
+                  <div className="flex gap-2">
+                    <select value={voiceURI} onChange={(e) => setVoiceURI(e.target.value)} className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40">
+                      <option value="" className="bg-[#0f1219]">Automática</option>
+                      {langVoices.map((v) => <option key={v.voiceURI} value={v.voiceURI} className="bg-[#0f1219]">{v.name}</option>)}
+                    </select>
+                    <button type="button" onClick={() => speak(lang === "en" ? "This is a voice preview." : "Esta es una prueba de la voz del narrador.")} className="inline-flex items-center gap-1 bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-semibold px-3 rounded-xl flex-shrink-0" title="Probar voz">
+                      <Volume2 className="w-3.5 h-3.5" /> Probar
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-white/35 text-[10px]">Tu navegador no expone voces para este idioma; se usará la voz por defecto del sistema.</p>
+                )}
+              </div>
+            )}
             <button onClick={generate} disabled={generating || !prompt.trim()} className="shine-btn w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:opacity-95 text-white font-bold text-sm px-5 py-3 rounded-xl shadow-lg shadow-violet-500/30 disabled:opacity-50">
               {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generando guión…</> : <><Wand2 className="w-4 h-4" /> Generar storyboard</>}
             </button>

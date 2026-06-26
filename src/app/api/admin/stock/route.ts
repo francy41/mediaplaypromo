@@ -75,11 +75,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ results: [], error: "Conecta tu clave de Pexels en Integraciones / APIs (proveedor: pexels)." });
   }
 
+  const ori = searchParams.get("orientation");
+  const oriParam = ori === "portrait" || ori === "landscape" || ori === "square" ? `&orientation=${ori}` : "";
   const base = "https://api.pexels.com";
   const url =
     type === "video"
-      ? `${base}/videos/search?query=${encodeURIComponent(q)}&per_page=24&page=${page}`
-      : `${base}/v1/search?query=${encodeURIComponent(q)}&per_page=24&page=${page}`;
+      ? `${base}/videos/search?query=${encodeURIComponent(q)}&per_page=24&page=${page}${oriParam}`
+      : `${base}/v1/search?query=${encodeURIComponent(q)}&per_page=24&page=${page}${oriParam}`;
 
   try {
     const r = await fetch(url, { headers: { Authorization: integ.apiKey }, cache: "no-store" });

@@ -35,7 +35,12 @@ export async function POST(req: NextRequest) {
   }
 
   const target = Math.min(Math.max(Math.round(durationSec / 6), 3), 60); // ~6s por escena
-  const sys = `You are a professional video script planner for an AI video editor. Output ONLY a valid JSON array, no prose, no markdown fences. Each element is a scene: {"narration": string, "query": string, "seconds": number}. Rules: produce about ${target} scenes; "narration" is ONE short sentence in ${lang}; "query" is 2-4 ENGLISH keywords to find matching stock footage; "seconds" is an integer between 4 and 8; the sum of seconds should be close to ${durationSec}.`;
+  const sys = `You are a professional video director planning a COHESIVE short video. Output ONLY a valid JSON array, no prose, no markdown fences. Each element is a scene: {"narration": string, "query": string, "seconds": number}.
+Rules:
+- Produce about ${target} scenes; the sum of "seconds" must be close to ${durationSec}; each "seconds" is an integer 4-8.
+- "narration" is ONE short, natural sentence in ${lang}; the scenes together must tell a coherent, logical story in order (intro → development → close).
+- "query" is 2-3 CONCRETE, FILMABLE English keywords describing a REAL visual that exists in stock footage (an object, place, person or action). Examples GOOD: "city skyline night", "barista pouring coffee", "ocean waves drone". Examples BAD (do NOT use abstract words): "success", "idea", "future", "innovation".
+- Keep the visuals coherent across scenes (consistent theme, setting and tone). Every "query" must be DISTINCT (never repeat the same query).`;
   const user = `Topic: ${prompt}\nTotal duration: ${durationSec} seconds.`;
 
   try {
