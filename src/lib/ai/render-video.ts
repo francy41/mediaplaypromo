@@ -94,7 +94,8 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
       await f.writeFile(fn, bytes);
       const start = Math.max(0, Math.round(s.startSec || 0));
       const pre = start > 0 ? ["-ss", String(start)] : [];
-      await f.exec([...pre, "-t", String(sec), "-i", fn, "-an", "-vf", fullVf, "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", seg]);
+      // -stream_loop -1 + -t sec (salida): el clip se repite para llenar la duración exacta → sin freezes ni huecos.
+      await f.exec(["-stream_loop", "-1", ...pre, "-i", fn, "-t", String(sec), "-an", "-vf", fullVf, "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", seg]);
       try { await f.deleteFile(fn); } catch { /* noop */ }
     }
     segs.push(seg);

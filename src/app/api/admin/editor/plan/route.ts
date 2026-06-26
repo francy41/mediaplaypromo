@@ -11,6 +11,7 @@ function authed(req: NextRequest): boolean {
 interface Scene {
   narration: string;
   query: string;
+  visual: string;
   seconds: number;
 }
 
@@ -35,12 +36,14 @@ export async function POST(req: NextRequest) {
   }
 
   const target = Math.min(Math.max(Math.round(durationSec / 6), 3), 60); // ~6s por escena
-  const sys = `You are a professional video director planning a COHESIVE short video. Output ONLY a valid JSON array, no prose, no markdown fences. Each element is a scene: {"narration": string, "query": string, "seconds": number}.
+  const sys = `You are a professional video director planning a COHESIVE, cinematic short video. Output ONLY a valid JSON array, no prose, no markdown fences. Each element is a scene: {"narration": string, "query": string, "visual": string, "seconds": number}.
 Rules:
 - Produce about ${target} scenes; the sum of "seconds" must be close to ${durationSec}; each "seconds" is an integer 4-8.
-- "narration" is ONE short, natural sentence in ${lang}; the scenes together must tell a coherent, logical story in order (intro → development → close).
-- "query" is 2-3 CONCRETE, FILMABLE English keywords describing a REAL visual that exists in stock footage (an object, place, person or action). Examples GOOD: "city skyline night", "barista pouring coffee", "ocean waves drone". Examples BAD (do NOT use abstract words): "success", "idea", "future", "innovation".
-- Keep the visuals coherent across scenes (consistent theme, setting and tone). Every "query" must be DISTINCT (never repeat the same query).`;
+- "narration" is ONE short, natural sentence in ${lang}; the scenes in order must tell a coherent, logical story (hook → development → payoff). Avoid repeating ideas.
+- "query" is 2-3 CONCRETE English keywords to find matching STOCK footage (a real object/place/action). No abstract words (success, idea, future).
+- "visual" is a vivid English IMAGE-GENERATION prompt describing exactly what to SHOW in this scene (subject + setting + action + camera angle + lighting), so an AI can render it. It must depict the actual story (characters, places, events of the topic), not generic stock.
+- IMPORTANT consistency: ALL "visual" prompts must share the SAME cinematic style. End every "visual" with: ", cinematic, dramatic lighting, highly detailed, consistent color grade".
+- The scenes must be visually consistent (same world, tone and characters throughout).`;
   const user = `Topic: ${prompt}\nTotal duration: ${durationSec} seconds.`;
 
   try {
@@ -73,7 +76,7 @@ Rules:
     }
     scenes = (scenes || [])
       .filter((s) => s && typeof s.narration === "string" && typeof s.query === "string")
-      .map((s) => ({ narration: s.narration.trim(), query: s.query.trim(), seconds: Math.min(Math.max(Math.round(Number(s.seconds) || 6), 3), 12) }));
+      .map((s) => ({ narration: s.narration.trim(), query: s.query.trim(), visual: (typeof s.visual === "string" && s.visual.trim()) ? s.visual.trim() : s.query.trim(), seconds: Math.min(Math.max(Math.round(Number(s.seconds) || 6), 3), 12) }));
 
     const totalSec = scenes.reduce((a, s) => a + s.seconds, 0);
     return NextResponse.json({ title: prompt.slice(0, 80), totalSec, scenes });

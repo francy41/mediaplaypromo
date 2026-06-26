@@ -18,6 +18,7 @@ interface Clip {
   media?: Media;
   narration: string;
   query: string;
+  visual: string;   // prompt rico para imagen IA (NVIDIA)
   seconds: number;
   startSec: number;
   transition: Transition;
@@ -121,8 +122,8 @@ export default function EditorPage() {
     } catch { return undefined; }
   }, []);
 
-  const sceneMedia = useCallback(async (query: string, orientation: string): Promise<Media[]> => {
-    if (genSource === "nvidia") { const m = await nvidiaImage(query); return m ? [m] : []; }
+  const sceneMedia = useCallback(async (query: string, visual: string, orientation: string): Promise<Media[]> => {
+    if (genSource === "nvidia") { const m = await nvidiaImage(visual || query); return m ? [m] : []; }
     const type = genSource === "pexels-photo" ? "photo" : "video";
     const out = await pexels(query, type, orientation);
     if (out.length === 0 && type === "video") return pexels(query, "photo", orientation);
@@ -139,12 +140,12 @@ export default function EditorPage() {
       if (r.status === 401) { setAuthed(false); try { localStorage.removeItem(SECRET_STORE); } catch {} setAuthError("Secreto incorrecto."); return; }
       const d = await r.json();
       if (d.error) { setError(d.error); return; }
-      const base: Clip[] = (d.scenes ?? []).map((s: { narration: string; query: string; seconds: number }) => ({
-        id: uid(), narration: s.narration, query: s.query, seconds: s.seconds, startSec: 0, transition: "fade" as Transition, effect: "none" as Effect, loadingMedia: true,
+      const base: Clip[] = (d.scenes ?? []).map((s: { narration: string; query: string; visual?: string; seconds: number }) => ({
+        id: uid(), narration: s.narration, query: s.query, visual: s.visual || s.query, seconds: s.seconds, startSec: 0, transition: "fade" as Transition, effect: "none" as Effect, loadingMedia: true,
       }));
       setClips(base);
       const ori = orientationFor(aspect);
-      const lists = await Promise.all(base.map((c) => sceneMedia(c.query, ori)));
+      const lists = await Promise.all(base.map((c) => sceneMedia(c.query, c.visual, ori)));
       const used = new Set<string>();
       setClips(base.map((c, i) => {
         const pick = lists[i].find((m) => !used.has(m.url)) ?? lists[i][0];
@@ -176,7 +177,7 @@ export default function EditorPage() {
   };
 
   const addClip = (media: Media, narration = "", query = mQuery) => {
-    const c: Clip = { id: uid(), media, narration, query, seconds: 5, startSec: 0, transition: "fade", effect: media.type === "photo" ? "zoom" : "none" };
+    const c: Clip = { id: uid(), media, narration, query, visual: query, seconds: 5, startSec: 0, transition: "fade", effect: media.type === "photo" ? "zoom" : "none" };
     setClips((p) => [...p, c]);
     setSelectedId(c.id);
   };
@@ -185,7 +186,7 @@ export default function EditorPage() {
     let q: Media[] = [];
     try { q = JSON.parse(localStorage.getItem(PRODUCTION_QUEUE) || "[]"); } catch {}
     if (q.length === 0) return;
-    const add: Clip[] = q.filter((m) => m?.url).map((m) => ({ id: uid(), media: { type: m.type, thumb: m.thumb, url: m.url }, narration: "", query: "", seconds: 5, startSec: 0, transition: "fade", effect: m.type === "photo" ? "zoom" : "none" }));
+    const add: Clip[] = q.filter((m) => m?.url).map((m) => ({ id: uid(), media: { type: m.type, thumb: m.thumb, url: m.url }, narration: "", query: "", visual: "", seconds: 5, startSec: 0, transition: "fade", effect: m.type === "photo" ? "zoom" : "none" }));
     setClips((p) => [...p, ...add]);
     try { localStorage.setItem(PRODUCTION_QUEUE, "[]"); } catch {}
     setQueueCount(0);
@@ -201,7 +202,8 @@ export default function EditorPage() {
   });
   const reSearch = async (id: string, query: string) => {
     updateClip(id, { loadingMedia: true });
-    const cands = await sceneMedia(query, orientationFor(aspect));
+    const c0 = clips.find((c) => c.id === id);
+    const cands = await sceneMedia(query, c0?.visual || query, orientationFor(aspect));
     const used = new Set(clips.filter((c) => c.id !== id).map((c) => c.media?.url).filter(Boolean) as string[]);
     const cur = clips.find((c) => c.id === id)?.media?.url;
     const pick = cands.find((m) => !used.has(m.url) && m.url !== cur) ?? cands.find((m) => !used.has(m.url)) ?? cands[0];
@@ -295,6 +297,7 @@ export default function EditorPage() {
                 <select value={genSource} onChange={(e) => setGenSource(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40">
                   {GEN_SOURCES.map((s) => <option key={s.v} value={s.v} className="bg-[#0f1219]">{s.label}</option>)}
                 </select>
+                <p className="text-white/35 text-[10px] mt-1">Para <b>personajes o historias específicas</b> (ej. un superhéroe) usa <b>NVIDIA · Imágenes IA</b>: genera la escena con IA. El stock (Pexels) solo tiene material genérico libre de derechos.</p>
               </div>
               <div>
                 <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Formato</label>
