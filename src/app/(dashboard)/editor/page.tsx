@@ -78,9 +78,6 @@ export default function EditorPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [queueCount, setQueueCount] = useState(0);
 
-  // panel
-  const [tab, setTab] = useState<"ai" | "media">("ai");
-
   // media browser
   const [mSource, setMSource] = useState<"video" | "photo" | "archive" | "wikimedia">("video");
   const [mQuery, setMQuery] = useState("");
@@ -280,16 +277,11 @@ export default function EditorPage() {
       <div className="grid lg:grid-cols-[360px_1fr] gap-4">
         {/* ════ Panel izquierdo ════ */}
         <div className="space-y-3">
-          {/* Tabs */}
-          <div className="flex gap-1.5 bg-white/5 border border-white/10 rounded-xl p-1">
-            <button onClick={() => setTab("ai")} className={`flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-bold py-2 rounded-lg transition-all ${tab === "ai" ? "bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white" : "text-white/60 hover:text-white"}`}><Wand2 className="w-3.5 h-3.5" /> IA</button>
-            <button onClick={() => setTab("media")} className={`flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-bold py-2 rounded-lg transition-all ${tab === "media" ? "bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white" : "text-white/60 hover:text-white"}`}><Film className="w-3.5 h-3.5" /> Banco de Medios</button>
-          </div>
-
-          {tab === "ai" ? (
-            <div className="glass-card rounded-2xl border border-white/10 p-4 space-y-3">
+          {/* Panel: Crear con IA (prompt) — siempre visible */}
+          <div className="glass-card rounded-2xl border border-violet-500/25 p-4 space-y-3">
+            <h3 className="flex items-center gap-1.5 text-white font-bold text-sm"><Wand2 className="w-4 h-4 text-violet-400" /> Crear con IA — escribe tu idea</h3>
               <div>
-                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Idea / Tema</label>
+                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Idea / Tema del video (prompt)</label>
                 <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} placeholder="Ej: La historia del café, estilo documental" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/40 resize-none" />
               </div>
               <div>
@@ -329,9 +321,11 @@ export default function EditorPage() {
                 {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generando…</> : <><Wand2 className="w-4 h-4" /> Generar storyboard</>}
               </button>
               {error && <p className="text-red-400 text-xs">{error}</p>}
-            </div>
-          ) : (
-            <div className="glass-card rounded-2xl border border-white/10 p-4 space-y-3">
+          </div>
+
+          {/* Panel: Banco de Medios — siempre visible */}
+          <div className="glass-card rounded-2xl border border-emerald-500/25 p-4 space-y-3">
+              <h3 className="flex items-center gap-1.5 text-white font-bold text-sm"><Film className="w-4 h-4 text-emerald-400" /> Banco de Medios — busca y añade clips</h3>
               <div className="flex gap-1.5">
                 {([["video", "Video"], ["photo", "Fotos"], ["wikimedia", "Wiki"], ["archive", "Archive"]] as const).map(([v, l]) => (
                   <button key={v} onClick={() => setMSource(v)} className={`flex-1 text-[11px] font-bold py-1.5 rounded-lg transition-all ${mSource === v ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-300" : "bg-white/5 border border-white/10 text-white/60 hover:text-white"}`}>{l}</button>
@@ -362,8 +356,7 @@ export default function EditorPage() {
                 ))}
                 {mResults.length === 0 && <p className="col-span-3 text-white/35 text-[11px] text-center py-6">Busca y pulsa un clip para añadirlo al timeline.</p>}
               </div>
-            </div>
-          )}
+          </div>
 
           {/* Acciones de proyecto */}
           {clips.length > 0 && (
