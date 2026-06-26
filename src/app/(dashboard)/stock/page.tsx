@@ -1,12 +1,16 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Camera, Lock, Search, Download, Play, Loader2, RefreshCw, X, Film,
-  Image as ImageIcon, Video as VideoIcon, Clapperboard, ExternalLink,
+  Image as ImageIcon, Video as VideoIcon, Clapperboard, ExternalLink, Plus, ArrowRight,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 
 const SECRET_STORE = "mpp_license_admin_secret";
+const PRODUCTION_QUEUE = "mpp_production_queue";
+
+interface ProdItem { type: "video" | "photo"; url: string; thumb: string; title?: string }
 type Source = "pexels" | "archive";
 type MediaType = "photo" | "video";
 
@@ -38,11 +42,28 @@ export default function StockPage() {
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
   const [playing, setPlaying] = useState<StockItem | null>(null);
+  const [queueCount, setQueueCount] = useState(0);
 
   useEffect(() => {
     let s = ""; try { s = localStorage.getItem(SECRET_STORE) ?? ""; } catch {}
     if (s) { setSecret(s); setAuthed(true); }
+    try { setQueueCount((JSON.parse(localStorage.getItem(PRODUCTION_QUEUE) || "[]") as ProdItem[]).length); } catch {}
   }, []);
+
+  const toProdItem = (it: StockItem): ProdItem =>
+    it.type === "archive"
+      ? { type: "photo", url: it.thumb, thumb: it.thumb, title: it.title }
+      : { type: it.type as "video" | "photo", url: it.url, thumb: it.thumb, title: it.author || it.title };
+
+  const addToProduction = (items: StockItem[]) => {
+    let q: ProdItem[] = [];
+    try { q = JSON.parse(localStorage.getItem(PRODUCTION_QUEUE) || "[]"); } catch {}
+    const existing = new Set(q.map((x) => x.url));
+    const mapped = items.map(toProdItem).filter((m) => m.url && !existing.has(m.url));
+    const merged = [...q, ...mapped];
+    try { localStorage.setItem(PRODUCTION_QUEUE, JSON.stringify(merged)); } catch {}
+    setQueueCount(merged.length);
+  };
 
   const runSearch = useCallback(async (query: string, src: Source, t: MediaType, media: string, p: number, append: boolean) => {
     if (!query.trim()) return;
@@ -145,6 +166,22 @@ export default function StockPage() {
 
         {error && <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-red-200 text-sm">{error}</div>}
 
+        {/* Barra producción */}
+        {(results.length > 0 || queueCount > 0) && (
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            {results.length > 0 ? (
+              <button onClick={() => addToProduction(results)} className="inline-flex items-center gap-1.5 bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow shadow-violet-500/30">
+                <Plus className="w-3.5 h-3.5" /> Añadir todos a producción
+              </button>
+            ) : <span />}
+            {queueCount > 0 && (
+              <Link href="/editor" className="inline-flex items-center gap-1.5 bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-semibold px-3 py-2 rounded-xl">
+                <Clapperboard className="w-3.5 h-3.5 text-violet-400" /> {queueCount} en producción · Abrir Mega Editor <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            )}
+          </div>
+        )}
+
         {/* Resultados */}
         {results.length > 0 && (
           <div className={`grid gap-3 ${isArchive ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"}`}>
@@ -179,6 +216,9 @@ export default function StockPage() {
 
                 {/* Acciones */}
                 <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={(e) => { e.stopPropagation(); addToProduction([item]); }} className="w-8 h-8 rounded-lg bg-violet-600/80 backdrop-blur border border-violet-400/40 flex items-center justify-center text-white hover:bg-violet-600" title="Añadir a producción">
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
                   <a onClick={(e) => e.stopPropagation()} href={item.url} target="_blank" rel="noreferrer" download={!isArchive} className="w-8 h-8 rounded-lg bg-black/60 backdrop-blur border border-white/20 flex items-center justify-center text-white hover:bg-black/80" title={isArchive ? "Abrir en archive.org" : "Descargar / abrir"}>
                     {isArchive ? <ExternalLink className="w-3.5 h-3.5" /> : <Download className="w-3.5 h-3.5" />}
                   </a>

@@ -9,8 +9,19 @@ import { toBlobURL } from "@ffmpeg/util";
 export interface RenderScene {
   seconds: number;
   media?: { type: "video" | "photo"; url: string };
+  effect?: string;   // none | bw | blur | bright | zoom
+  startSec?: number; // recorte: segundo de inicio (solo video)
 }
 type Progress = (msg: string, pct: number) => void;
+
+function effectFilter(effect?: string): string {
+  switch (effect) {
+    case "bw": return ",hue=s=0";
+    case "blur": return ",boxblur=2:1";
+    case "bright": return ",eq=brightness=0.12:saturation=1.25";
+    default: return ""; // none / zoom → sin filtro extra en render
+  }
+}
 
 const DIMS: Record<string, [number, number]> = {
   "16:9": [1280, 720],
@@ -35,8 +46,13 @@ async function getFF(): Promise<FFmpeg> {
   return ffPromise;
 }
 
-async function fetchBytes(proxyUrl: string, secret: string): Promise<Uint8Array> {
-  const r = await fetch(proxyUrl, { headers: { "x-admin-secret": secret } });
+async function loadBytes(mediaUrl: string, secret: string): Promise<Uint8Array> {
+  // Imágenes IA vienen como data URL → fetch directo (sin proxy).
+  if (mediaUrl.startsWith("data:")) {
+    const r = await fetch(mediaUrl);
+    return new Uint8Array(await r.arrayBuffer());
+  }
+  const r = await fetch(`/api/admin/stock/proxy?url=${encodeURIComponent(mediaUrl)}`, { headers: { "x-admin-secret": secret } });
   if (!r.ok) throw new Error(`No se pudo descargar el clip (${r.status})`);
   return new Uint8Array(await r.arrayBuffer());
 }
@@ -55,18 +71,20 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
     const s = usable[i];
     const sec = Math.min(Math.max(Math.round(s.seconds) || 4, 2), 12);
     onProgress(`Procesando escena ${i + 1}/${usable.length}…`, 5 + Math.round((i / usable.length) * 80));
-    const proxy = `/api/admin/stock/proxy?url=${encodeURIComponent(s.media!.url)}`;
-    const bytes = await fetchBytes(proxy, secret);
+    const bytes = await loadBytes(s.media!.url, secret);
     const seg = `seg${i}.mp4`;
+    const fullVf = vf + effectFilter(s.effect);
     if (s.media!.type === "photo") {
       const fn = `img${i}.jpg`;
       await f.writeFile(fn, bytes);
-      await f.exec(["-loop", "1", "-t", String(sec), "-i", fn, "-vf", vf, "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", seg]);
+      await f.exec(["-loop", "1", "-t", String(sec), "-i", fn, "-vf", fullVf, "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", seg]);
       try { await f.deleteFile(fn); } catch { /* noop */ }
     } else {
       const fn = `in${i}.mp4`;
       await f.writeFile(fn, bytes);
-      await f.exec(["-t", String(sec), "-i", fn, "-an", "-vf", vf, "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", seg]);
+      const start = Math.max(0, Math.round(s.startSec || 0));
+      const pre = start > 0 ? ["-ss", String(start)] : [];
+      await f.exec([...pre, "-t", String(sec), "-i", fn, "-an", "-vf", fullVf, "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", seg]);
       try { await f.deleteFile(fn); } catch { /* noop */ }
     }
     segs.push(seg);

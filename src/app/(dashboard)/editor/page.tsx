@@ -1,22 +1,27 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Clapperboard, Lock, Sparkles, Wand2, Loader2, Play, Square, Download,
-  Trash2, RefreshCw, Image as ImageIcon, Video as VideoIcon, Volume2, VolumeX, Film,
+  Clapperboard, Lock, Wand2, Loader2, Play, Square, Download, Trash2, RefreshCw,
+  Video as VideoIcon, Volume2, VolumeX, Film, Search, Plus,
+  ChevronLeft, ChevronRight, FolderInput,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 
 const SECRET_STORE = "mpp_license_admin_secret";
+const PRODUCTION_QUEUE = "mpp_production_queue";
 type Transition = "fade" | "zoom" | "slide";
+type Effect = "none" | "bw" | "blur" | "bright" | "zoom";
 
 interface Media { type: "video" | "photo"; thumb: string; url: string }
-interface Scene {
+interface Clip {
   id: string;
+  media?: Media;
   narration: string;
   query: string;
   seconds: number;
+  startSec: number;
   transition: Transition;
-  media?: Media;
+  effect: Effect;
   loadingMedia?: boolean;
 }
 
@@ -29,6 +34,18 @@ const ASPECTS = [
   { v: "9:16", label: "9:16 Vertical", cls: "aspect-[9/16]" },
   { v: "1:1", label: "1:1 Cuadrado", cls: "aspect-square" },
 ];
+const GEN_SOURCES = [
+  { v: "pexels-video", label: "Pexels · Video" },
+  { v: "pexels-photo", label: "Pexels · Fotos" },
+  { v: "nvidia", label: "NVIDIA · Imágenes IA (gratis)" },
+];
+const EFFECTS: { v: Effect; label: string }[] = [
+  { v: "none", label: "Sin efecto" }, { v: "zoom", label: "Zoom (Ken Burns)" },
+  { v: "bw", label: "Blanco y negro" }, { v: "blur", label: "Desenfoque" }, { v: "bright", label: "Brillo+" },
+];
+
+const cssFilter = (e: Effect) => e === "bw" ? "grayscale(1)" : e === "blur" ? "blur(3px)" : e === "bright" ? "brightness(1.2) saturate(1.25)" : "none";
+const uid = () => `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
 export default function EditorPage() {
   const [secret, setSecret] = useState("");
@@ -36,36 +53,45 @@ export default function EditorPage() {
   const [authed, setAuthed] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
+  // IA
   const [prompt, setPrompt] = useState("");
   const [duration, setDuration] = useState(60);
   const [lang, setLang] = useState<"es" | "en">("es");
   const [aspect, setAspect] = useState("16:9");
+  const [genSource, setGenSource] = useState("pexels-video");
   const [voice, setVoice] = useState(true);
-
-  const [scenes, setScenes] = useState<Scene[]>([]);
-  const [title, setTitle] = useState("");
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [voiceURI, setVoiceURI] = useState("");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // preview
+  // timeline
+  const [clips, setClips] = useState<Clip[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [queueCount, setQueueCount] = useState(0);
+
+  // panel
+  const [tab, setTab] = useState<"ai" | "media">("ai");
+
+  // media browser
+  const [mSource, setMSource] = useState<"video" | "photo" | "archive">("video");
+  const [mQuery, setMQuery] = useState("");
+  const [mResults, setMResults] = useState<Media[]>([]);
+  const [mLoading, setMLoading] = useState(false);
+
+  // preview / render
   const [previewIndex, setPreviewIndex] = useState(-1);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // render
   const [rendering, setRendering] = useState(false);
   const [renderPct, setRenderPct] = useState(0);
   const [renderMsg, setRenderMsg] = useState("");
 
-  // voces del narrador (Web Speech)
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [voiceURI, setVoiceURI] = useState("");
-
   useEffect(() => {
     let s = ""; try { s = localStorage.getItem(SECRET_STORE) ?? ""; } catch {}
     if (s) { setSecret(s); setAuthed(true); }
+    try { setQueueCount((JSON.parse(localStorage.getItem(PRODUCTION_QUEUE) || "[]") as Media[]).length); } catch {}
   }, []);
 
-  // Cargar voces disponibles del navegador
   useEffect(() => {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
     const load = () => setVoices(window.speechSynthesis.getVoices());
@@ -75,78 +101,120 @@ export default function EditorPage() {
   }, []);
 
   const aspectCls = ASPECTS.find((a) => a.v === aspect)?.cls ?? "aspect-video";
-  const totalSec = scenes.reduce((a, s) => a + s.seconds, 0);
+  const totalSec = clips.reduce((a, s) => a + s.seconds, 0);
   const langVoices = voices.filter((v) => v.lang.toLowerCase().startsWith(lang));
-
   const orientationFor = (a: string) => (a === "9:16" ? "portrait" : a === "1:1" ? "square" : "landscape");
+  const selected = clips.find((c) => c.id === selectedId) ?? null;
 
-  /* ── Candidatos de media para una escena (Pexels: video → foto, según formato) ── */
-  const fetchCandidates = useCallback(async (query: string, orientation: string): Promise<Media[]> => {
-    const out: Media[] = [];
-    for (const t of ["video", "photo"] as const) {
-      try {
-        const r = await fetch(`/api/admin/stock?q=${encodeURIComponent(query)}&source=pexels&type=${t}&orientation=${orientation}`, { headers: { "x-admin-secret": secret } });
-        const d = await r.json();
-        for (const m of (d.results ?? [])) if (m?.url) out.push({ type: t, thumb: m.thumb, url: m.url });
-      } catch { /* sigue */ }
-      if (out.length >= 6) break; // con videos suele bastar → más consistente
-    }
-    return out;
+  /* ── Búsquedas de media ── */
+  const pexels = useCallback(async (query: string, type: "video" | "photo", orientation: string): Promise<Media[]> => {
+    try {
+      const r = await fetch(`/api/admin/stock?q=${encodeURIComponent(query)}&source=pexels&type=${type}&orientation=${orientation}`, { headers: { "x-admin-secret": secret } });
+      const d = await r.json();
+      return (d.results ?? []).filter((m: Media) => m?.url).map((m: { type: "video" | "photo"; thumb: string; url: string }) => ({ type, thumb: m.thumb, url: m.url }));
+    } catch { return []; }
   }, [secret]);
 
-  /* ── Generar storyboard ── */
+  const nvidiaImage = useCallback(async (p: string): Promise<Media | undefined> => {
+    try {
+      const r = await fetch("/api/ai/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: "nvidia", model: "black-forest-labs/flux.1-schnell", prompt: p, width: 1024, height: 1024 }) });
+      const d = await r.json();
+      const url = d.output?.[0];
+      return url ? { type: "photo", thumb: url, url } : undefined;
+    } catch { return undefined; }
+  }, []);
+
+  const sceneMedia = useCallback(async (query: string, orientation: string): Promise<Media[]> => {
+    if (genSource === "nvidia") { const m = await nvidiaImage(query); return m ? [m] : []; }
+    const type = genSource === "pexels-photo" ? "photo" : "video";
+    const out = await pexels(query, type, orientation);
+    if (out.length === 0 && type === "video") return pexels(query, "photo", orientation);
+    return out;
+  }, [genSource, pexels, nvidiaImage]);
+
+  /* ── Generar storyboard (IA) ── */
   const generate = async () => {
     if (!prompt.trim()) return;
     stopPreview();
-    setGenerating(true); setError(null); setScenes([]);
+    setGenerating(true); setError(null); setClips([]); setSelectedId(null);
     try {
-      const r = await fetch("/api/admin/editor/plan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-secret": secret },
-        body: JSON.stringify({ prompt, durationSec: duration, lang }),
-      });
+      const r = await fetch("/api/admin/editor/plan", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-secret": secret }, body: JSON.stringify({ prompt, durationSec: duration, lang }) });
       if (r.status === 401) { setAuthed(false); try { localStorage.removeItem(SECRET_STORE); } catch {} setAuthError("Secreto incorrecto."); return; }
       const d = await r.json();
       if (d.error) { setError(d.error); return; }
-      setTitle(d.title ?? prompt.slice(0, 60));
-      const base: Scene[] = (d.scenes ?? []).map((s: { narration: string; query: string; seconds: number }, i: number) => ({
-        id: `sc-${Date.now()}-${i}`, narration: s.narration, query: s.query, seconds: s.seconds, transition: "fade" as Transition, loadingMedia: true,
+      const base: Clip[] = (d.scenes ?? []).map((s: { narration: string; query: string; seconds: number }) => ({
+        id: uid(), narration: s.narration, query: s.query, seconds: s.seconds, startSec: 0, transition: "fade" as Transition, effect: "none" as Effect, loadingMedia: true,
       }));
-      setScenes(base);
-      // Cargar candidatos en paralelo y asignar sin repetir (coherencia)
-      const orientation = orientationFor(aspect);
-      const candLists = await Promise.all(base.map((sc) => fetchCandidates(sc.query, orientation)));
+      setClips(base);
+      const ori = orientationFor(aspect);
+      const lists = await Promise.all(base.map((c) => sceneMedia(c.query, ori)));
       const used = new Set<string>();
-      const withMedia = base.map((sc, i) => {
-        const pick = candLists[i].find((c) => !used.has(c.url)) ?? candLists[i][0];
+      setClips(base.map((c, i) => {
+        const pick = lists[i].find((m) => !used.has(m.url)) ?? lists[i][0];
         if (pick) used.add(pick.url);
-        return { ...sc, media: pick, loadingMedia: false };
-      });
-      setScenes(withMedia);
+        return { ...c, media: pick, loadingMedia: false };
+      }));
     } catch { setError("Error de conexión."); }
     finally { setGenerating(false); }
   };
 
-  const updateScene = (id: string, patch: Partial<Scene>) => setScenes((p) => p.map((s) => s.id === id ? { ...s, ...patch } : s));
-  const removeScene = (id: string) => setScenes((p) => p.filter((s) => s.id !== id));
-  const reSearch = async (id: string, query: string) => {
-    updateScene(id, { loadingMedia: true });
-    const cands = await fetchCandidates(query, orientationFor(aspect));
-    const used = new Set(scenes.filter((s) => s.id !== id).map((s) => s.media?.url).filter(Boolean) as string[]);
-    const cur = scenes.find((s) => s.id === id)?.media?.url;
-    const pick = cands.find((c) => !used.has(c.url) && c.url !== cur) ?? cands.find((c) => !used.has(c.url)) ?? cands[0];
-    updateScene(id, { media: pick, loadingMedia: false });
+  /* ── Media browser ── */
+  const searchMedia = async () => {
+    if (!mQuery.trim()) return;
+    setMLoading(true);
+    try {
+      if (mSource === "archive") {
+        const r = await fetch(`/api/admin/stock?q=${encodeURIComponent(mQuery)}&source=archive&media=video`, { headers: { "x-admin-secret": secret } });
+        const d = await r.json();
+        setMResults((d.results ?? []).map((m: { thumb: string }) => ({ type: "photo" as const, thumb: m.thumb, url: m.thumb })));
+      } else {
+        setMResults(await pexels(mQuery, mSource, orientationFor(aspect)));
+      }
+    } catch { /* noop */ }
+    finally { setMLoading(false); }
   };
 
-  /* ── Preview player ── */
+  const addClip = (media: Media, narration = "", query = mQuery) => {
+    const c: Clip = { id: uid(), media, narration, query, seconds: 5, startSec: 0, transition: "fade", effect: media.type === "photo" ? "zoom" : "none" };
+    setClips((p) => [...p, c]);
+    setSelectedId(c.id);
+  };
+
+  const importQueue = () => {
+    let q: Media[] = [];
+    try { q = JSON.parse(localStorage.getItem(PRODUCTION_QUEUE) || "[]"); } catch {}
+    if (q.length === 0) return;
+    const add: Clip[] = q.filter((m) => m?.url).map((m) => ({ id: uid(), media: { type: m.type, thumb: m.thumb, url: m.url }, narration: "", query: "", seconds: 5, startSec: 0, transition: "fade", effect: m.type === "photo" ? "zoom" : "none" }));
+    setClips((p) => [...p, ...add]);
+    try { localStorage.setItem(PRODUCTION_QUEUE, "[]"); } catch {}
+    setQueueCount(0);
+  };
+
+  /* ── Edición de clips ── */
+  const updateClip = (id: string, patch: Partial<Clip>) => setClips((p) => p.map((c) => c.id === id ? { ...c, ...patch } : c));
+  const removeClip = (id: string) => { setClips((p) => p.filter((c) => c.id !== id)); if (selectedId === id) setSelectedId(null); };
+  const moveClip = (id: string, dir: -1 | 1) => setClips((p) => {
+    const i = p.findIndex((c) => c.id === id); const j = i + dir;
+    if (i < 0 || j < 0 || j >= p.length) return p;
+    const n = [...p]; [n[i], n[j]] = [n[j], n[i]]; return n;
+  });
+  const reSearch = async (id: string, query: string) => {
+    updateClip(id, { loadingMedia: true });
+    const cands = await sceneMedia(query, orientationFor(aspect));
+    const used = new Set(clips.filter((c) => c.id !== id).map((c) => c.media?.url).filter(Boolean) as string[]);
+    const cur = clips.find((c) => c.id === id)?.media?.url;
+    const pick = cands.find((m) => !used.has(m.url) && m.url !== cur) ?? cands.find((m) => !used.has(m.url)) ?? cands[0];
+    updateClip(id, { media: pick, loadingMedia: false });
+  };
+
+  /* ── Voz / preview ── */
   const speak = useCallback((text: string) => {
-    if (!voice || typeof window === "undefined" || !window.speechSynthesis) return;
+    if (!voice || typeof window === "undefined" || !window.speechSynthesis || !text) return;
     try {
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       u.lang = lang === "en" ? "en-US" : "es-ES";
-      const v = voices.find((x) => x.voiceURI === voiceURI);
-      if (v) u.voice = v;
+      const v = voices.find((x) => x.voiceURI === voiceURI); if (v) u.voice = v;
       window.speechSynthesis.speak(u);
     } catch { /* noop */ }
   }, [voice, lang, voices, voiceURI]);
@@ -157,26 +225,15 @@ export default function EditorPage() {
     setPreviewIndex(-1);
   }, []);
 
-  // avanza escenas en preview
   useEffect(() => {
     if (previewIndex < 0) return;
-    if (previewIndex >= scenes.length) { stopPreview(); return; }
-    const sc = scenes[previewIndex];
-    speak(sc.narration);
-    timerRef.current = setTimeout(() => setPreviewIndex((i) => i + 1), sc.seconds * 1000);
+    if (previewIndex >= clips.length) { stopPreview(); return; }
+    const c = clips[previewIndex];
+    speak(c.narration);
+    timerRef.current = setTimeout(() => setPreviewIndex((i) => i + 1), c.seconds * 1000);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [previewIndex, scenes, speak, stopPreview]);
-
+  }, [previewIndex, clips, speak, stopPreview]);
   useEffect(() => () => stopPreview(), [stopPreview]);
-
-  const exportProject = () => {
-    const data = { title, aspect, lang, voice, totalSec, scenes: scenes.map(({ id, narration, query, seconds, transition, media }) => ({ id, narration, query, seconds, transition, media })) };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `mpp-video-${Date.now()}.json`;
-    a.click();
-  };
 
   const renderMp4 = async () => {
     stopPreview();
@@ -184,24 +241,17 @@ export default function EditorPage() {
     try {
       const { renderVideo } = await import("@/lib/ai/render-video");
       const blob = await renderVideo(
-        scenes.map((s) => ({ seconds: s.seconds, media: s.media })),
-        aspect, secret,
-        (msg, pct) => { setRenderMsg(msg); setRenderPct(pct); },
+        clips.map((c) => ({ seconds: c.seconds, media: c.media, effect: c.effect, startSec: c.startSec })),
+        aspect, secret, (msg, pct) => { setRenderMsg(msg); setRenderPct(pct); },
       );
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `mpp-video-${Date.now()}.mp4`;
-      a.click();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Error al renderizar");
-    } finally {
-      setRendering(false);
-    }
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `mpp-video-${Date.now()}.mp4`; a.click();
+    } catch (e) { setError(e instanceof Error ? e.message : "Error al renderizar"); }
+    finally { setRendering(false); }
   };
 
   if (!authed) {
     return (
-      <AdminShell title="Mega Editor de Video IA" description="Crea videos largos con IA: guión, clips, transiciones, voz y montaje. Solo SuperAdmin." icon={Clapperboard} iconGradient="from-violet-500 to-fuchsia-600" status="beta" breadcrumb={[{ label: "Mega Editor" }]}>
+      <AdminShell title="Mega Editor de Video IA" description="Crea videos largos con IA estilo CapCut. Solo SuperAdmin." icon={Clapperboard} iconGradient="from-violet-500 to-fuchsia-600" status="beta" breadcrumb={[{ label: "Mega Editor" }]}>
         <div className="glass-card rounded-2xl border border-white/10 p-8 max-w-md mx-auto text-center">
           <div className="inline-flex w-14 h-14 rounded-2xl bg-violet-500/15 border border-violet-500/30 items-center justify-center mb-4"><Lock className="w-7 h-7 text-violet-400" /></div>
           <h2 className="text-white font-bold text-lg mb-1">Acceso SuperAdmin</h2>
@@ -216,174 +266,200 @@ export default function EditorPage() {
     );
   }
 
-  const cur = previewIndex >= 0 ? scenes[previewIndex] : null;
+  const cur = previewIndex >= 0 ? clips[previewIndex] : null;
+  const pxPerSec = 16;
 
   return (
-    <AdminShell
-      title="Mega Editor de Video IA"
-      description="Prompt → guión (NVIDIA) → clips reales (Pexels) → transiciones + voz → montaje. Solo SuperAdmin."
-      icon={Clapperboard}
-      iconGradient="from-violet-500 to-fuchsia-600"
-      status="beta"
-      breadcrumb={[{ label: "Mega Editor" }]}
-    >
+    <AdminShell title="Mega Editor de Video IA" description="Estilo CapCut: IA + Banco de Medios → timeline editable → preview → render MP4. Solo SuperAdmin." icon={Clapperboard} iconGradient="from-violet-500 to-fuchsia-600" status="beta" breadcrumb={[{ label: "Mega Editor" }]}>
       <div className="grid lg:grid-cols-[360px_1fr] gap-4">
-        {/* ── Panel de control ── */}
+        {/* ════ Panel izquierdo ════ */}
         <div className="space-y-3">
-          <div className="glass-card rounded-2xl border border-white/10 p-4 space-y-3">
-            <div>
-              <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Idea / Tema del video</label>
-              <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} placeholder="Ej: La historia del café en el mundo, estilo documental" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/40 resize-none" />
-            </div>
-            <div>
-              <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Duración</label>
-              <div className="grid grid-cols-5 gap-1.5">
-                {DURATIONS.map((d) => (
-                  <button key={d.v} onClick={() => setDuration(d.v)} className={`py-2 rounded-lg text-[11px] font-bold transition-all ${duration === d.v ? "bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white" : "bg-white/5 border border-white/10 text-white/60 hover:text-white"}`}>{d.label}</button>
-                ))}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
+          {/* Tabs */}
+          <div className="flex gap-1.5 bg-white/5 border border-white/10 rounded-xl p-1">
+            <button onClick={() => setTab("ai")} className={`flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-bold py-2 rounded-lg transition-all ${tab === "ai" ? "bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white" : "text-white/60 hover:text-white"}`}><Wand2 className="w-3.5 h-3.5" /> IA</button>
+            <button onClick={() => setTab("media")} className={`flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-bold py-2 rounded-lg transition-all ${tab === "media" ? "bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white" : "text-white/60 hover:text-white"}`}><Film className="w-3.5 h-3.5" /> Banco de Medios</button>
+          </div>
+
+          {tab === "ai" ? (
+            <div className="glass-card rounded-2xl border border-white/10 p-4 space-y-3">
               <div>
-                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Idioma</label>
-                <select value={lang} onChange={(e) => setLang(e.target.value as "es" | "en")} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40">
-                  <option value="es" className="bg-[#0f1219]">Español</option>
-                  <option value="en" className="bg-[#0f1219]">English</option>
+                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Idea / Tema</label>
+                <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3} placeholder="Ej: La historia del café, estilo documental" className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/40 resize-none" />
+              </div>
+              <div>
+                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Duración</label>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {DURATIONS.map((d) => <button key={d.v} onClick={() => setDuration(d.v)} className={`py-2 rounded-lg text-[11px] font-bold transition-all ${duration === d.v ? "bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white" : "bg-white/5 border border-white/10 text-white/60 hover:text-white"}`}>{d.label}</button>)}
+                </div>
+              </div>
+              <div>
+                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Fuente de medios</label>
+                <select value={genSource} onChange={(e) => setGenSource(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40">
+                  {GEN_SOURCES.map((s) => <option key={s.v} value={s.v} className="bg-[#0f1219]">{s.label}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Formato</label>
-                <select value={aspect} onChange={(e) => setAspect(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40">
+              <div className="grid grid-cols-2 gap-2">
+                <select value={lang} onChange={(e) => setLang(e.target.value as "es" | "en")} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40">
+                  <option value="es" className="bg-[#0f1219]">Español</option><option value="en" className="bg-[#0f1219]">English</option>
+                </select>
+                <select value={aspect} onChange={(e) => setAspect(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40">
                   {ASPECTS.map((a) => <option key={a.v} value={a.v} className="bg-[#0f1219]">{a.label}</option>)}
                 </select>
               </div>
+              <button onClick={() => setVoice((v) => !v)} className={`w-full inline-flex items-center justify-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border transition-all ${voice ? "bg-violet-500/15 border-violet-500/30 text-violet-200" : "bg-white/5 border-white/10 text-white/50"}`}>
+                {voice ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />} Narración {voice ? "ON" : "OFF"}
+              </button>
+              {voice && langVoices.length > 0 && (
+                <div className="flex gap-2">
+                  <select value={voiceURI} onChange={(e) => setVoiceURI(e.target.value)} className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40">
+                    <option value="" className="bg-[#0f1219]">Voz automática</option>
+                    {langVoices.map((v) => <option key={v.voiceURI} value={v.voiceURI} className="bg-[#0f1219]">{v.name}</option>)}
+                  </select>
+                  <button type="button" onClick={() => speak(lang === "en" ? "Voice preview." : "Prueba de voz del narrador.")} className="inline-flex items-center bg-white/5 border border-white/10 hover:bg-white/10 text-white px-3 rounded-xl flex-shrink-0" title="Probar voz"><Volume2 className="w-3.5 h-3.5" /></button>
+                </div>
+              )}
+              <button onClick={generate} disabled={generating || !prompt.trim()} className="shine-btn w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:opacity-95 text-white font-bold text-sm px-5 py-3 rounded-xl shadow-lg shadow-violet-500/30 disabled:opacity-50">
+                {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generando…</> : <><Wand2 className="w-4 h-4" /> Generar storyboard</>}
+              </button>
+              {error && <p className="text-red-400 text-xs">{error}</p>}
             </div>
-            <button onClick={() => setVoice((v) => !v)} className={`w-full inline-flex items-center justify-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border transition-all ${voice ? "bg-violet-500/15 border-violet-500/30 text-violet-200" : "bg-white/5 border-white/10 text-white/50"}`}>
-              {voice ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />} Narración con voz {voice ? "ON" : "OFF"}
-            </button>
-            {voice && (
-              <div>
-                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Voz del narrador</label>
-                {langVoices.length > 0 ? (
-                  <div className="flex gap-2">
-                    <select value={voiceURI} onChange={(e) => setVoiceURI(e.target.value)} className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40">
-                      <option value="" className="bg-[#0f1219]">Automática</option>
-                      {langVoices.map((v) => <option key={v.voiceURI} value={v.voiceURI} className="bg-[#0f1219]">{v.name}</option>)}
-                    </select>
-                    <button type="button" onClick={() => speak(lang === "en" ? "This is a voice preview." : "Esta es una prueba de la voz del narrador.")} className="inline-flex items-center gap-1 bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-semibold px-3 rounded-xl flex-shrink-0" title="Probar voz">
-                      <Volume2 className="w-3.5 h-3.5" /> Probar
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-white/35 text-[10px]">Tu navegador no expone voces para este idioma; se usará la voz por defecto del sistema.</p>
-                )}
+          ) : (
+            <div className="glass-card rounded-2xl border border-white/10 p-4 space-y-3">
+              <div className="flex gap-1.5">
+                {([["video", "Video"], ["photo", "Fotos"], ["archive", "Archive"]] as const).map(([v, l]) => (
+                  <button key={v} onClick={() => setMSource(v)} className={`flex-1 text-[11px] font-bold py-1.5 rounded-lg transition-all ${mSource === v ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-300" : "bg-white/5 border border-white/10 text-white/60 hover:text-white"}`}>{l}</button>
+                ))}
               </div>
-            )}
-            <button onClick={generate} disabled={generating || !prompt.trim()} className="shine-btn w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:opacity-95 text-white font-bold text-sm px-5 py-3 rounded-xl shadow-lg shadow-violet-500/30 disabled:opacity-50">
-              {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generando guión…</> : <><Wand2 className="w-4 h-4" /> Generar storyboard</>}
-            </button>
-            {error && <p className="text-red-400 text-xs">{error}</p>}
-          </div>
+              <form onSubmit={(e) => { e.preventDefault(); searchMedia(); }} className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                  <input value={mQuery} onChange={(e) => setMQuery(e.target.value)} placeholder="Buscar clips…" className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-500/40" />
+                </div>
+                <button type="submit" disabled={mLoading} className="inline-flex items-center bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-3 rounded-xl disabled:opacity-50">{mLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}</button>
+              </form>
+              {queueCount > 0 && (
+                <button onClick={importQueue} className="w-full inline-flex items-center justify-center gap-1.5 bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-bold px-3 py-2 rounded-xl">
+                  <FolderInput className="w-3.5 h-3.5 text-violet-400" /> Importar producción ({queueCount})
+                </button>
+              )}
+              <div className="grid grid-cols-3 gap-1.5 max-h-[360px] overflow-y-auto scrollbar-hide">
+                {mResults.map((m, i) => (
+                  <button key={i} onClick={() => addClip(m)} className="group relative aspect-square rounded-lg overflow-hidden border border-white/10 bg-black">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={m.thumb} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                      <Plus className="w-5 h-5 text-white" />
+                    </div>
+                    {m.type === "video" && <VideoIcon className="absolute bottom-1 left-1 w-3 h-3 text-white/80" />}
+                  </button>
+                ))}
+                {mResults.length === 0 && <p className="col-span-3 text-white/35 text-[11px] text-center py-6">Busca y pulsa un clip para añadirlo al timeline.</p>}
+              </div>
+            </div>
+          )}
 
-          {scenes.length > 0 && (
+          {/* Acciones de proyecto */}
+          {clips.length > 0 && (
             <div className="glass-card rounded-2xl border border-white/10 p-4 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-white/55">Escenas</span><span className="text-white font-bold">{scenes.length}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-white/55">Duración total</span><span className="text-white font-bold">{totalSec}s</span>
-              </div>
+              <div className="flex items-center justify-between text-xs"><span className="text-white/55">Clips</span><span className="text-white font-bold">{clips.length}</span></div>
+              <div className="flex items-center justify-between text-xs"><span className="text-white/55">Duración</span><span className="text-white font-bold">{totalSec}s</span></div>
               <div className="flex gap-2 pt-1">
                 <button onClick={() => (previewIndex >= 0 ? stopPreview() : setPreviewIndex(0))} className="flex-1 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-bold px-3 py-2 rounded-lg">
                   {previewIndex >= 0 ? <><Square className="w-3.5 h-3.5" /> Detener</> : <><Play className="w-3.5 h-3.5" /> Reproducir</>}
                 </button>
-                <button onClick={exportProject} className="inline-flex items-center justify-center gap-1.5 bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-bold px-3 py-2 rounded-lg" title="Exportar proyecto (JSON)">
-                  <Download className="w-3.5 h-3.5" />
+                <button onClick={renderMp4} disabled={rendering} className="flex-1 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white text-xs font-bold px-3 py-2 rounded-lg disabled:opacity-60">
+                  {rendering ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {renderPct}%</> : <><Download className="w-3.5 h-3.5" /> Render MP4</>}
                 </button>
               </div>
-              <button onClick={renderMp4} disabled={rendering} className="w-full inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:opacity-95 text-white text-xs font-bold px-3 py-2.5 rounded-lg shadow shadow-violet-500/30 disabled:opacity-60">
-                {rendering ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {renderMsg} {renderPct}%</> : <><Film className="w-3.5 h-3.5" /> Renderizar MP4 (gratis)</>}
-              </button>
-              {rendering && (
-                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-600 transition-all" style={{ width: `${renderPct}%` }} />
-                </div>
-              )}
-              <p className="text-white/35 text-[10px] pt-1">Render en tu navegador (v1 sin audio embebido). Recomendado ≤ ~90s; videos largos pueden ir lentos.</p>
+              {rendering && <><div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-600 transition-all" style={{ width: `${renderPct}%` }} /></div><p className="text-white/45 text-[10px]">{renderMsg}</p></>}
+              <p className="text-white/35 text-[10px] pt-1">Render en navegador (v1 sin audio). Mejor ≤ ~90s.</p>
             </div>
           )}
         </div>
 
-        {/* ── Preview + timeline ── */}
+        {/* ════ Centro: preview + timeline + inspector ════ */}
         <div className="space-y-4">
-          {/* Preview stage */}
+          {/* Preview */}
           <div className="glass-card rounded-2xl border border-white/10 p-3">
-            <div className={`relative ${aspectCls} max-h-[60vh] mx-auto rounded-xl overflow-hidden bg-black border border-white/10`}>
+            <div className={`relative ${aspectCls} max-h-[55vh] mx-auto rounded-xl overflow-hidden bg-black border border-white/10`}>
               {cur ? (
                 <div key={cur.id} className="absolute inset-0 animate-in fade-in duration-500">
-                  {cur.media ? (
-                    cur.media.type === "video" ? (
-                      <video src={cur.media.url} autoPlay muted loop playsInline className="w-full h-full object-cover" />
-                    ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={cur.media.url} alt="" className="w-full h-full object-cover scale-105" style={{ animation: "kenburns 6s ease-out forwards" }} />
-                    )
+                  {cur.media ? (cur.media.type === "video" ? (
+                    <video src={cur.media.url} autoPlay muted loop playsInline className="w-full h-full object-cover" style={{ filter: cssFilter(cur.effect) }} />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-violet-700 to-fuchsia-900" />
-                  )}
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                    <p className="text-white text-sm sm:text-base font-semibold text-center drop-shadow">{cur.narration}</p>
-                  </div>
-                  <div className="absolute top-2 right-2 text-[10px] font-bold bg-black/50 text-white px-2 py-0.5 rounded backdrop-blur">{previewIndex + 1}/{scenes.length}</div>
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={cur.media.url} alt="" className="w-full h-full object-cover" style={{ filter: cssFilter(cur.effect), animation: cur.effect === "zoom" || cur.media.type === "photo" ? "kenburns 6s ease-out forwards" : undefined }} />
+                  )) : <div className="w-full h-full bg-gradient-to-br from-violet-700 to-fuchsia-900" />}
+                  {cur.narration && <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4"><p className="text-white text-sm sm:text-base font-semibold text-center drop-shadow">{cur.narration}</p></div>}
+                  <div className="absolute top-2 right-2 text-[10px] font-bold bg-black/50 text-white px-2 py-0.5 rounded backdrop-blur">{previewIndex + 1}/{clips.length}</div>
                 </div>
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
                   <Film className="w-10 h-10 text-white/20 mb-3" />
-                  <p className="text-white/45 text-sm">{scenes.length > 0 ? "Pulsa Reproducir para previsualizar el montaje." : "Escribe una idea y genera el storyboard."}</p>
+                  <p className="text-white/45 text-sm">{clips.length > 0 ? "Pulsa Reproducir para previsualizar." : "Genera con IA o añade clips del Banco de Medios."}</p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Timeline / storyboard */}
-          {scenes.length > 0 && (
-            <div className="space-y-2">
-              {scenes.map((s, i) => (
-                <div key={s.id} className="glass-card rounded-2xl border border-white/10 p-3 flex gap-3">
-                  <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                    <span className="text-white/40 text-[11px] font-bold">{i + 1}</span>
-                    <div className="w-24 h-16 rounded-lg overflow-hidden bg-black border border-white/10 relative">
-                      {s.loadingMedia ? (
-                        <div className="w-full h-full flex items-center justify-center"><Loader2 className="w-4 h-4 animate-spin text-white/40" /></div>
-                      ) : s.media ? (
-                        <>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={s.media.thumb} alt="" className="w-full h-full object-cover" />
-                          <span className="absolute bottom-0.5 left-0.5 text-white/80">{s.media.type === "video" ? <VideoIcon className="w-3 h-3" /> : <ImageIcon className="w-3 h-3" />}</span>
-                        </>
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-white/30 text-[9px] text-center px-1">sin clip</div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0 space-y-1.5">
-                    <textarea value={s.narration} onChange={(e) => updateScene(s.id, { narration: e.target.value })} rows={2} className="w-full bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-[13px] text-white focus:outline-none focus:border-violet-500/40 resize-none" />
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <div className="relative flex-1 min-w-[140px]">
-                        <input value={s.query} onChange={(e) => updateScene(s.id, { query: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-[11px] text-white/80 focus:outline-none focus:border-violet-500/40" />
-                      </div>
-                      <button onClick={() => reSearch(s.id, s.query)} className="inline-flex items-center gap-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 text-[11px] px-2 py-1.5 rounded-lg" title="Buscar otro clip"><RefreshCw className="w-3 h-3" /></button>
-                      <select value={s.transition} onChange={(e) => updateScene(s.id, { transition: e.target.value as Transition })} className="bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white focus:outline-none">
-                        <option value="fade" className="bg-[#0f1219]">Fade</option>
-                        <option value="zoom" className="bg-[#0f1219]">Zoom</option>
-                        <option value="slide" className="bg-[#0f1219]">Slide</option>
-                      </select>
-                      <input type="number" min={3} max={12} value={s.seconds} onChange={(e) => updateScene(s.id, { seconds: Math.min(Math.max(+e.target.value || 4, 3), 12) })} className="w-14 bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white focus:outline-none" />
-                      <button onClick={() => removeScene(s.id)} className="inline-flex items-center bg-white/5 hover:bg-red-500/15 border border-white/10 hover:border-red-500/30 text-white/50 hover:text-red-300 px-2 py-1.5 rounded-lg"><Trash2 className="w-3 h-3" /></button>
-                    </div>
-                  </div>
+          {/* Timeline (estilo CapCut) */}
+          {clips.length > 0 && (
+            <div className="glass-card rounded-2xl border border-white/10 p-3">
+              <p className="text-white/55 text-[10px] font-bold uppercase tracking-wider mb-2">Línea de producción</p>
+              <div className="flex gap-1 overflow-x-auto scrollbar-hide pb-2">
+                {clips.map((c, i) => (
+                  <button key={c.id} onClick={() => setSelectedId(c.id)} style={{ width: Math.max(56, c.seconds * pxPerSec) }}
+                    className={`relative h-16 rounded-lg overflow-hidden border flex-shrink-0 transition-all ${selectedId === c.id ? "border-violet-400 ring-2 ring-violet-500/40" : "border-white/10 hover:border-white/30"}`}>
+                    {c.media ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={c.media.thumb} alt="" className="w-full h-full object-cover" style={{ filter: cssFilter(c.effect) }} />
+                    ) : c.loadingMedia ? <div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="w-4 h-4 animate-spin text-white/40" /></div> : <div className="w-full h-full bg-gradient-to-br from-violet-700 to-fuchsia-900" />}
+                    <span className="absolute bottom-0.5 left-0.5 text-[9px] font-bold bg-black/60 text-white px-1 rounded">{c.seconds}s</span>
+                    <span className="absolute top-0.5 left-0.5 text-[9px] font-bold text-white/80">{i + 1}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Inspector del clip seleccionado */}
+          {selected && (
+            <div className="glass-card rounded-2xl border border-white/10 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-white font-bold text-sm">Editar clip</p>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => moveClip(selected.id, -1)} className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-white/70" title="Mover izquierda"><ChevronLeft className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => moveClip(selected.id, 1)} className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center text-white/70" title="Mover derecha"><ChevronRight className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => removeClip(selected.id)} className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 hover:bg-red-500/15 hover:border-red-500/30 flex items-center justify-center text-white/60 hover:text-red-300" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
-              ))}
+              </div>
+              <textarea value={selected.narration} onChange={(e) => updateClip(selected.id, { narration: e.target.value })} rows={2} placeholder="Texto / narración del clip…" className="w-full bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-[13px] text-white focus:outline-none focus:border-violet-500/40 resize-none" />
+              <div className="flex items-center gap-2 flex-wrap">
+                <input value={selected.query} onChange={(e) => updateClip(selected.id, { query: e.target.value })} placeholder="palabras clave" className="flex-1 min-w-[120px] bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-[11px] text-white/80 focus:outline-none focus:border-violet-500/40" />
+                <button onClick={() => reSearch(selected.id, selected.query)} className="inline-flex items-center gap-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 text-[11px] px-2 py-1.5 rounded-lg" title="Buscar otro clip">{selected.loadingMedia ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}</button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div>
+                  <label className="block text-white/45 text-[9px] font-bold uppercase mb-1">Efecto</label>
+                  <select value={selected.effect} onChange={(e) => updateClip(selected.id, { effect: e.target.value as Effect })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white focus:outline-none">
+                    {EFFECTS.map((e) => <option key={e.v} value={e.v} className="bg-[#0f1219]">{e.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-white/45 text-[9px] font-bold uppercase mb-1">Transición</label>
+                  <select value={selected.transition} onChange={(e) => updateClip(selected.id, { transition: e.target.value as Transition })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white focus:outline-none">
+                    <option value="fade" className="bg-[#0f1219]">Fade</option><option value="zoom" className="bg-[#0f1219]">Zoom</option><option value="slide" className="bg-[#0f1219]">Slide</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-white/45 text-[9px] font-bold uppercase mb-1">Duración (s)</label>
+                  <input type="number" min={2} max={12} value={selected.seconds} onChange={(e) => updateClip(selected.id, { seconds: Math.min(Math.max(+e.target.value || 4, 2), 12) })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-white/45 text-[9px] font-bold uppercase mb-1">Recorte inicio (s)</label>
+                  <input type="number" min={0} max={60} value={selected.startSec} disabled={selected.media?.type !== "video"} onChange={(e) => updateClip(selected.id, { startSec: Math.max(0, +e.target.value || 0) })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white focus:outline-none disabled:opacity-40" />
+                </div>
+              </div>
             </div>
           )}
         </div>
