@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
   const sys = `You are a professional video director. Return ONLY a JSON array — no markdown, no code fences, no text before or after.
 Each item is a scene with EXACTLY these keys: {"narration": string, "query": string, "visual": string, "seconds": number}.
 - "narration": ONE short sentence in ${lang}.
-- "query": 2-3 English keywords for stock footage (concrete, no abstract words).
+- "query": 2-4 English keywords describing real ATMOSPHERIC stock b-roll that matches the scene's mood and setting (filmable things that truly exist in stock libraries, e.g. "foggy forest night", "river water dark", "candle flame closeup", "woman silhouette walking", "old town street rain"). No abstract words. Never use proper names of copyrighted characters.
 - "visual": a vivid English image-generation prompt of the scene (subject + setting + action + lighting), ending with ", cinematic, dramatic lighting, consistent style".
 - "seconds": integer between ${Math.max(3, per - 2)} and ${per + 2}.
 Produce EXACTLY ${target} scenes that tell the topic as ONE coherent, visually consistent story. Never repeat a query.`;
