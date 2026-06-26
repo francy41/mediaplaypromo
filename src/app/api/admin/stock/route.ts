@@ -41,10 +41,12 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
   if (!q) return NextResponse.json({ results: [], page });
 
-  /* ── Internet Archive — películas / documentales de dominio público ── */
+  /* ── Internet Archive — películas, documentales, noticias, entrevistas, audio… ── */
   if (source === "archive") {
-    const aq = encodeURIComponent(`(${q}) AND mediatype:(movies)`);
-    const url = `https://archive.org/advancedsearch.php?q=${aq}&fl[]=identifier&fl[]=title&fl[]=year&fl[]=description&rows=24&page=${page}&output=json&sort[]=downloads%20desc`;
+    const media = searchParams.get("media"); // "video" | "audio" | "all"
+    const mt = media === "audio" ? " AND mediatype:(audio)" : media === "all" ? "" : " AND mediatype:(movies)";
+    const aq = encodeURIComponent(`(${q})${mt}`);
+    const url = `https://archive.org/advancedsearch.php?q=${aq}&fl[]=identifier&fl[]=title&fl[]=year&fl[]=mediatype&fl[]=description&rows=24&page=${page}&output=json&sort[]=downloads%20desc`;
     try {
       const r = await fetch(url, { cache: "no-store" });
       const d = await r.json().catch(() => ({} as Record<string, unknown>)) as { response?: { docs?: Array<Record<string, unknown>> } };

@@ -30,6 +30,7 @@ export default function StockPage() {
 
   const [source, setSource] = useState<Source>("pexels");
   const [type, setType] = useState<MediaType>("photo");
+  const [archiveMedia, setArchiveMedia] = useState<"video" | "audio" | "all">("video");
   const [q, setQ] = useState("");
   const [results, setResults] = useState<StockItem[]>([]);
   const [page, setPage] = useState(1);
@@ -43,11 +44,11 @@ export default function StockPage() {
     if (s) { setSecret(s); setAuthed(true); }
   }, []);
 
-  const runSearch = useCallback(async (query: string, src: Source, t: MediaType, p: number, append: boolean) => {
+  const runSearch = useCallback(async (query: string, src: Source, t: MediaType, media: string, p: number, append: boolean) => {
     if (!query.trim()) return;
     setLoading(true); setError(null); setSearched(true);
     try {
-      const r = await fetch(`/api/admin/stock?q=${encodeURIComponent(query)}&source=${src}&type=${t}&page=${p}`, { headers: { "x-admin-secret": secret } });
+      const r = await fetch(`/api/admin/stock?q=${encodeURIComponent(query)}&source=${src}&type=${t}&media=${media}&page=${p}`, { headers: { "x-admin-secret": secret } });
       if (r.status === 401) { setAuthed(false); try { localStorage.removeItem(SECRET_STORE); } catch {} setAuthError("Secreto incorrecto."); return; }
       const d = await r.json();
       if (d.error) setError(d.error);
@@ -57,9 +58,11 @@ export default function StockPage() {
     finally { setLoading(false); }
   }, [secret]);
 
-  const submit = (e: React.FormEvent) => { e.preventDefault(); setResults([]); runSearch(q, source, type, 1, false); };
-  const switchSource = (src: Source) => { setSource(src); setResults([]); setSearched(false); if (q.trim()) runSearch(q, src, type, 1, false); };
-  const switchType = (t: MediaType) => { setType(t); if (q.trim()) { setResults([]); runSearch(q, source, t, 1, false); } };
+  const submit = (e: React.FormEvent) => { e.preventDefault(); setResults([]); runSearch(q, source, type, archiveMedia, 1, false); };
+  const switchSource = (src: Source) => { setSource(src); setResults([]); setSearched(false); if (q.trim()) runSearch(q, src, type, archiveMedia, 1, false); };
+  const switchType = (t: MediaType) => { setType(t); if (q.trim()) { setResults([]); runSearch(q, source, t, archiveMedia, 1, false); } };
+  const switchArchiveMedia = (m: "video" | "audio" | "all") => { setArchiveMedia(m); if (q.trim()) { setResults([]); runSearch(q, source, type, m, 1, false); } };
+  const quickSearch = (term: string) => { setQ(term); setResults([]); runSearch(term, source, type, archiveMedia, 1, false); };
 
   if (!authed) {
     return (
@@ -112,17 +115,31 @@ export default function StockPage() {
               </button>
             </div>
           )}
+          {isArchive && (
+            <div className="flex items-center gap-2 mb-3">
+              {([["video", "Video"], ["audio", "Audio"], ["all", "Todo"]] as const).map(([m, label]) => (
+                <button key={m} onClick={() => switchArchiveMedia(m)} className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all ${archiveMedia === m ? "bg-amber-500/20 border border-amber-500/30 text-amber-300" : "bg-white/5 border border-white/10 text-white/60 hover:text-white"}`}>{label}</button>
+              ))}
+            </div>
+          )}
           <form onSubmit={submit} className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={isArchive ? "Busca: documentary, nature, history, space…" : "Busca: playa, ciudad de noche, café…"} className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-500/40" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={isArchive ? "Busca: noticias, entrevista, política, discurso, history…" : "Busca: playa, ciudad de noche, café…"} className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-500/40" />
             </div>
             <button type="submit" disabled={loading || !q.trim()} className="inline-flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-sm font-bold px-4 py-2.5 rounded-xl shadow shadow-emerald-500/30 disabled:opacity-50">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Buscar
             </button>
           </form>
           {isArchive && (
-            <p className="text-amber-300/70 text-[10px] mt-2">⚠️ Archive.org mezcla dominio público y contenido con derechos — verifica la licencia de cada ítem antes de uso comercial.</p>
+            <>
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {["Noticias", "Entrevistas", "Política", "Discursos", "Documentales", "Historia", "News", "Interviews"].map((c) => (
+                  <button key={c} onClick={() => quickSearch(c)} className="text-[11px] bg-white/5 border border-white/10 hover:bg-white/10 text-white/70 hover:text-white px-2.5 py-1 rounded-full transition-colors">{c}</button>
+                ))}
+              </div>
+              <p className="text-amber-300/70 text-[10px] mt-2">⚠️ Archive.org mezcla dominio público y contenido con derechos — verifica la licencia de cada ítem antes de uso comercial.</p>
+            </>
           )}
         </div>
 
@@ -176,7 +193,7 @@ export default function StockPage() {
 
         {results.length > 0 && (
           <div className="text-center">
-            <button onClick={() => runSearch(q, source, type, page + 1, true)} disabled={loading} className="inline-flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm font-semibold px-5 py-2.5 rounded-xl disabled:opacity-50">
+            <button onClick={() => runSearch(q, source, type, archiveMedia, page + 1, true)} disabled={loading} className="inline-flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm font-semibold px-5 py-2.5 rounded-xl disabled:opacity-50">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Cargar más
             </button>
           </div>
