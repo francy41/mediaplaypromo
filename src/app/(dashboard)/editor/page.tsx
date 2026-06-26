@@ -35,12 +35,13 @@ const ASPECTS = [
   { v: "9:16", label: "9:16 Vertical", cls: "aspect-[9/16]" },
   { v: "1:1", label: "1:1 Cuadrado", cls: "aspect-square" },
 ];
-const GEN_SOURCES = [
-  { v: "mix", label: "Mixto · todas las fuentes (recomendado)" },
-  { v: "pexels-video", label: "Pexels · Video" },
-  { v: "pexels-photo", label: "Pexels · Fotos" },
-  { v: "nvidia", label: "NVIDIA · Imágenes IA (gratis)" },
+const SOURCE_DEFS = [
+  { id: "pexels-video", label: "Pexels Video" },
+  { id: "pexels-photo", label: "Pexels Fotos" },
+  { id: "wikimedia", label: "Wikimedia" },
+  { id: "nvidia", label: "NVIDIA IA" },
 ];
+const SOURCE_ORDER = ["pexels-video", "wikimedia", "pexels-photo", "nvidia"]; // prioridad de la cadena por escena
 const EFFECTS: { v: Effect; label: string }[] = [
   { v: "none", label: "Sin efecto" }, { v: "zoom", label: "Zoom (Ken Burns)" },
   { v: "bw", label: "Blanco y negro" }, { v: "blur", label: "Desenfoque" }, { v: "bright", label: "Brillo+" },
@@ -68,7 +69,8 @@ export default function EditorPage() {
   const [prompt, setPrompt] = useState("");
   const [duration, setDuration] = useState(60);
   const [aspect, setAspect] = useState("16:9");
-  const [genSource, setGenSource] = useState("mix");
+  const [sources, setSources] = useState<Record<string, boolean>>({ "pexels-video": true, "pexels-photo": false, "wikimedia": true, "nvidia": true });
+  const toggleSource = (id: string) => setSources((s) => ({ ...s, [id]: !s[id] }));
   const [voice, setVoice] = useState(true);
   const [voiceCode, setVoiceCode] = useState("es");
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -135,23 +137,17 @@ export default function EditorPage() {
   }, []);
 
   const sceneMedia = useCallback(async (query: string, visual: string, orientation: string): Promise<Media[]> => {
-    if (genSource === "nvidia") { const m = await nvidiaImage(visual || query); return m ? [m] : []; }
-    if (genSource === "mix") {
-      // cadena: Pexels video → Wikimedia → Pexels fotos → NVIDIA IA
-      let out = await pexels(query, "video", orientation);
-      if (out.length) return out;
-      out = await wikimedia(query);
-      if (out.length) return out;
-      out = await pexels(query, "photo", orientation);
-      if (out.length) return out;
-      const m = await nvidiaImage(visual || query);
-      return m ? [m] : [];
+    // Recorre las fuentes SELECCIONADAS en orden de prioridad y devuelve el primer clip encontrado.
+    for (const sid of SOURCE_ORDER) {
+      if (!sources[sid]) continue;
+      if (sid === "nvidia") { const m = await nvidiaImage(visual || query); if (m) return [m]; continue; }
+      if (sid === "wikimedia") { const w = await wikimedia(query); if (w.length) return w; continue; }
+      const type = sid === "pexels-photo" ? "photo" : "video";
+      const p = await pexels(query, type, orientation);
+      if (p.length) return p;
     }
-    const type = genSource === "pexels-photo" ? "photo" : "video";
-    const out = await pexels(query, type, orientation);
-    if (out.length === 0 && type === "video") return pexels(query, "photo", orientation);
-    return out;
-  }, [genSource, pexels, wikimedia, nvidiaImage]);
+    return [];
+  }, [sources, pexels, wikimedia, nvidiaImage]);
 
   /* ── Generar storyboard (IA) ── */
   const generate = async () => {
@@ -367,11 +363,15 @@ export default function EditorPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Fuente de medios</label>
-                <select value={genSource} onChange={(e) => setGenSource(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40">
-                  {GEN_SOURCES.map((s) => <option key={s.v} value={s.v} className="bg-[#0f1219]">{s.label}</option>)}
-                </select>
-                <p className="text-white/35 text-[10px] mt-1"><b>Mixto</b> combina todas las fuentes por escena (Pexels → Wikimedia → IA), así ninguna queda vacía. Para <b>personajes/historias</b> específicas, <b>NVIDIA · Imágenes IA</b> da el visual más fiel.</p>
+                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Fuente de medios · marca las que quieras combinar</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {SOURCE_DEFS.map((s) => (
+                    <button key={s.id} type="button" onClick={() => toggleSource(s.id)} className={`text-[11px] font-bold px-2.5 py-1.5 rounded-lg border transition-all ${sources[s.id] ? "bg-violet-500/20 border-violet-500/40 text-violet-200" : "bg-white/5 border-white/10 text-white/50 hover:text-white"}`}>
+                      {sources[s.id] ? "✓ " : ""}{s.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-white/35 text-[10px] mt-1">Cada escena prueba las fuentes marcadas en orden (video real → IA) y usa la primera con resultado. Para <b>personajes/historias</b> marca <b>NVIDIA IA</b>.</p>
               </div>
               <div>
                 <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Formato</label>
