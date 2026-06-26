@@ -72,6 +72,7 @@ export default function EditorPage() {
   const [voiceCode, setVoiceCode] = useState("es");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [customAudio, setCustomAudio] = useState<{ name: string; file: File; url: string } | null>(null);
+  const [customAudioDur, setCustomAudioDur] = useState(0);
   const audioFileRef = useRef<HTMLInputElement | null>(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -154,6 +155,7 @@ export default function EditorPage() {
         if (pick) used.add(pick.url);
         return { ...c, media: pick, loadingMedia: false };
       }));
+      if (customAudioDur >= 2) fitToAudio(customAudioDur); // cuadra los clips con tu audio
     } catch { setError("Error de conexión."); }
     finally { setGenerating(false); }
   };
@@ -231,6 +233,19 @@ export default function EditorPage() {
     setPreviewIndex(-1);
   }, []);
 
+  // Reparte la duración del audio entre los clips para cuadrar exacto.
+  const fitToAudio = (dur: number) => setClips((prev) => {
+    const n = prev.length;
+    if (n === 0 || dur < 2) return prev;
+    let base = Math.min(Math.max(Math.floor(dur / n), 2), 60);
+    let rem = dur - base * n;
+    return prev.map((c) => {
+      let sec = base;
+      if (rem > 0 && base < 60) { sec += 1; rem -= 1; }
+      return { ...c, seconds: sec };
+    });
+  });
+
   const onAudioFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -238,11 +253,21 @@ export default function EditorPage() {
     if (file.size > 25 * 1024 * 1024) { setError("El audio supera 25 MB."); return; }
     setError(null);
     if (customAudio?.url) { try { URL.revokeObjectURL(customAudio.url); } catch { /* noop */ } }
-    setCustomAudio({ name: file.name, file, url: URL.createObjectURL(file) });
+    const url = URL.createObjectURL(file);
+    setCustomAudio({ name: file.name, file, url });
+    const probe = new Audio();
+    probe.preload = "metadata";
+    probe.onloadedmetadata = () => {
+      const d = Math.round(probe.duration) || 0;
+      setCustomAudioDur(d);
+      if (d >= 2) fitToAudio(d); // ajusta los clips al audio automáticamente
+    };
+    probe.src = url;
   };
   const clearCustomAudio = () => {
     if (customAudio?.url) { try { URL.revokeObjectURL(customAudio.url); } catch { /* noop */ } }
     setCustomAudio(null);
+    setCustomAudioDur(0);
     if (audioFileRef.current) audioFileRef.current.value = "";
   };
 
@@ -362,6 +387,12 @@ export default function EditorPage() {
                       <button type="button" onClick={clearCustomAudio} className="text-white/60 hover:text-red-300" title="Quitar"><X className="w-3.5 h-3.5" /></button>
                     </div>
                     <p className="text-emerald-300/70 text-[10px] mt-1">✓ Se usará TU audio en el video (en vez de la voz TTS).</p>
+                    {customAudioDur > 0 && (
+                      <div className="flex items-center justify-between mt-1.5 gap-2">
+                        <span className="text-white/45 text-[10px]">Audio: {Math.floor(customAudioDur / 60)}:{String(customAudioDur % 60).padStart(2, "0")} · Clips: {totalSec}s</span>
+                        {clips.length > 0 && <button type="button" onClick={() => fitToAudio(customAudioDur)} className="text-[10px] font-bold text-violet-300 hover:text-violet-200">↔ Ajustar clips a mi audio</button>}
+                      </div>
+                    )}
                   </>
                 ) : (
                   <button type="button" onClick={() => audioFileRef.current?.click()} className="w-full inline-flex items-center justify-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/70">
@@ -505,7 +536,7 @@ export default function EditorPage() {
                 </div>
                 <div>
                   <label className="block text-white/45 text-[9px] font-bold uppercase mb-1">Duración (s)</label>
-                  <input type="number" min={2} max={12} value={selected.seconds} onChange={(e) => updateClip(selected.id, { seconds: Math.min(Math.max(+e.target.value || 4, 2), 12) })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white focus:outline-none" />
+                  <input type="number" min={2} max={60} value={selected.seconds} onChange={(e) => updateClip(selected.id, { seconds: Math.min(Math.max(+e.target.value || 4, 2), 60) })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white focus:outline-none" />
                 </div>
                 <div>
                   <label className="block text-white/45 text-[9px] font-bold uppercase mb-1">Recorte inicio (s)</label>

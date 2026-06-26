@@ -83,7 +83,7 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
   const segs: string[] = [];
   for (let i = 0; i < usable.length; i++) {
     const s = usable[i];
-    const sec = Math.min(Math.max(Math.round(s.seconds) || 4, 2), 12);
+    const sec = Math.min(Math.max(Math.round(s.seconds) || 4, 2), 60);
     onProgress(`Procesando escena ${i + 1}/${usable.length}…`, 5 + Math.round((i / usable.length) * 80));
     const bytes = await loadBytes(s.media!.url, secret);
     const seg = `seg${i}.mp4`;
@@ -127,7 +127,7 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
       onProgress("Generando narración…", 92);
       for (let i = 0; i < usable.length; i++) {
         const s = usable[i];
-        const sec = Math.min(Math.max(Math.round(s.seconds) || 4, 2), 12);
+        const sec = Math.min(Math.max(Math.round(s.seconds) || 4, 2), 60);
         const aseg = `a${i}.m4a`;
         const narration = (s.narration || "").trim();
         let made = false;
