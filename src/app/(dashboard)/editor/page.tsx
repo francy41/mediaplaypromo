@@ -68,6 +68,8 @@ const cssFilter = (e: Effect) =>
   : e === "vivid" ? "saturate(1.6) contrast(1.12)"
   : "none";
 const uid = () => `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+// Dimensiones válidas de FLUX Kontext según formato.
+const kontextDims = (a: string): [number, number] => (a === "9:16" ? [720, 1248] : a === "1:1" ? [1024, 1024] : [1248, 720]);
 
 export default function EditorPage() {
   const [secret, setSecret] = useState("");
@@ -87,6 +89,8 @@ export default function EditorPage() {
   const [customAudio, setCustomAudio] = useState<{ name: string; file: File; url: string } | null>(null);
   const [customAudioDur, setCustomAudioDur] = useState(0);
   const audioFileRef = useRef<HTMLInputElement | null>(null);
+  const [refImage, setRefImage] = useState<{ name: string; url: string } | null>(null);
+  const refFileRef = useRef<HTMLInputElement | null>(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -147,20 +151,23 @@ export default function EditorPage() {
     } catch { return []; }
   }, [secret]);
 
-  const nvidiaImage = useCallback(async (p: string): Promise<Media | undefined> => {
+  const nvidiaImage = useCallback(async (p: string, ref?: string): Promise<Media | undefined> => {
     try {
-      const r = await fetch("/api/ai/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: "nvidia", model: "black-forest-labs/flux.1-schnell", prompt: p, width: 1024, height: 1024 }) });
+      const useK = !!ref;
+      const model = useK ? "black-forest-labs/flux.1-kontext-dev" : "black-forest-labs/flux.1-schnell";
+      const [w, h] = useK ? kontextDims(aspect) : [1024, 1024];
+      const r = await fetch("/api/ai/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: "nvidia", model, prompt: p, width: w, height: h, ...(ref ? { image: ref } : {}) }) });
       const d = await r.json();
       const url = d.output?.[0];
       return url ? { type: "photo", thumb: url, url } : undefined;
     } catch { return undefined; }
-  }, []);
+  }, [aspect]);
 
   const sceneMedia = useCallback(async (query: string, visual: string, orientation: string): Promise<Media[]> => {
     // Recorre las fuentes SELECCIONADAS en orden de prioridad y devuelve el primer clip encontrado.
     for (const sid of SOURCE_ORDER) {
       if (!sources[sid]) continue;
-      if (sid === "nvidia") { const m = await nvidiaImage(visual || query); if (m) return [m]; continue; }
+      if (sid === "nvidia") { const m = await nvidiaImage(visual || query, refImage?.url); if (m) return [m]; continue; }
       if (sid === "wikimedia") { const w = await wikimedia(query); if (w.length) return w; continue; }
       if (sid === "archive") { const a = await archive(query); if (a.length) return a; continue; }
       const type = sid === "pexels-photo" ? "photo" : "video";
@@ -168,7 +175,7 @@ export default function EditorPage() {
       if (p.length) return p;
     }
     return [];
-  }, [sources, pexels, wikimedia, archive, nvidiaImage]);
+  }, [sources, pexels, wikimedia, archive, nvidiaImage, refImage]);
 
   /* ── Generar storyboard (IA) ── */
   const generate = async () => {
@@ -309,6 +316,18 @@ export default function EditorPage() {
     if (audioFileRef.current) audioFileRef.current.value = "";
   };
 
+  const onRefImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setError("Sube una imagen (JPG, PNG, WebP)."); return; }
+    if (file.size > 6 * 1024 * 1024) { setError("La imagen supera 6 MB."); return; }
+    setError(null);
+    const reader = new FileReader();
+    reader.onload = () => setRefImage({ name: file.name, url: reader.result as string });
+    reader.readAsDataURL(file);
+  };
+  const clearRefImage = () => { setRefImage(null); if (refFileRef.current) refFileRef.current.value = ""; };
+
   useEffect(() => {
     if (previewIndex < 0) return;
     if (previewIndex >= clips.length) { stopPreview(); return; }
@@ -395,6 +414,27 @@ export default function EditorPage() {
                 </div>
                 <p className="text-white/35 text-[10px] mt-1">Cada escena prueba las fuentes marcadas en orden (video real → IA) y usa la primera con resultado. Para <b>personajes/historias</b> marca <b>NVIDIA IA</b>.</p>
               </div>
+              {sources.nvidia && (
+                <div>
+                  <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Imagen de referencia · NVIDIA (opcional)</label>
+                  <input ref={refFileRef} type="file" accept="image/*" onChange={onRefImage} className="hidden" />
+                  {refImage ? (
+                    <>
+                      <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl p-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={refImage.url} alt="ref" className="w-10 h-10 rounded object-cover flex-shrink-0" />
+                        <span className="text-white/70 text-[11px] truncate flex-1">{refImage.name}</span>
+                        <button type="button" onClick={clearRefImage} className="text-white/60 hover:text-red-300" title="Quitar"><X className="w-3.5 h-3.5" /></button>
+                      </div>
+                      <p className="text-violet-300/70 text-[10px] mt-1">✓ Las escenas IA se generarán con tu referencia (FLUX Kontext).</p>
+                    </>
+                  ) : (
+                    <button type="button" onClick={() => refFileRef.current?.click()} className="w-full inline-flex items-center justify-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/70">
+                      <Upload className="w-3.5 h-3.5" /> Subir imagen de referencia
+                    </button>
+                  )}
+                </div>
+              )}
               <div>
                 <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Formato</label>
                 <select value={aspect} onChange={(e) => setAspect(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40">

@@ -145,10 +145,19 @@ async function replicateStatus(predId: string, fullId: string): Promise<GenJob> 
 async function nvidiaCreate(model: string, input: GenInput): Promise<GenJob> {
   const { key } = await keyFor("nvidia", "https://ai.api.nvidia.com");
   // El genai endpoint no usa la base OpenAI; siempre ai.api.nvidia.com.
-  const w = Math.min(Number(input.width) || 1024, 1024);
-  const h = Math.min(Number(input.height) || 1024, 1024);
-  const body: Record<string, unknown> = { prompt: input.prompt, width: w, height: h };
-  if (/schnell/.test(model)) body.steps = 4;
+  const isKontext = /kontext|canny|depth/.test(model);
+  const ref = input.image || input.image_url;
+  const body: Record<string, unknown> = { prompt: input.prompt };
+  if (isKontext) {
+    // FLUX Kontext: imagen de referencia (base64 sin prefijo data:) + dimensiones del set permitido.
+    if (ref) body.image = String(ref).replace(/^data:[^,]+,/, "");
+    body.width = Number(input.width) || 1024;
+    body.height = Number(input.height) || 1024;
+  } else {
+    body.width = Math.min(Number(input.width) || 1024, 1024);
+    body.height = Math.min(Number(input.height) || 1024, 1024);
+    if (/schnell/.test(model)) body.steps = 4;
+  }
   if (typeof input.seed === "number") body.seed = input.seed;
 
   const res = await fetch(`https://ai.api.nvidia.com/v1/genai/${model}`, {
