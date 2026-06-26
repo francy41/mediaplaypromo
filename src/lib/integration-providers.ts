@@ -13,9 +13,9 @@ import {
  * Añadir un proveedor conocido = una entrada aquí (y opcionalmente su test en
  * el endpoint). Cualquier proveedor no listado se puede añadir igual como "custom".
  */
-export type ProviderCategory = "Imagen/Video" | "LLM/Texto" | "Voz/Audio" | "Agregador";
+export type ProviderCategory = "Imagen/Video" | "LLM/Texto" | "Voz/Audio" | "Agregador" | "Stock / Medios";
 
-export const CATEGORY_ORDER: ProviderCategory[] = ["Imagen/Video", "LLM/Texto", "Voz/Audio", "Agregador"];
+export const CATEGORY_ORDER: ProviderCategory[] = ["Imagen/Video", "LLM/Texto", "Voz/Audio", "Agregador", "Stock / Medios"];
 
 export interface ProviderSpec {
   /** id corto = columna `provider` en BD */
@@ -232,6 +232,14 @@ export const PROVIDER_CATALOG: ProviderSpec[] = [
     description: "Inference API / routers — modelos open-source.",
     icon: Sparkles, accent: "from-yellow-500 to-amber-600",
     keyPlaceholder: "hf_…", defaultBaseUrl: "https://huggingface.co", docsUrl: "https://huggingface.co/settings/tokens",
+  },
+
+  // ───────────── Stock / Medios ─────────────
+  {
+    id: "pexels", label: "Pexels", category: "Stock / Medios",
+    description: "Fotos y videos reales de stock — gratis y con licencia comercial. Alimenta el Banco de Medios.",
+    icon: Camera, accent: "from-emerald-500 to-teal-600",
+    keyPlaceholder: "pexels key…", defaultBaseUrl: "https://api.pexels.com", docsUrl: "https://www.pexels.com/api/",
   },
 ];
 

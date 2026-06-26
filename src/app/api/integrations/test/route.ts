@@ -46,6 +46,8 @@ const PROVIDER_TESTS: Record<string, TestSpec> = {
   assemblyai: { base: "https://api.assemblyai.com", path: "/v2/transcript?limit=1", auth: "authorization-raw" },
   // MUAPI: sin endpoint de ping → pedimos un job inexistente y miramos solo la auth
   muapi: { base: "https://api.muapi.ai", path: "/api/v1/predictions/connection-test-0000/result", auth: "x-api-key", okAuth: true },
+  // Stock media
+  pexels: { base: "https://api.pexels.com", path: "/v1/search?query=nature&per_page=1", auth: "authorization-raw" },
 };
 
 interface TestResult { ok: boolean; status: number; message: string }
