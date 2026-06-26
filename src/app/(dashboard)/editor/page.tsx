@@ -361,16 +361,26 @@ export default function EditorPage() {
   }, []);
 
   // Reparte la duración del audio entre los clips para cuadrar exacto.
+  // Reparte la duración del audio entre los clips PROPORCIONAL a la longitud de
+  // cada narración (más texto → más tiempo). Aproxima el ritmo del habla → mejor sync.
   const fitToAudio = (dur: number) => setClips((prev) => {
     const n = prev.length;
     if (n === 0 || dur < 2) return prev;
-    let base = Math.min(Math.max(Math.floor(dur / n), 2), 60);
-    let rem = dur - base * n;
-    return prev.map((c) => {
-      let sec = base;
-      if (rem > 0 && base < 60) { sec += 1; rem -= 1; }
-      return { ...c, seconds: sec };
-    });
+    const weights = prev.map((c) => Math.max((c.narration || "").trim().length, 8));
+    const totalW = weights.reduce((a, b) => a + b, 0);
+    const secs = weights.map((w) => Math.min(Math.max(Math.round((dur * w) / totalW), 2), 60));
+    // Ajusta para cuadrar EXACTAMENTE con la duración del audio.
+    let diff = dur - secs.reduce((a, b) => a + b, 0);
+    let guard = 0;
+    while (diff !== 0 && guard++ < 5000) {
+      const before = diff;
+      for (let i = 0; i < n && diff !== 0; i++) {
+        if (diff > 0 && secs[i] < 60) { secs[i]++; diff--; }
+        else if (diff < 0 && secs[i] > 2) { secs[i]--; diff++; }
+      }
+      if (diff === before) break; // todos en su límite
+    }
+    return prev.map((c, i) => ({ ...c, seconds: secs[i] }));
   });
 
   const onAudioFile = (e: React.ChangeEvent<HTMLInputElement>) => {
