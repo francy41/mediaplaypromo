@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Clapperboard, Lock, Wand2, Loader2, Play, Square, Download, Trash2, RefreshCw,
   Video as VideoIcon, Volume2, VolumeX, Film, Search, Plus,
-  ChevronLeft, ChevronRight, FolderInput, Upload, X, Music, Subtitles,
+  ChevronLeft, ChevronRight, FolderInput, Upload, X, Music, Subtitles, Mic,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { MUAPI_MODELS } from "@/lib/ai/muapi-models";
@@ -111,6 +111,7 @@ export default function EditorPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [customAudio, setCustomAudio] = useState<{ name: string; file: File; url: string } | null>(null);
   const [customAudioDur, setCustomAudioDur] = useState(0);
+  const [aligning, setAligning] = useState(false);
   const audioFileRef = useRef<HTMLInputElement | null>(null);
   const [refImage, setRefImage] = useState<{ name: string; url: string } | null>(null);
   const [refDesc, setRefDesc] = useState("");
@@ -383,6 +384,27 @@ export default function EditorPage() {
     return prev.map((c, i) => ({ ...c, seconds: secs[i] }));
   });
 
+  // Sync EXACTO: alinea TU audio (ElevenLabs) con el guión → duración real por escena.
+  const alignWithElevenLabs = async () => {
+    if (!customAudio || clips.length === 0) return;
+    const narrations = clips.map((c) => (c.narration || "").trim());
+    if (narrations.every((s) => !s)) { setError("Las escenas no tienen narración para alinear."); return; }
+    setAligning(true); setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", customAudio.file, customAudio.name);
+      fd.append("narrations", JSON.stringify(narrations));
+      const r = await fetch("/api/admin/editor/align", { method: "POST", headers: { "x-admin-secret": secret }, body: fd });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) { setError(`Sync ElevenLabs: ${d.error || r.status}`); return; }
+      const durations: number[] = d.durations || [];
+      setClips((prev) => prev.map((c, i) => (durations[i] ? { ...c, seconds: Math.min(Math.max(durations[i], 2), 60) } : c)));
+      setFlash(`🎯 Sincronizado con tu voz (${d.totalSec}s) — escenas cuadradas con la locución`);
+      setTimeout(() => setFlash(""), 3200);
+    } catch { setError("Error de conexión al alinear."); }
+    finally { setAligning(false); }
+  };
+
   const onAudioFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -603,8 +625,13 @@ export default function EditorPage() {
                     {customAudioDur > 0 && (
                       <div className="flex items-center justify-between mt-1.5 gap-2">
                         <span className="text-white/45 text-[10px]">Audio: {Math.floor(customAudioDur / 60)}:{String(customAudioDur % 60).padStart(2, "0")} · Clips: {totalSec}s</span>
-                        {clips.length > 0 && <button type="button" onClick={() => fitToAudio(customAudioDur)} className="text-[10px] font-bold text-violet-300 hover:text-violet-200">↔ Ajustar clips a mi audio</button>}
+                        {clips.length > 0 && <button type="button" onClick={() => fitToAudio(customAudioDur)} className="text-[10px] font-bold text-violet-300 hover:text-violet-200">↔ Ajustar (proporcional)</button>}
                       </div>
+                    )}
+                    {clips.length > 0 && (
+                      <button type="button" onClick={alignWithElevenLabs} disabled={aligning} className="w-full mt-2 inline-flex items-center justify-center gap-1.5 text-[11px] font-bold px-3 py-2 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/15 text-fuchsia-100 hover:bg-fuchsia-500/25 disabled:opacity-60">
+                        {aligning ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Alineando con tu voz…</> : <><Mic className="w-3.5 h-3.5" /> 🎯 Sincronizar exacto (ElevenLabs)</>}
+                      </button>
                     )}
                   </>
                 ) : (
