@@ -44,6 +44,15 @@ const EFFECTS: { v: Effect; label: string }[] = [
   { v: "bw", label: "Blanco y negro" }, { v: "blur", label: "Desenfoque" }, { v: "bright", label: "Brillo+" },
 ];
 
+// Voces (acentos de Google TTS, gratis). El idioma del guión se deriva del código.
+const VOICE_OPTIONS = [
+  { v: "es", label: "Español (España) · Femenina" },
+  { v: "es-us", label: "Español (Latinoamérica)" },
+  { v: "en", label: "English (US)" },
+  { v: "en-gb", label: "English (UK)" },
+  { v: "en-au", label: "English (Australia)" },
+];
+
 const cssFilter = (e: Effect) => e === "bw" ? "grayscale(1)" : e === "blur" ? "blur(3px)" : e === "bright" ? "brightness(1.2) saturate(1.25)" : "none";
 const uid = () => `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
@@ -56,12 +65,11 @@ export default function EditorPage() {
   // IA
   const [prompt, setPrompt] = useState("");
   const [duration, setDuration] = useState(60);
-  const [lang, setLang] = useState<"es" | "en">("es");
   const [aspect, setAspect] = useState("16:9");
   const [genSource, setGenSource] = useState("pexels-video");
   const [voice, setVoice] = useState(true);
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [voiceURI, setVoiceURI] = useState("");
+  const [voiceCode, setVoiceCode] = useState("es");
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -92,17 +100,9 @@ export default function EditorPage() {
     try { setQueueCount((JSON.parse(localStorage.getItem(PRODUCTION_QUEUE) || "[]") as Media[]).length); } catch {}
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    const load = () => setVoices(window.speechSynthesis.getVoices());
-    load();
-    window.speechSynthesis.addEventListener("voiceschanged", load);
-    return () => window.speechSynthesis.removeEventListener("voiceschanged", load);
-  }, []);
-
+  const lang: "es" | "en" = voiceCode.startsWith("es") ? "es" : "en";
   const aspectCls = ASPECTS.find((a) => a.v === aspect)?.cls ?? "aspect-video";
   const totalSec = clips.reduce((a, s) => a + s.seconds, 0);
-  const langVoices = voices.filter((v) => v.lang.toLowerCase().startsWith(lang));
   const orientationFor = (a: string) => (a === "9:16" ? "portrait" : a === "1:1" ? "square" : "landscape");
   const selected = clips.find((c) => c.id === selectedId) ?? null;
 
@@ -211,21 +211,22 @@ export default function EditorPage() {
     updateClip(id, { media: pick, loadingMedia: false });
   };
 
-  /* ── Voz / preview ── */
-  const speak = useCallback((text: string) => {
-    if (!voice || typeof window === "undefined" || !window.speechSynthesis || !text) return;
+  /* ── Voz / preview (Google TTS gratis) ── */
+  const speak = useCallback(async (text: string) => {
+    if (!voice || !text?.trim()) return;
     try {
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = lang === "en" ? "en-US" : "es-ES";
-      const v = voices.find((x) => x.voiceURI === voiceURI); if (v) u.voice = v;
-      window.speechSynthesis.speak(u);
+      const r = await fetch("/api/admin/editor/tts", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-secret": secret }, body: JSON.stringify({ text, lang: voiceCode }) });
+      if (!r.ok) return;
+      const blob = await r.blob();
+      const a = audioRef.current; if (!a) return;
+      a.src = URL.createObjectURL(blob);
+      a.play().catch(() => {});
     } catch { /* noop */ }
-  }, [voice, lang, voices, voiceURI]);
+  }, [voice, voiceCode, secret]);
 
   const stopPreview = useCallback(() => {
     if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
-    if (typeof window !== "undefined" && window.speechSynthesis) window.speechSynthesis.cancel();
+    if (audioRef.current) { try { audioRef.current.pause(); } catch { /* noop */ } }
     setPreviewIndex(-1);
   }, []);
 
@@ -247,7 +248,7 @@ export default function EditorPage() {
       const blob = await renderVideo(
         clips.map((c) => ({ seconds: c.seconds, media: c.media, effect: c.effect, startSec: c.startSec, narration: c.narration })),
         aspect, secret, (msg, pct) => { setRenderMsg(msg); setRenderPct(pct); },
-        { ttsLang: voice ? lang : undefined },
+        { ttsLang: voice ? voiceCode : undefined },
       );
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `mpp-video-${Date.now()}.mp4`; a.click();
     } catch (e) { setError(e instanceof Error ? e.message : "Error al renderizar"); }
@@ -303,24 +304,25 @@ export default function EditorPage() {
                   {GEN_SOURCES.map((s) => <option key={s.v} value={s.v} className="bg-[#0f1219]">{s.label}</option>)}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <select value={lang} onChange={(e) => setLang(e.target.value as "es" | "en")} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40">
-                  <option value="es" className="bg-[#0f1219]">Español</option><option value="en" className="bg-[#0f1219]">English</option>
-                </select>
-                <select value={aspect} onChange={(e) => setAspect(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40">
+              <div>
+                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Formato</label>
+                <select value={aspect} onChange={(e) => setAspect(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40">
                   {ASPECTS.map((a) => <option key={a.v} value={a.v} className="bg-[#0f1219]">{a.label}</option>)}
                 </select>
               </div>
               <button onClick={() => setVoice((v) => !v)} className={`w-full inline-flex items-center justify-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border transition-all ${voice ? "bg-violet-500/15 border-violet-500/30 text-violet-200" : "bg-white/5 border-white/10 text-white/50"}`}>
-                {voice ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />} Narración {voice ? "ON" : "OFF"}
+                {voice ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />} Narración con voz {voice ? "ON" : "OFF"}
               </button>
-              {voice && langVoices.length > 0 && (
-                <div className="flex gap-2">
-                  <select value={voiceURI} onChange={(e) => setVoiceURI(e.target.value)} className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40">
-                    <option value="" className="bg-[#0f1219]">Voz automática</option>
-                    {langVoices.map((v) => <option key={v.voiceURI} value={v.voiceURI} className="bg-[#0f1219]">{v.name}</option>)}
-                  </select>
-                  <button type="button" onClick={() => speak(lang === "en" ? "Voice preview." : "Prueba de voz del narrador.")} className="inline-flex items-center bg-white/5 border border-white/10 hover:bg-white/10 text-white px-3 rounded-xl flex-shrink-0" title="Probar voz"><Volume2 className="w-3.5 h-3.5" /></button>
+              {voice && (
+                <div>
+                  <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Voz del narrador (idioma + acento)</label>
+                  <div className="flex gap-2">
+                    <select value={voiceCode} onChange={(e) => setVoiceCode(e.target.value)} className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40">
+                      {VOICE_OPTIONS.map((o) => <option key={o.v} value={o.v} className="bg-[#0f1219]">{o.label}</option>)}
+                    </select>
+                    <button type="button" onClick={() => speak(lang === "en" ? "This is the narrator voice preview." : "Esta es una prueba de la voz del narrador.")} className="inline-flex items-center gap-1 bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-semibold px-3 rounded-xl flex-shrink-0" title="Probar voz"><Volume2 className="w-3.5 h-3.5" /> Probar</button>
+                  </div>
+                  <p className="text-white/35 text-[10px] mt-1">El guión se genera en {lang === "en" ? "inglés" : "español"} y la voz va dentro del MP4 (gratis).</p>
                 </div>
               )}
               <button onClick={generate} disabled={generating || !prompt.trim()} className="shine-btn w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:opacity-95 text-white font-bold text-sm px-5 py-3 rounded-xl shadow-lg shadow-violet-500/30 disabled:opacity-50">
@@ -469,6 +471,7 @@ export default function EditorPage() {
           )}
         </div>
       </div>
+      <audio ref={audioRef} className="hidden" />
       <style>{`@keyframes kenburns{from{transform:scale(1.05)}to{transform:scale(1.18)}}`}</style>
     </AdminShell>
   );

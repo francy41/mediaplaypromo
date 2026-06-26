@@ -29,7 +29,8 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const text = String(body.text ?? "").trim();
-  const tl = body.lang === "en" ? "en" : "es";
+  const ALLOWED_TL = ["es", "es-us", "en", "en-gb", "en-au", "fr", "de", "it", "pt-br"];
+  const tl = ALLOWED_TL.includes(String(body.lang)) ? String(body.lang) : "es";
   if (!text) return new NextResponse("text requerido", { status: 400 });
 
   try {
