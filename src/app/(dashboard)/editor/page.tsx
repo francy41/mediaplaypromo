@@ -36,6 +36,7 @@ const ASPECTS = [
   { v: "1:1", label: "1:1 Cuadrado", cls: "aspect-square" },
 ];
 const GEN_SOURCES = [
+  { v: "mix", label: "Mixto · todas las fuentes (recomendado)" },
   { v: "pexels-video", label: "Pexels · Video" },
   { v: "pexels-photo", label: "Pexels · Fotos" },
   { v: "nvidia", label: "NVIDIA · Imágenes IA (gratis)" },
@@ -67,7 +68,7 @@ export default function EditorPage() {
   const [prompt, setPrompt] = useState("");
   const [duration, setDuration] = useState(60);
   const [aspect, setAspect] = useState("16:9");
-  const [genSource, setGenSource] = useState("pexels-video");
+  const [genSource, setGenSource] = useState("mix");
   const [voice, setVoice] = useState(true);
   const [voiceCode, setVoiceCode] = useState("es");
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -116,6 +117,14 @@ export default function EditorPage() {
     } catch { return []; }
   }, [secret]);
 
+  const wikimedia = useCallback(async (query: string): Promise<Media[]> => {
+    try {
+      const r = await fetch(`/api/admin/stock?q=${encodeURIComponent(query)}&source=wikimedia`, { headers: { "x-admin-secret": secret } });
+      const d = await r.json();
+      return (d.results ?? []).filter((m: { url?: string }) => m.url).map((m: { thumb: string; url: string }) => ({ type: "video" as const, thumb: m.thumb, url: m.url }));
+    } catch { return []; }
+  }, [secret]);
+
   const nvidiaImage = useCallback(async (p: string): Promise<Media | undefined> => {
     try {
       const r = await fetch("/api/ai/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: "nvidia", model: "black-forest-labs/flux.1-schnell", prompt: p, width: 1024, height: 1024 }) });
@@ -127,11 +136,22 @@ export default function EditorPage() {
 
   const sceneMedia = useCallback(async (query: string, visual: string, orientation: string): Promise<Media[]> => {
     if (genSource === "nvidia") { const m = await nvidiaImage(visual || query); return m ? [m] : []; }
+    if (genSource === "mix") {
+      // cadena: Pexels video → Wikimedia → Pexels fotos → NVIDIA IA
+      let out = await pexels(query, "video", orientation);
+      if (out.length) return out;
+      out = await wikimedia(query);
+      if (out.length) return out;
+      out = await pexels(query, "photo", orientation);
+      if (out.length) return out;
+      const m = await nvidiaImage(visual || query);
+      return m ? [m] : [];
+    }
     const type = genSource === "pexels-photo" ? "photo" : "video";
     const out = await pexels(query, type, orientation);
     if (out.length === 0 && type === "video") return pexels(query, "photo", orientation);
     return out;
-  }, [genSource, pexels, nvidiaImage]);
+  }, [genSource, pexels, wikimedia, nvidiaImage]);
 
   /* ── Generar storyboard (IA) ── */
   const generate = async () => {
@@ -351,7 +371,7 @@ export default function EditorPage() {
                 <select value={genSource} onChange={(e) => setGenSource(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40">
                   {GEN_SOURCES.map((s) => <option key={s.v} value={s.v} className="bg-[#0f1219]">{s.label}</option>)}
                 </select>
-                <p className="text-white/35 text-[10px] mt-1">Para <b>personajes o historias específicas</b> (ej. un superhéroe) usa <b>NVIDIA · Imágenes IA</b>: genera la escena con IA. El stock (Pexels) solo tiene material genérico libre de derechos.</p>
+                <p className="text-white/35 text-[10px] mt-1"><b>Mixto</b> combina todas las fuentes por escena (Pexels → Wikimedia → IA), así ninguna queda vacía. Para <b>personajes/historias</b> específicas, <b>NVIDIA · Imágenes IA</b> da el visual más fiel.</p>
               </div>
               <div>
                 <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Formato</label>
