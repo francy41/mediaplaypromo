@@ -68,8 +68,24 @@ const cssFilter = (e: Effect) =>
   : e === "vivid" ? "saturate(1.6) contrast(1.12)"
   : "none";
 const uid = () => `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-// Dimensiones válidas de FLUX Kontext según formato.
-const kontextDims = (a: string): [number, number] => (a === "9:16" ? [720, 1248] : a === "1:1" ? [1024, 1024] : [1248, 720]);
+
+// Reduce una imagen a máx N px (para describirla rápido con la IA de visión).
+function downscale(file: File, max = 512): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+      const ctx = c.getContext("2d");
+      if (!ctx) return reject(new Error("no canvas"));
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      resolve(c.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = () => reject(new Error("img error"));
+    img.src = URL.createObjectURL(file);
+  });
+}
 
 export default function EditorPage() {
   const [secret, setSecret] = useState("");
@@ -90,6 +106,8 @@ export default function EditorPage() {
   const [customAudioDur, setCustomAudioDur] = useState(0);
   const audioFileRef = useRef<HTMLInputElement | null>(null);
   const [refImage, setRefImage] = useState<{ name: string; url: string } | null>(null);
+  const [refDesc, setRefDesc] = useState("");
+  const [refLoading, setRefLoading] = useState(false);
   const refFileRef = useRef<HTMLInputElement | null>(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -151,23 +169,21 @@ export default function EditorPage() {
     } catch { return []; }
   }, [secret]);
 
-  const nvidiaImage = useCallback(async (p: string, ref?: string): Promise<Media | undefined> => {
+  const nvidiaImage = useCallback(async (p: string, refDescription?: string): Promise<Media | undefined> => {
     try {
-      const useK = !!ref;
-      const model = useK ? "black-forest-labs/flux.1-kontext-dev" : "black-forest-labs/flux.1-schnell";
-      const [w, h] = useK ? kontextDims(aspect) : [1024, 1024];
-      const r = await fetch("/api/ai/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: "nvidia", model, prompt: p, width: w, height: h, ...(ref ? { image: ref } : {}) }) });
+      const prompt = refDescription ? `${refDescription}. ${p}` : p;
+      const r = await fetch("/api/ai/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: "nvidia", model: "black-forest-labs/flux.1-schnell", prompt, width: 1024, height: 1024 }) });
       const d = await r.json();
       const url = d.output?.[0];
       return url ? { type: "photo", thumb: url, url } : undefined;
     } catch { return undefined; }
-  }, [aspect]);
+  }, []);
 
   const sceneMedia = useCallback(async (query: string, visual: string, orientation: string): Promise<Media[]> => {
     // Recorre las fuentes SELECCIONADAS en orden de prioridad y devuelve el primer clip encontrado.
     for (const sid of SOURCE_ORDER) {
       if (!sources[sid]) continue;
-      if (sid === "nvidia") { const m = await nvidiaImage(visual || query, refImage?.url); if (m) return [m]; continue; }
+      if (sid === "nvidia") { const m = await nvidiaImage(visual || query, refDesc); if (m) return [m]; continue; }
       if (sid === "wikimedia") { const w = await wikimedia(query); if (w.length) return w; continue; }
       if (sid === "archive") { const a = await archive(query); if (a.length) return a; continue; }
       const type = sid === "pexels-photo" ? "photo" : "video";
@@ -175,7 +191,7 @@ export default function EditorPage() {
       if (p.length) return p;
     }
     return [];
-  }, [sources, pexels, wikimedia, archive, nvidiaImage, refImage]);
+  }, [sources, pexels, wikimedia, archive, nvidiaImage, refDesc]);
 
   /* ── Generar storyboard (IA) ── */
   const generate = async () => {
@@ -316,17 +332,23 @@ export default function EditorPage() {
     if (audioFileRef.current) audioFileRef.current.value = "";
   };
 
-  const onRefImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onRefImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) { setError("Sube una imagen (JPG, PNG, WebP)."); return; }
-    if (file.size > 6 * 1024 * 1024) { setError("La imagen supera 6 MB."); return; }
-    setError(null);
-    const reader = new FileReader();
-    reader.onload = () => setRefImage({ name: file.name, url: reader.result as string });
-    reader.readAsDataURL(file);
+    if (file.size > 10 * 1024 * 1024) { setError("La imagen supera 10 MB."); return; }
+    setError(null); setRefLoading(true); setRefDesc("");
+    try {
+      const small = await downscale(file, 512);
+      setRefImage({ name: file.name, url: small });
+      const r = await fetch("/api/admin/editor/describe", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-secret": secret }, body: JSON.stringify({ image: small }) });
+      const d = await r.json();
+      if (d.description) setRefDesc(d.description);
+      else setError(d.error || "No se pudo analizar la imagen.");
+    } catch { setError("No se pudo procesar la imagen."); }
+    finally { setRefLoading(false); }
   };
-  const clearRefImage = () => { setRefImage(null); if (refFileRef.current) refFileRef.current.value = ""; };
+  const clearRefImage = () => { setRefImage(null); setRefDesc(""); if (refFileRef.current) refFileRef.current.value = ""; };
 
   useEffect(() => {
     if (previewIndex < 0) return;
@@ -426,7 +448,13 @@ export default function EditorPage() {
                         <span className="text-white/70 text-[11px] truncate flex-1">{refImage.name}</span>
                         <button type="button" onClick={clearRefImage} className="text-white/60 hover:text-red-300" title="Quitar"><X className="w-3.5 h-3.5" /></button>
                       </div>
-                      <p className="text-violet-300/70 text-[10px] mt-1">✓ Las escenas IA se generarán con tu referencia (FLUX Kontext).</p>
+                      {refLoading ? (
+                        <p className="text-white/50 text-[10px] mt-1 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Analizando la imagen…</p>
+                      ) : refDesc ? (
+                        <p className="text-violet-300/70 text-[10px] mt-1">✓ Referencia: “{refDesc.slice(0, 90)}{refDesc.length > 90 ? "…" : ""}” — guiará las escenas IA.</p>
+                      ) : (
+                        <p className="text-amber-300/70 text-[10px] mt-1">Imagen cargada (no se pudo describir; se generará igual).</p>
+                      )}
                     </>
                   ) : (
                     <button type="button" onClick={() => refFileRef.current?.click()} className="w-full inline-flex items-center justify-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/70">
