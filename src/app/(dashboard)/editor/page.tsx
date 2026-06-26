@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Clapperboard, Lock, Wand2, Loader2, Play, Square, Download, Trash2, RefreshCw,
   Video as VideoIcon, Volume2, VolumeX, Film, Search, Plus,
-  ChevronLeft, ChevronRight, FolderInput,
+  ChevronLeft, ChevronRight, FolderInput, Upload, X,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 
@@ -71,6 +71,8 @@ export default function EditorPage() {
   const [voice, setVoice] = useState(true);
   const [voiceCode, setVoiceCode] = useState("es");
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [customAudio, setCustomAudio] = useState<{ name: string; file: File; url: string } | null>(null);
+  const audioFileRef = useRef<HTMLInputElement | null>(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -229,14 +231,33 @@ export default function EditorPage() {
     setPreviewIndex(-1);
   }, []);
 
+  const onAudioFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("audio/")) { setError("Sube un archivo de audio (mp3, wav, m4a, ogg)."); return; }
+    if (file.size > 25 * 1024 * 1024) { setError("El audio supera 25 MB."); return; }
+    setError(null);
+    if (customAudio?.url) { try { URL.revokeObjectURL(customAudio.url); } catch { /* noop */ } }
+    setCustomAudio({ name: file.name, file, url: URL.createObjectURL(file) });
+  };
+  const clearCustomAudio = () => {
+    if (customAudio?.url) { try { URL.revokeObjectURL(customAudio.url); } catch { /* noop */ } }
+    setCustomAudio(null);
+    if (audioFileRef.current) audioFileRef.current.value = "";
+  };
+
   useEffect(() => {
     if (previewIndex < 0) return;
     if (previewIndex >= clips.length) { stopPreview(); return; }
     const c = clips[previewIndex];
-    speak(c.narration);
+    if (customAudio) {
+      if (previewIndex === 0 && audioRef.current) { audioRef.current.src = customAudio.url; audioRef.current.play().catch(() => {}); }
+    } else {
+      speak(c.narration);
+    }
     timerRef.current = setTimeout(() => setPreviewIndex((i) => i + 1), c.seconds * 1000);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [previewIndex, clips, speak, stopPreview]);
+  }, [previewIndex, clips, speak, stopPreview, customAudio]);
   useEffect(() => () => stopPreview(), [stopPreview]);
 
   const renderMp4 = async () => {
@@ -244,10 +265,18 @@ export default function EditorPage() {
     setRendering(true); setRenderPct(0); setRenderMsg("Iniciando…"); setError(null);
     try {
       const { renderVideo } = await import("@/lib/ai/render-video");
+      let opts: { ttsLang?: string; customAudio?: Uint8Array; customAudioExt?: string };
+      if (customAudio) {
+        const bytes = new Uint8Array(await customAudio.file.arrayBuffer());
+        const ext = (customAudio.name.split(".").pop() || "mp3").toLowerCase();
+        opts = { customAudio: bytes, customAudioExt: ext };
+      } else {
+        opts = { ttsLang: voice ? voiceCode : undefined };
+      }
       const blob = await renderVideo(
         clips.map((c) => ({ seconds: c.seconds, media: c.media, effect: c.effect, startSec: c.startSec, narration: c.narration })),
         aspect, secret, (msg, pct) => { setRenderMsg(msg); setRenderPct(pct); },
-        { ttsLang: voice ? voiceCode : undefined },
+        opts,
       );
       const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `mpp-video-${Date.now()}.mp4`; a.click();
     } catch (e) { setError(e instanceof Error ? e.message : "Error al renderizar"); }
@@ -320,6 +349,26 @@ export default function EditorPage() {
                   <p className="text-white/35 text-[10px] mt-1">El guión se genera en {lang === "en" ? "inglés" : "español"} y la voz va dentro del MP4 (gratis).</p>
                 </div>
               )}
+              {/* Audio propio (subir voz local) */}
+              <div>
+                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Tu voz (audio local)</label>
+                <input ref={audioFileRef} type="file" accept="audio/*" onChange={onAudioFile} className="hidden" />
+                {customAudio ? (
+                  <>
+                    <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-3 py-2">
+                      <Volume2 className="w-3.5 h-3.5 text-emerald-300 flex-shrink-0" />
+                      <span className="text-emerald-200 text-[11px] font-semibold truncate flex-1">{customAudio.name}</span>
+                      <button type="button" onClick={() => { const a = audioRef.current; if (a) { a.src = customAudio.url; a.play().catch(() => {}); } }} className="text-white/70 hover:text-white" title="Escuchar"><Play className="w-3.5 h-3.5" /></button>
+                      <button type="button" onClick={clearCustomAudio} className="text-white/60 hover:text-red-300" title="Quitar"><X className="w-3.5 h-3.5" /></button>
+                    </div>
+                    <p className="text-emerald-300/70 text-[10px] mt-1">✓ Se usará TU audio en el video (en vez de la voz TTS).</p>
+                  </>
+                ) : (
+                  <button type="button" onClick={() => audioFileRef.current?.click()} className="w-full inline-flex items-center justify-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/70">
+                    <Upload className="w-3.5 h-3.5" /> Subir mi voz (MP3/WAV/M4A)
+                  </button>
+                )}
+              </div>
               <button onClick={generate} disabled={generating || !prompt.trim()} className="shine-btn w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:opacity-95 text-white font-bold text-sm px-5 py-3 rounded-xl shadow-lg shadow-violet-500/30 disabled:opacity-50">
                 {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generando…</> : <><Wand2 className="w-4 h-4" /> Generar storyboard</>}
               </button>
@@ -375,7 +424,7 @@ export default function EditorPage() {
                 </button>
               </div>
               {rendering && <><div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-600 transition-all" style={{ width: `${renderPct}%` }} /></div><p className="text-white/45 text-[10px]">{renderMsg}</p></>}
-              <p className="text-white/35 text-[10px] pt-1">Render en navegador {voice ? "con voz (Google TTS gratis)" : "(voz OFF → sin audio)"}. Mejor ≤ ~90s.</p>
+              <p className="text-white/35 text-[10px] pt-1">Render en navegador {customAudio ? "con TU audio" : voice ? "con voz (Google TTS gratis)" : "(sin audio)"}. Mejor ≤ ~90s.</p>
             </div>
           )}
         </div>

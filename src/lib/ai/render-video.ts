@@ -14,7 +14,11 @@ export interface RenderScene {
   narration?: string;  // texto para la voz (TTS)
 }
 type Progress = (msg: string, pct: number) => void;
-interface RenderOpts { ttsLang?: string } // "es" | "en" → genera narración con voz
+interface RenderOpts {
+  ttsLang?: string;            // "es"/"en"… → narración con voz TTS (gratis)
+  customAudio?: Uint8Array;    // audio de voz propio (sube el usuario) — tiene prioridad sobre TTS
+  customAudioExt?: string;     // ext del audio propio (mp3/wav/m4a/ogg)
+}
 
 function effectFilter(effect?: string): string {
   switch (effect) {
@@ -105,10 +109,20 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
   await f.writeFile("list.txt", new TextEncoder().encode(segs.map((s) => `file ${s}`).join("\n")));
   await f.exec(["-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "out.mp4"]);
 
-  // ── Audio: narración con voz (Google TTS gratis), best-effort ──
+  // ── Audio ──
   let finalFile = "out.mp4";
   const aSegs: string[] = [];
-  if (opts.ttsLang && usable.some((s) => (s.narration || "").trim())) {
+  if (opts.customAudio && opts.customAudio.length > 100) {
+    // Voz propia subida por el usuario → tiene prioridad.
+    try {
+      onProgress("Montando tu audio…", 95);
+      const af = `custom_audio.${opts.customAudioExt || "mp3"}`;
+      await f.writeFile(af, opts.customAudio);
+      await f.exec(["-i", "out.mp4", "-i", af, "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac", "-shortest", "final.mp4"]);
+      finalFile = "final.mp4";
+      try { await f.deleteFile(af); } catch { /* noop */ }
+    } catch { finalFile = "out.mp4"; }
+  } else if (opts.ttsLang && usable.some((s) => (s.narration || "").trim())) {
     try {
       onProgress("Generando narración…", 92);
       for (let i = 0; i < usable.length; i++) {
