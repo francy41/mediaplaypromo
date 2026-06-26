@@ -68,6 +68,7 @@ const cssFilter = (e: Effect) =>
   : e === "vivid" ? "saturate(1.6) contrast(1.12)"
   : "none";
 const uid = () => `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+const PX_PER_SEC = 18; // escala de la línea de producción (px por segundo)
 
 // Reduce una imagen a máx N px (para describirla rápido con la IA de visión).
 function downscale(file: File, max = 512): Promise<string> {
@@ -259,6 +260,22 @@ export default function EditorPage() {
   /* ── Edición de clips ── */
   const updateClip = (id: string, patch: Partial<Clip>) => setClips((p) => p.map((c) => c.id === id ? { ...c, ...patch } : c));
   const applyToAll = () => setClips((p) => p.map((c) => ({ ...c, effect: bulkEffect, transition: bulkTransition })));
+
+  // Recorte por arrastre del ratón en la timeline.
+  const startTrim = (e: React.PointerEvent, clip: Clip, edge: "left" | "right") => {
+    e.stopPropagation();
+    const startX = e.clientX;
+    const baseSec = clip.seconds;
+    const baseStart = clip.startSec;
+    const onMove = (ev: PointerEvent) => {
+      const d = Math.round((ev.clientX - startX) / PX_PER_SEC);
+      if (edge === "right") updateClip(clip.id, { seconds: Math.min(Math.max(baseSec + d, 2), 60) });
+      else updateClip(clip.id, { startSec: Math.max(0, baseStart + d), seconds: Math.min(Math.max(baseSec - d, 2), 60) });
+    };
+    const onUp = () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
   const removeClip = (id: string) => { setClips((p) => p.filter((c) => c.id !== id)); if (selectedId === id) setSelectedId(null); };
   const moveClip = (id: string, dir: -1 | 1) => setClips((p) => {
     const i = p.findIndex((c) => c.id === id); const j = i + dir;
@@ -405,7 +422,6 @@ export default function EditorPage() {
   }
 
   const cur = previewIndex >= 0 ? clips[previewIndex] : null;
-  const pxPerSec = 16;
 
   return (
     <AdminShell title="Mega Editor de Video IA" description="Estilo CapCut: IA + Banco de Medios → timeline editable → preview → render MP4. Solo SuperAdmin." icon={Clapperboard} iconGradient="from-violet-500 to-fuchsia-600" status="beta" breadcrumb={[{ label: "Mega Editor" }]}>
@@ -613,17 +629,21 @@ export default function EditorPage() {
               </div>
               <div className="flex gap-1 overflow-x-auto scrollbar-hide pb-2">
                 {clips.map((c, i) => (
-                  <div key={c.id} onClick={() => setSelectedId(c.id)} style={{ width: Math.max(56, c.seconds * pxPerSec) }}
+                  <div key={c.id} onClick={() => setSelectedId(c.id)} style={{ width: Math.max(64, c.seconds * PX_PER_SEC) }}
                     className={`group relative h-16 rounded-lg overflow-hidden border flex-shrink-0 transition-all cursor-pointer ${selectedId === c.id ? "border-violet-400 ring-2 ring-violet-500/40" : "border-white/10 hover:border-white/30"}`}>
                     {c.media ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={c.media.thumb} alt="" className="w-full h-full object-cover" style={{ filter: cssFilter(c.effect) }} />
+                      <img src={c.media.thumb} alt="" className="w-full h-full object-cover pointer-events-none" style={{ filter: cssFilter(c.effect) }} />
                     ) : c.loadingMedia ? <div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="w-4 h-4 animate-spin text-white/40" /></div> : <div className="w-full h-full bg-gradient-to-br from-violet-700 to-fuchsia-900" />}
-                    <span className="absolute bottom-0.5 left-0.5 text-[9px] font-bold bg-black/60 text-white px-1 rounded">{c.seconds}s</span>
-                    <span className="absolute top-0.5 left-0.5 text-[9px] font-bold text-white/80">{i + 1}</span>
-                    <div className="absolute inset-x-0 top-0 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={(ev) => { ev.stopPropagation(); moveClip(c.id, -1); }} className="bg-black/70 hover:bg-black text-white w-5 h-5 flex items-center justify-center" title="Mover izquierda"><ChevronLeft className="w-3 h-3" /></button>
-                      <button onClick={(ev) => { ev.stopPropagation(); moveClip(c.id, 1); }} className="bg-black/70 hover:bg-black text-white w-5 h-5 flex items-center justify-center" title="Mover derecha"><ChevronRight className="w-3 h-3" /></button>
+                    <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[9px] font-bold bg-black/60 text-white px-1 rounded pointer-events-none">{c.seconds}s</span>
+                    <span className="absolute top-0.5 left-1/2 -translate-x-1/2 text-[9px] font-bold text-white/80 pointer-events-none">{i + 1}</span>
+                    {/* Handles de recorte (arrastrar con el ratón) */}
+                    <div onPointerDown={(e) => startTrim(e, c, "left")} className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize bg-violet-400/0 hover:bg-violet-400/70 opacity-0 group-hover:opacity-100 transition-colors" title="Arrastra para recortar el inicio" style={{ touchAction: "none" }} />
+                    <div onPointerDown={(e) => startTrim(e, c, "right")} className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize bg-violet-400/0 hover:bg-violet-400/70 opacity-0 group-hover:opacity-100 transition-colors" title="Arrastra para recortar el final" style={{ touchAction: "none" }} />
+                    {/* Mover */}
+                    <div className="absolute inset-x-0 top-0 flex justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={(ev) => { ev.stopPropagation(); moveClip(c.id, -1); }} className="bg-black/70 hover:bg-black text-white w-5 h-5 flex items-center justify-center rounded" title="Mover izquierda"><ChevronLeft className="w-3 h-3" /></button>
+                      <button onClick={(ev) => { ev.stopPropagation(); moveClip(c.id, 1); }} className="bg-black/70 hover:bg-black text-white w-5 h-5 flex items-center justify-center rounded" title="Mover derecha"><ChevronRight className="w-3 h-3" /></button>
                     </div>
                   </div>
                 ))}
