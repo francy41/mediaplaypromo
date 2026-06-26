@@ -39,9 +39,10 @@ const SOURCE_DEFS = [
   { id: "pexels-video", label: "Pexels Video" },
   { id: "pexels-photo", label: "Pexels Fotos" },
   { id: "wikimedia", label: "Wikimedia" },
+  { id: "archive", label: "Archive" },
   { id: "nvidia", label: "NVIDIA IA" },
 ];
-const SOURCE_ORDER = ["pexels-video", "wikimedia", "pexels-photo", "nvidia"]; // prioridad de la cadena por escena
+const SOURCE_ORDER = ["pexels-video", "wikimedia", "archive", "pexels-photo", "nvidia"]; // prioridad de la cadena por escena
 const EFFECTS: { v: Effect; label: string }[] = [
   { v: "none", label: "Sin efecto" }, { v: "zoom", label: "Zoom (Ken Burns)" },
   { v: "bw", label: "Blanco y negro" }, { v: "blur", label: "Desenfoque" }, { v: "bright", label: "Brillo+" },
@@ -78,7 +79,7 @@ export default function EditorPage() {
   const [prompt, setPrompt] = useState("");
   const [duration, setDuration] = useState(60);
   const [aspect, setAspect] = useState("16:9");
-  const [sources, setSources] = useState<Record<string, boolean>>({ "pexels-video": true, "pexels-photo": false, "wikimedia": true, "nvidia": true });
+  const [sources, setSources] = useState<Record<string, boolean>>({ "pexels-video": true, "pexels-photo": false, "wikimedia": true, "archive": false, "nvidia": true });
   const toggleSource = (id: string) => setSources((s) => ({ ...s, [id]: !s[id] }));
   const [voice, setVoice] = useState(true);
   const [voiceCode, setVoiceCode] = useState("es");
@@ -138,6 +139,14 @@ export default function EditorPage() {
     } catch { return []; }
   }, [secret]);
 
+  const archive = useCallback(async (query: string): Promise<Media[]> => {
+    try {
+      const r = await fetch(`/api/admin/stock?q=${encodeURIComponent(query)}&source=archive&media=video`, { headers: { "x-admin-secret": secret } });
+      const d = await r.json();
+      return (d.results ?? []).filter((m: { thumb?: string }) => m.thumb).map((m: { thumb: string }) => ({ type: "photo" as const, thumb: m.thumb, url: m.thumb }));
+    } catch { return []; }
+  }, [secret]);
+
   const nvidiaImage = useCallback(async (p: string): Promise<Media | undefined> => {
     try {
       const r = await fetch("/api/ai/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: "nvidia", model: "black-forest-labs/flux.1-schnell", prompt: p, width: 1024, height: 1024 }) });
@@ -153,12 +162,13 @@ export default function EditorPage() {
       if (!sources[sid]) continue;
       if (sid === "nvidia") { const m = await nvidiaImage(visual || query); if (m) return [m]; continue; }
       if (sid === "wikimedia") { const w = await wikimedia(query); if (w.length) return w; continue; }
+      if (sid === "archive") { const a = await archive(query); if (a.length) return a; continue; }
       const type = sid === "pexels-photo" ? "photo" : "video";
       const p = await pexels(query, type, orientation);
       if (p.length) return p;
     }
     return [];
-  }, [sources, pexels, wikimedia, nvidiaImage]);
+  }, [sources, pexels, wikimedia, archive, nvidiaImage]);
 
   /* ── Generar storyboard (IA) ── */
   const generate = async () => {
