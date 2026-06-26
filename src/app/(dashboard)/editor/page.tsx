@@ -120,6 +120,7 @@ export default function EditorPage() {
   const [musicFile, setMusicFile] = useState<{ name: string; file: File } | null>(null);
   const [musicVol, setMusicVol] = useState(0.22);
   const musicRef = useRef<HTMLInputElement | null>(null);
+  const muapiErrRef = useRef<string>("");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -185,7 +186,13 @@ export default function EditorPage() {
     try {
       const r = await fetch("/api/ai/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: "muapi", model: muapiModel, prompt, aspect_ratio: aspect, duration: 5 }) });
       const job = await r.json();
-      if (!job.id || job.error) return undefined;
+      if (job.error || !job.id) {
+        const code = job?.details?.error?.code;
+        muapiErrRef.current = code === "INSUFFICIENT_CREDITS"
+          ? "Sin saldo en MUAPI. Recarga en muapi.ai/topup para generar video IA real."
+          : String(job?.details?.detail || job?.error || "MUAPI no disponible");
+        return undefined;
+      }
       const OK = ["completed", "succeeded"];
       if (OK.includes(job.status)) {
         const u0 = Array.isArray(job.output) ? job.output[0] : job.output;
@@ -234,7 +241,7 @@ export default function EditorPage() {
   const generate = async () => {
     if (!prompt.trim()) return;
     stopPreview();
-    setGenerating(true); setError(null); setClips([]); setSelectedId(null);
+    setGenerating(true); setError(null); setClips([]); setSelectedId(null); muapiErrRef.current = "";
     try {
       const r = await fetch("/api/admin/editor/plan", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-secret": secret }, body: JSON.stringify({ prompt, durationSec: duration, lang }) });
       if (r.status === 401) { setAuthed(false); try { localStorage.removeItem(SECRET_STORE); } catch {} setAuthError("Secreto incorrecto."); return; }
@@ -253,6 +260,7 @@ export default function EditorPage() {
         return { ...c, media: pick, loadingMedia: false };
       }));
       if (customAudioDur >= 2) fitToAudio(customAudioDur); // cuadra los clips con tu audio
+      if (sources.muapi && muapiErrRef.current) setError(`⚠️ MUAPI: ${muapiErrRef.current} Las escenas usaron las demás fuentes marcadas.`);
     } catch { setError("Error de conexión."); }
     finally { setGenerating(false); }
   };
