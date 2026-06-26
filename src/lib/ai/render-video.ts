@@ -2,23 +2,27 @@ import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { toBlobURL } from "@ffmpeg/util";
 
 /**
- * Render client-side (ffmpeg.wasm) del montaje visual a MP4.
- * Single-thread core → no requiere cross-origin isolation (COOP/COEP).
- * v1: montaje visual (clips + imágenes), sin audio embebido.
+ * Render client-side (ffmpeg.wasm) del montaje a MP4.
+ * Single-thread core → no requiere cross-origin isolation.
+ * Soporta: efectos/looks, recorte, narración (TTS o voz propia), música de fondo
+ * y subtítulos quemados (overlay de PNG generado con canvas).
  */
 export interface RenderScene {
   seconds: number;
   media?: { type: "video" | "photo"; url: string };
-  effect?: string;     // none | bw | blur | bright | zoom
-  startSec?: number;   // recorte: segundo de inicio (solo video)
-  narration?: string;  // texto para la voz (TTS)
+  effect?: string;
+  startSec?: number;
+  narration?: string;
 }
 type Progress = (msg: string, pct: number) => void;
 interface RenderOpts {
-  ttsLang?: string;            // "es"/"en"… → narración con voz TTS (gratis)
-  customAudio?: Uint8Array;    // audio de voz propio (sube el usuario) — tiene prioridad sobre TTS
-  customAudioExt?: string;     // ext del audio propio (mp3/wav/m4a/ogg)
+  ttsLang?: string;
+  customAudio?: Uint8Array; customAudioExt?: string;
+  music?: Uint8Array; musicExt?: string; musicVol?: number;
+  subtitles?: boolean;
 }
+
+const DIMS: Record<string, [number, number]> = { "16:9": [1280, 720], "9:16": [720, 1280], "1:1": [720, 720] };
 
 function effectFilter(effect?: string): string {
   switch (effect) {
@@ -29,18 +33,50 @@ function effectFilter(effect?: string): string {
     case "cold": return ",colorbalance=rm=-0.15:bm=0.15";
     case "vintage": return ",curves=preset=vintage";
     case "vivid": return ",eq=saturation=1.5:contrast=1.1";
-    default: return ""; // none / zoom → sin filtro extra en render
+    default: return "";
   }
 }
 
-const DIMS: Record<string, [number, number]> = {
-  "16:9": [1280, 720],
-  "9:16": [720, 1280],
-  "1:1": [720, 720],
-};
+/** Genera un PNG (W×H, transparente) con el subtítulo abajo. Usa canvas del navegador. */
+function captionPng(text: string, W: number, H: number): Uint8Array {
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const ctx = c.getContext("2d");
+  if (!ctx) return new Uint8Array();
+  const fontSize = Math.max(20, Math.round(H / 22));
+  ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  // wrap
+  const maxW = W * 0.86;
+  const words = text.trim().split(/\s+/);
+  const lines: string[] = [];
+  let cur = "";
+  for (const w of words) {
+    const t = cur ? `${cur} ${w}` : w;
+    if (ctx.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t;
+  }
+  if (cur) lines.push(cur);
+  const lh = Math.round(fontSize * 1.3);
+  const bottomPad = Math.round(H * 0.06);
+  const startY = H - bottomPad - (lines.length - 1) * lh;
+  // caja semitransparente
+  const boxTop = startY - fontSize - 10;
+  ctx.fillStyle = "rgba(0,0,0,0.45)";
+  ctx.fillRect(0, boxTop, W, H - boxTop);
+  // texto con sombra
+  ctx.fillStyle = "#ffffff";
+  ctx.shadowColor = "rgba(0,0,0,0.85)";
+  ctx.shadowBlur = 4;
+  lines.forEach((ln, i) => ctx.fillText(ln, W / 2, startY + i * lh));
+  const b64 = c.toDataURL("image/png").split(",")[1] || "";
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
+}
 
 let ffPromise: Promise<FFmpeg> | null = null;
-
 async function getFF(): Promise<FFmpeg> {
   if (!ffPromise) {
     ffPromise = (async () => {
@@ -57,7 +93,6 @@ async function getFF(): Promise<FFmpeg> {
 }
 
 async function loadBytes(mediaUrl: string, secret: string): Promise<Uint8Array> {
-  // Imágenes IA vienen como data URL → fetch directo (sin proxy).
   if (mediaUrl.startsWith("data:")) {
     const r = await fetch(mediaUrl);
     return new Uint8Array(await r.arrayBuffer());
@@ -75,12 +110,14 @@ async function ttsBytes(text: string, lang: string, secret: string): Promise<Uin
   } catch { return null; }
 }
 
+const VOL = (v?: number) => (typeof v === "number" && v >= 0 && v <= 1 ? v : 0.22);
+
 export async function renderVideo(scenes: RenderScene[], aspect: string, secret: string, onProgress: Progress, opts: RenderOpts = {}): Promise<Blob> {
   const [W, H] = DIMS[aspect] ?? DIMS["16:9"];
   onProgress("Cargando motor de render…", 3);
   const f = await getFF();
 
-  const vf = `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1,format=yuv420p`;
+  const baseVf = `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1,format=yuv420p`;
   const usable = scenes.filter((s) => s.media?.url);
   if (usable.length === 0) throw new Error("No hay escenas con clip para renderizar.");
 
@@ -88,10 +125,10 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
   for (let i = 0; i < usable.length; i++) {
     const s = usable[i];
     const sec = Math.min(Math.max(Math.round(s.seconds) || 4, 2), 60);
-    onProgress(`Procesando escena ${i + 1}/${usable.length}…`, 5 + Math.round((i / usable.length) * 80));
+    onProgress(`Procesando escena ${i + 1}/${usable.length}…`, 5 + Math.round((i / usable.length) * 75));
     const bytes = await loadBytes(s.media!.url, secret);
     const seg = `seg${i}.mp4`;
-    const fullVf = vf + effectFilter(s.effect);
+    const fullVf = baseVf + effectFilter(s.effect);
     if (s.media!.type === "photo") {
       const fn = `img${i}.jpg`;
       await f.writeFile(fn, bytes);
@@ -102,33 +139,44 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
       await f.writeFile(fn, bytes);
       const start = Math.max(0, Math.round(s.startSec || 0));
       const pre = start > 0 ? ["-ss", String(start)] : [];
-      // -stream_loop -1 + -t sec (salida): el clip se repite para llenar la duración exacta → sin freezes ni huecos.
       await f.exec(["-stream_loop", "-1", ...pre, "-i", fn, "-t", String(sec), "-an", "-vf", fullVf, "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", seg]);
       try { await f.deleteFile(fn); } catch { /* noop */ }
     }
-    segs.push(seg);
+
+    // Subtítulos quemados (overlay de PNG, best-effort)
+    let finalSeg = seg;
+    if (opts.subtitles && (s.narration || "").trim()) {
+      try {
+        const png = captionPng(s.narration!.trim(), W, H);
+        if (png.length > 0) {
+          const cap = `cap${i}.png`;
+          const segc = `segc${i}.mp4`;
+          await f.writeFile(cap, png);
+          await f.exec(["-i", seg, "-i", cap, "-filter_complex", "[0:v][1:v]overlay=0:0", "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", segc]);
+          try { await f.deleteFile(cap); } catch { /* noop */ }
+          try { await f.deleteFile(seg); } catch { /* noop */ }
+          finalSeg = segc;
+        }
+      } catch { finalSeg = seg; }
+    }
+    segs.push(finalSeg);
   }
 
-  onProgress("Uniendo escenas…", 90);
+  onProgress("Uniendo escenas…", 84);
   await f.writeFile("list.txt", new TextEncoder().encode(segs.map((s) => `file ${s}`).join("\n")));
   await f.exec(["-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "out.mp4"]);
 
-  // ── Audio ──
+  // ── Audio: voz (propia o TTS) + música de fondo ──
   let finalFile = "out.mp4";
   const aSegs: string[] = [];
-  if (opts.customAudio && opts.customAudio.length > 100) {
-    // Voz propia subida por el usuario → tiene prioridad.
-    try {
-      onProgress("Montando tu audio…", 95);
-      const af = `custom_audio.${opts.customAudioExt || "mp3"}`;
-      await f.writeFile(af, opts.customAudio);
-      await f.exec(["-i", "out.mp4", "-i", af, "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac", "-shortest", "final.mp4"]);
-      finalFile = "final.mp4";
-      try { await f.deleteFile(af); } catch { /* noop */ }
-    } catch { finalFile = "out.mp4"; }
-  } else if (opts.ttsLang && usable.some((s) => (s.narration || "").trim())) {
-    try {
-      onProgress("Generando narración…", 92);
+  let voiceFile: string | null = null;
+
+  try {
+    if (opts.customAudio && opts.customAudio.length > 100) {
+      voiceFile = `voice.${opts.customAudioExt || "mp3"}`;
+      await f.writeFile(voiceFile, opts.customAudio);
+    } else if (opts.ttsLang && usable.some((s) => (s.narration || "").trim())) {
+      onProgress("Generando narración…", 88);
       for (let i = 0; i < usable.length; i++) {
         const s = usable[i];
         const sec = Math.min(Math.max(Math.round(s.seconds) || 4, 2), 60);
@@ -144,26 +192,41 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
             made = true;
           }
         }
-        if (!made) {
-          await f.exec(["-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100", "-t", String(sec), "-c:a", "aac", aseg]);
-        }
+        if (!made) await f.exec(["-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100", "-t", String(sec), "-c:a", "aac", aseg]);
         aSegs.push(aseg);
       }
-      onProgress("Montando audio…", 97);
       await f.writeFile("alist.txt", new TextEncoder().encode(aSegs.map((a) => `file ${a}`).join("\n")));
-      await f.exec(["-f", "concat", "-safe", "0", "-i", "alist.txt", "-c", "copy", "audio.m4a"]);
-      await f.exec(["-i", "out.mp4", "-i", "audio.m4a", "-c:v", "copy", "-c:a", "aac", "-shortest", "final.mp4"]);
+      await f.exec(["-f", "concat", "-safe", "0", "-i", "alist.txt", "-c", "copy", "voiceaudio.m4a"]);
+      voiceFile = "voiceaudio.m4a";
+    }
+
+    let musicFile: string | null = null;
+    if (opts.music && opts.music.length > 100) {
+      musicFile = `music.${opts.musicExt || "mp3"}`;
+      await f.writeFile(musicFile, opts.music);
+    }
+
+    if (voiceFile || musicFile) {
+      onProgress("Montando audio…", 95);
+      if (voiceFile && musicFile) {
+        await f.exec(["-i", "out.mp4", "-i", voiceFile, "-stream_loop", "-1", "-i", musicFile,
+          "-filter_complex", `[2:a]volume=${VOL(opts.musicVol)}[m];[1:a][m]amix=inputs=2:duration=first:dropout_transition=2[a]`,
+          "-map", "0:v:0", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-shortest", "final.mp4"]);
+      } else if (voiceFile) {
+        await f.exec(["-i", "out.mp4", "-i", voiceFile, "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac", "-shortest", "final.mp4"]);
+      } else if (musicFile) {
+        await f.exec(["-i", "out.mp4", "-stream_loop", "-1", "-i", musicFile, "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac", "-shortest", "final.mp4"]);
+      }
       finalFile = "final.mp4";
-    } catch { finalFile = "out.mp4"; }
-  }
+    }
+  } catch { finalFile = "out.mp4"; }
 
   const data = (await f.readFile(finalFile)) as Uint8Array;
   onProgress("¡Listo!", 100);
 
-  // limpieza
   for (const s of segs) { try { await f.deleteFile(s); } catch { /* noop */ } }
   for (const a of aSegs) { try { await f.deleteFile(a); } catch { /* noop */ } }
-  for (const fn of ["list.txt", "alist.txt", "audio.m4a", "out.mp4", "final.mp4"]) { try { await f.deleteFile(fn); } catch { /* noop */ } }
+  for (const fn of ["list.txt", "alist.txt", "voiceaudio.m4a", "out.mp4", "final.mp4", voiceFile || ""]) { if (fn) try { await f.deleteFile(fn); } catch { /* noop */ } }
 
   return new Blob([data as unknown as BlobPart], { type: "video/mp4" });
 }

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Clapperboard, Lock, Wand2, Loader2, Play, Square, Download, Trash2, RefreshCw,
   Video as VideoIcon, Volume2, VolumeX, Film, Search, Plus,
-  ChevronLeft, ChevronRight, FolderInput, Upload, X,
+  ChevronLeft, ChevronRight, FolderInput, Upload, X, Music, Subtitles,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 
@@ -111,6 +111,10 @@ export default function EditorPage() {
   const [refDesc, setRefDesc] = useState("");
   const [refLoading, setRefLoading] = useState(false);
   const refFileRef = useRef<HTMLInputElement | null>(null);
+  const [subtitles, setSubtitles] = useState(false);
+  const [musicFile, setMusicFile] = useState<{ name: string; file: File } | null>(null);
+  const [musicVol, setMusicVol] = useState(0.22);
+  const musicRef = useRef<HTMLInputElement | null>(null);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -374,6 +378,15 @@ export default function EditorPage() {
   };
   const clearRefImage = () => { setRefImage(null); setRefDesc(""); if (refFileRef.current) refFileRef.current.value = ""; };
 
+  const onMusicFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("audio/")) { setError("Sube un audio para la música."); return; }
+    if (file.size > 25 * 1024 * 1024) { setError("La música supera 25 MB."); return; }
+    setError(null); setMusicFile({ name: file.name, file });
+  };
+  const clearMusic = () => { setMusicFile(null); if (musicRef.current) musicRef.current.value = ""; };
+
   useEffect(() => {
     if (previewIndex < 0) return;
     if (previewIndex >= clips.length) { stopPreview(); return; }
@@ -393,13 +406,17 @@ export default function EditorPage() {
     setRendering(true); setRenderPct(0); setRenderMsg("Iniciando…"); setError(null);
     try {
       const { renderVideo } = await import("@/lib/ai/render-video");
-      let opts: { ttsLang?: string; customAudio?: Uint8Array; customAudioExt?: string };
+      const opts: { ttsLang?: string; customAudio?: Uint8Array; customAudioExt?: string; music?: Uint8Array; musicExt?: string; musicVol?: number; subtitles?: boolean } = { subtitles };
       if (customAudio) {
-        const bytes = new Uint8Array(await customAudio.file.arrayBuffer());
-        const ext = (customAudio.name.split(".").pop() || "mp3").toLowerCase();
-        opts = { customAudio: bytes, customAudioExt: ext };
-      } else {
-        opts = { ttsLang: voice ? voiceCode : undefined };
+        opts.customAudio = new Uint8Array(await customAudio.file.arrayBuffer());
+        opts.customAudioExt = (customAudio.name.split(".").pop() || "mp3").toLowerCase();
+      } else if (voice) {
+        opts.ttsLang = voiceCode;
+      }
+      if (musicFile) {
+        opts.music = new Uint8Array(await musicFile.file.arrayBuffer());
+        opts.musicExt = (musicFile.name.split(".").pop() || "mp3").toLowerCase();
+        opts.musicVol = musicVol;
       }
       const blob = await renderVideo(
         clips.map((c) => ({ seconds: c.seconds, media: c.media, effect: c.effect, startSec: c.startSec, narration: c.narration })),
@@ -579,6 +596,33 @@ export default function EditorPage() {
             <div className="glass-card rounded-2xl border border-white/10 p-4 space-y-2">
               <div className="flex items-center justify-between text-xs"><span className="text-white/55">Clips</span><span className="text-white font-bold">{clips.length}</span></div>
               <div className="flex items-center justify-between text-xs"><span className="text-white/55">Duración</span><span className="text-white font-bold">{totalSec}s</span></div>
+
+              {/* Subtítulos + música de fondo */}
+              <div className="space-y-2 pt-2 border-t border-white/8">
+                <button onClick={() => setSubtitles((v) => !v)} className={`w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${subtitles ? "bg-violet-500/15 border-violet-500/30 text-violet-200" : "bg-white/5 border-white/10 text-white/55"}`}>
+                  <Subtitles className="w-3.5 h-3.5" /> Subtítulos quemados {subtitles ? "ON" : "OFF"}
+                </button>
+                <input ref={musicRef} type="file" accept="audio/*" onChange={onMusicFile} className="hidden" />
+                {musicFile ? (
+                  <>
+                    <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5">
+                      <Music className="w-3.5 h-3.5 text-emerald-300 flex-shrink-0" />
+                      <span className="text-white/70 text-[11px] truncate flex-1">{musicFile.name}</span>
+                      <button type="button" onClick={clearMusic} className="text-white/60 hover:text-red-300"><X className="w-3.5 h-3.5" /></button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/45 text-[10px] whitespace-nowrap">Vol. música</span>
+                      <input type="range" min={0} max={0.6} step={0.02} value={musicVol} onChange={(e) => setMusicVol(+e.target.value)} className="flex-1 accent-violet-500" />
+                      <span className="text-white/45 text-[10px] w-8 text-right">{Math.round(musicVol * 100)}%</span>
+                    </div>
+                  </>
+                ) : (
+                  <button type="button" onClick={() => musicRef.current?.click()} className="w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-white/55">
+                    <Music className="w-3.5 h-3.5" /> Música de fondo (opcional)
+                  </button>
+                )}
+              </div>
+
               <div className="flex gap-2 pt-1">
                 <button onClick={() => (previewIndex >= 0 ? stopPreview() : setPreviewIndex(0))} className="flex-1 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-bold px-3 py-2 rounded-lg">
                   {previewIndex >= 0 ? <><Square className="w-3.5 h-3.5" /> Detener</> : <><Play className="w-3.5 h-3.5" /> Reproducir</>}
