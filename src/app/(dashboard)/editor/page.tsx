@@ -69,6 +69,7 @@ const cssFilter = (e: Effect) =>
   : "none";
 const uid = () => `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 const PX_PER_SEC = 18; // escala de la línea de producción (px por segundo)
+const EFFECT_SHORT: Record<string, string> = { zoom: "Zoom", bw: "B/N", blur: "Blur", bright: "Brillo", warm: "Cálido", cold: "Frío", vintage: "Vintage", vivid: "Vívido" };
 
 // Reduce una imagen a máx N px (para describirla rápido con la IA de visión).
 function downscale(file: File, max = 512): Promise<string> {
@@ -119,6 +120,7 @@ export default function EditorPage() {
   const [queueCount, setQueueCount] = useState(0);
   const [bulkEffect, setBulkEffect] = useState<Effect>("none");
   const [bulkTransition, setBulkTransition] = useState<Transition>("fade");
+  const [flash, setFlash] = useState("");
 
   // media browser
   const [mSource, setMSource] = useState<"video" | "photo" | "archive" | "wikimedia">("video");
@@ -259,7 +261,12 @@ export default function EditorPage() {
 
   /* ── Edición de clips ── */
   const updateClip = (id: string, patch: Partial<Clip>) => setClips((p) => p.map((c) => c.id === id ? { ...c, ...patch } : c));
-  const applyToAll = () => setClips((p) => p.map((c) => ({ ...c, effect: bulkEffect, transition: bulkTransition })));
+  const applyToAll = () => {
+    setClips((p) => p.map((c) => ({ ...c, effect: bulkEffect, transition: bulkTransition })));
+    const lbl = EFFECTS.find((e) => e.v === bulkEffect)?.label ?? bulkEffect;
+    setFlash(`✓ ${lbl} + ${bulkTransition} aplicado a ${clips.length} clips`);
+    setTimeout(() => setFlash(""), 2600);
+  };
 
   // Recorte por arrastre del ratón en la timeline.
   const startTrim = (e: React.PointerEvent, clip: Clip, edge: "left" | "right") => {
@@ -627,6 +634,7 @@ export default function EditorPage() {
                   <button onClick={applyToAll} className="inline-flex items-center bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow shadow-violet-500/30">Aplicar a todos</button>
                 </div>
               </div>
+              {flash && <p className="text-emerald-300 text-[10px] mb-2 text-right">{flash}</p>}
               <div className="flex gap-1 overflow-x-auto scrollbar-hide pb-2">
                 {clips.map((c, i) => (
                   <div key={c.id} onClick={() => setSelectedId(c.id)} style={{ width: Math.max(64, c.seconds * PX_PER_SEC) }}
@@ -637,6 +645,7 @@ export default function EditorPage() {
                     ) : c.loadingMedia ? <div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="w-4 h-4 animate-spin text-white/40" /></div> : <div className="w-full h-full bg-gradient-to-br from-violet-700 to-fuchsia-900" />}
                     <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[9px] font-bold bg-black/60 text-white px-1 rounded pointer-events-none">{c.seconds}s</span>
                     <span className="absolute top-0.5 left-1/2 -translate-x-1/2 text-[9px] font-bold text-white/80 pointer-events-none">{i + 1}</span>
+                    {c.effect !== "none" && <span className="absolute bottom-0.5 right-0.5 text-[8px] font-bold bg-violet-600/85 text-white px-1 rounded pointer-events-none">{EFFECT_SHORT[c.effect] || c.effect}</span>}
                     {/* Handles de recorte (arrastrar con el ratón) */}
                     <div onPointerDown={(e) => startTrim(e, c, "left")} className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize bg-violet-400/0 hover:bg-violet-400/70 opacity-0 group-hover:opacity-100 transition-colors" title="Arrastra para recortar el inicio" style={{ touchAction: "none" }} />
                     <div onPointerDown={(e) => startTrim(e, c, "right")} className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize bg-violet-400/0 hover:bg-violet-400/70 opacity-0 group-hover:opacity-100 transition-colors" title="Arrastra para recortar el final" style={{ touchAction: "none" }} />
