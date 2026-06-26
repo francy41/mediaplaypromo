@@ -25,6 +25,10 @@ function effectFilter(effect?: string): string {
     case "bw": return ",hue=s=0";
     case "blur": return ",boxblur=2:1";
     case "bright": return ",eq=brightness=0.12:saturation=1.25";
+    case "warm": return ",colorbalance=rm=0.15:bm=-0.15";
+    case "cold": return ",colorbalance=rm=-0.15:bm=0.15";
+    case "vintage": return ",curves=preset=vintage";
+    case "vivid": return ",eq=saturation=1.5:contrast=1.1";
     default: return ""; // none / zoom → sin filtro extra en render
   }
 }

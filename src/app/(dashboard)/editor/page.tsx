@@ -10,7 +10,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 const SECRET_STORE = "mpp_license_admin_secret";
 const PRODUCTION_QUEUE = "mpp_production_queue";
 type Transition = "fade" | "zoom" | "slide";
-type Effect = "none" | "bw" | "blur" | "bright" | "zoom";
+type Effect = "none" | "bw" | "blur" | "bright" | "zoom" | "warm" | "cold" | "vintage" | "vivid";
 
 interface Media { type: "video" | "photo"; thumb: string; url: string }
 interface Clip {
@@ -45,6 +45,7 @@ const SOURCE_ORDER = ["pexels-video", "wikimedia", "pexels-photo", "nvidia"]; //
 const EFFECTS: { v: Effect; label: string }[] = [
   { v: "none", label: "Sin efecto" }, { v: "zoom", label: "Zoom (Ken Burns)" },
   { v: "bw", label: "Blanco y negro" }, { v: "blur", label: "Desenfoque" }, { v: "bright", label: "Brillo+" },
+  { v: "warm", label: "Color cálido" }, { v: "cold", label: "Color frío" }, { v: "vintage", label: "Vintage" }, { v: "vivid", label: "Vívido" },
 ];
 
 // Voces (acentos de Google TTS, gratis). El idioma del guión se deriva del código.
@@ -56,7 +57,15 @@ const VOICE_OPTIONS = [
   { v: "en-au", label: "English (Australia)" },
 ];
 
-const cssFilter = (e: Effect) => e === "bw" ? "grayscale(1)" : e === "blur" ? "blur(3px)" : e === "bright" ? "brightness(1.2) saturate(1.25)" : "none";
+const cssFilter = (e: Effect) =>
+  e === "bw" ? "grayscale(1)"
+  : e === "blur" ? "blur(3px)"
+  : e === "bright" ? "brightness(1.2) saturate(1.25)"
+  : e === "warm" ? "sepia(0.3) saturate(1.3) brightness(1.03)"
+  : e === "cold" ? "saturate(1.1) hue-rotate(-12deg) brightness(1.03)"
+  : e === "vintage" ? "sepia(0.4) contrast(1.1) saturate(0.9)"
+  : e === "vivid" ? "saturate(1.6) contrast(1.12)"
+  : "none";
 const uid = () => `c-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
 export default function EditorPage() {
@@ -84,6 +93,8 @@ export default function EditorPage() {
   const [clips, setClips] = useState<Clip[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [queueCount, setQueueCount] = useState(0);
+  const [bulkEffect, setBulkEffect] = useState<Effect>("none");
+  const [bulkTransition, setBulkTransition] = useState<Transition>("fade");
 
   // media browser
   const [mSource, setMSource] = useState<"video" | "photo" | "archive" | "wikimedia">("video");
@@ -214,6 +225,7 @@ export default function EditorPage() {
 
   /* ── Edición de clips ── */
   const updateClip = (id: string, patch: Partial<Clip>) => setClips((p) => p.map((c) => c.id === id ? { ...c, ...patch } : c));
+  const applyToAll = () => setClips((p) => p.map((c) => ({ ...c, effect: bulkEffect, transition: bulkTransition })));
   const removeClip = (id: string) => { setClips((p) => p.filter((c) => c.id !== id)); if (selectedId === id) setSelectedId(null); };
   const moveClip = (id: string, dir: -1 | 1) => setClips((p) => {
     const i = p.findIndex((c) => c.id === id); const j = i + dir;
@@ -508,18 +520,34 @@ export default function EditorPage() {
           {/* Timeline (estilo CapCut) */}
           {clips.length > 0 && (
             <div className="glass-card rounded-2xl border border-white/10 p-3">
-              <p className="text-white/55 text-[10px] font-bold uppercase tracking-wider mb-2">Línea de producción</p>
+              <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                <p className="text-white/55 text-[10px] font-bold uppercase tracking-wider">Línea de producción</p>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-white/40 text-[10px]">A todos:</span>
+                  <select value={bulkEffect} onChange={(e) => setBulkEffect(e.target.value as Effect)} className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[11px] text-white focus:outline-none" title="Color / efecto a todos">
+                    {EFFECTS.map((e) => <option key={e.v} value={e.v} className="bg-[#0f1219]">{e.label}</option>)}
+                  </select>
+                  <select value={bulkTransition} onChange={(e) => setBulkTransition(e.target.value as Transition)} className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[11px] text-white focus:outline-none" title="Transición a todos">
+                    <option value="fade" className="bg-[#0f1219]">Fade</option><option value="zoom" className="bg-[#0f1219]">Zoom</option><option value="slide" className="bg-[#0f1219]">Slide</option>
+                  </select>
+                  <button onClick={applyToAll} className="inline-flex items-center bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow shadow-violet-500/30">Aplicar a todos</button>
+                </div>
+              </div>
               <div className="flex gap-1 overflow-x-auto scrollbar-hide pb-2">
                 {clips.map((c, i) => (
-                  <button key={c.id} onClick={() => setSelectedId(c.id)} style={{ width: Math.max(56, c.seconds * pxPerSec) }}
-                    className={`relative h-16 rounded-lg overflow-hidden border flex-shrink-0 transition-all ${selectedId === c.id ? "border-violet-400 ring-2 ring-violet-500/40" : "border-white/10 hover:border-white/30"}`}>
+                  <div key={c.id} onClick={() => setSelectedId(c.id)} style={{ width: Math.max(56, c.seconds * pxPerSec) }}
+                    className={`group relative h-16 rounded-lg overflow-hidden border flex-shrink-0 transition-all cursor-pointer ${selectedId === c.id ? "border-violet-400 ring-2 ring-violet-500/40" : "border-white/10 hover:border-white/30"}`}>
                     {c.media ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={c.media.thumb} alt="" className="w-full h-full object-cover" style={{ filter: cssFilter(c.effect) }} />
                     ) : c.loadingMedia ? <div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="w-4 h-4 animate-spin text-white/40" /></div> : <div className="w-full h-full bg-gradient-to-br from-violet-700 to-fuchsia-900" />}
                     <span className="absolute bottom-0.5 left-0.5 text-[9px] font-bold bg-black/60 text-white px-1 rounded">{c.seconds}s</span>
                     <span className="absolute top-0.5 left-0.5 text-[9px] font-bold text-white/80">{i + 1}</span>
-                  </button>
+                    <div className="absolute inset-x-0 top-0 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={(ev) => { ev.stopPropagation(); moveClip(c.id, -1); }} className="bg-black/70 hover:bg-black text-white w-5 h-5 flex items-center justify-center" title="Mover izquierda"><ChevronLeft className="w-3 h-3" /></button>
+                      <button onClick={(ev) => { ev.stopPropagation(); moveClip(c.id, 1); }} className="bg-black/70 hover:bg-black text-white w-5 h-5 flex items-center justify-center" title="Mover derecha"><ChevronRight className="w-3 h-3" /></button>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
