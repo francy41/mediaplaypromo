@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
-import { createGHLSocialPost, postToGHL, resolveAccountIds, resolveGHLUserId, getGHLAccounts, GHL_SOCIAL_ENABLED } from "@/lib/ghl-social";
+import { createGHLSocialPost, postToGHL, resolveAccountIds, resolveGHLUserId, getGHLAccounts } from "@/lib/ghl-social";
+import { getGhlConn, listGhlProjectsSafe, type GhlConn } from "@/lib/ghl-projects";
 
 export const maxDuration = 60;
 
-// Tope de seguridad: nunca generar más de esto en un lote (evita crear cientos de filas,
-// saturar GHL con "Too Many Requests" y exceder el límite de 60s de la función serverless).
-// Bajado a 40 porque ahora puede haber 2 llamadas por post (TikTok va en envío aparte).
 const MAX_BATCH = 40;
-const THROTTLE_MS = 250; // pausa entre llamadas a GHL para no recibir "Too Many Requests"
-
+const THROTTLE_MS = 250;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function authed(req: NextRequest): boolean {
@@ -19,29 +16,28 @@ function authed(req: NextRequest): boolean {
 
 type GhlResult = { ok: boolean; postId?: string; error?: string };
 
-async function pushAndStatus(post: { caption: string | null; video_url: string }, scheduledAt: string, platforms: string[]) {
+async function pushAndStatus(post: { caption: string | null; video_url: string }, scheduledAt: string, platforms: string[], conn: GhlConn | null) {
   let ghl: GhlResult = { ok: false };
-  if (GHL_SOCIAL_ENABLED) {
-    ghl = await createGHLSocialPost({ caption: post.caption ?? "", mediaUrl: post.video_url, scheduleDate: scheduledAt, platforms });
+  if (conn) {
+    ghl = await createGHLSocialPost({ caption: post.caption ?? "", mediaUrl: post.video_url, scheduleDate: scheduledAt, platforms }, conn);
   }
   return {
     scheduled_at: scheduledAt,
     platforms,
-    status: ghl.ok || !GHL_SOCIAL_ENABLED ? "scheduled" : "failed",
+    status: ghl.ok || !conn ? "scheduled" : "failed",
     ghl_post_id: ghl.postId ?? null,
-    error: ghl.ok ? null : (GHL_SOCIAL_ENABLED ? ghl.error ?? null : null),
+    error: ghl.ok ? null : (conn ? ghl.error ?? null : null),
   };
 }
 
 // Publica usando grupos de cuentas ya resueltos (TikTok va en su propio grupo).
-// Hace 1 llamada por grupo y agrega el resultado.
-async function pushWithGroups(post: { caption: string | null; video_url: string }, scheduledAt: string, platforms: string[], groups: string[][]) {
-  if (!GHL_SOCIAL_ENABLED) {
+async function pushWithGroups(post: { caption: string | null; video_url: string }, scheduledAt: string, platforms: string[], groups: string[][], conn: GhlConn | null) {
+  if (!conn) {
     return { scheduled_at: scheduledAt, platforms, status: "scheduled", ghl_post_id: null, error: null };
   }
   const results: GhlResult[] = [];
   for (let i = 0; i < groups.length; i++) {
-    results.push(await postToGHL(groups[i], { caption: post.caption ?? "", mediaUrl: post.video_url, scheduleDate: scheduledAt, platforms }));
+    results.push(await postToGHL(groups[i], { caption: post.caption ?? "", mediaUrl: post.video_url, scheduleDate: scheduledAt, platforms }, conn));
     if (i < groups.length - 1) await sleep(THROTTLE_MS);
   }
   const okAny = results.some((r) => r.ok);
@@ -49,7 +45,6 @@ async function pushWithGroups(post: { caption: string | null; video_url: string 
   return {
     scheduled_at: scheduledAt,
     platforms,
-    // scheduled si al menos un grupo entró; el error guarda lo que falló (ej. TikTok)
     status: okAny || groups.length === 0 ? "scheduled" : "failed",
     ghl_post_id: results.find((r) => r.ok)?.postId ?? null,
     error: errors.length ? errors.join(" | ") : null,
@@ -66,9 +61,10 @@ export async function GET(req: NextRequest) {
       .order("scheduled_at", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false })
       .limit(500);
-    return NextResponse.json({ posts: error ? [] : data ?? [], ghlEnabled: GHL_SOCIAL_ENABLED, error: error?.message });
+    const projects = await listGhlProjectsSafe();
+    return NextResponse.json({ posts: error ? [] : data ?? [], projects, ghlEnabled: projects.length > 0, error: error?.message });
   } catch {
-    return NextResponse.json({ posts: [], ghlEnabled: GHL_SOCIAL_ENABLED });
+    return NextResponse.json({ posts: [], projects: [], ghlEnabled: false });
   }
 }
 
@@ -77,6 +73,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const action = body?.action;
   const admin = createSupabaseAdminClient();
+  // Conexión GHL del proyecto seleccionado (o env por defecto)
+  const conn = await getGhlConn(body?.projectId);
 
   try {
     if (action === "add") {
@@ -101,13 +99,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: !error });
     }
 
-    // Diagnóstico: ver qué cuentas sociales están conectadas en GHL
+    // Diagnóstico: ver qué cuentas sociales están conectadas en el proyecto GHL
     if (action === "ghl-accounts") {
-      const r = await getGHLAccounts();
+      if (!conn) return NextResponse.json({ ok: false, error: "Sin proyecto GHL conectado." });
+      const r = await getGHLAccounts(conn);
       return NextResponse.json(r);
     }
 
-    // Limpiar filas con error (failed) o todas
     if (action === "clear") {
       const scope = body.scope === "all" ? null : "failed";
       const q = admin.from("content_posts").delete();
@@ -118,7 +116,7 @@ export async function POST(req: NextRequest) {
     if (action === "schedule") {
       const { data: post } = await admin.from("content_posts").select("caption,video_url").eq("id", body.id).maybeSingle();
       if (!post) return NextResponse.json({ error: "Post no encontrado" }, { status: 404 });
-      const upd = await pushAndStatus(post, body.scheduled_at, body.platforms ?? []);
+      const upd = await pushAndStatus(post, body.scheduled_at, body.platforms ?? [], conn);
       const { error } = await admin.from("content_posts").update(upd).eq("id", body.id);
       return NextResponse.json({ ok: !error, status: upd.status, error: upd.error });
     }
@@ -135,13 +133,12 @@ export async function POST(req: NextRequest) {
       const [hh, mm] = time.split(":").map((n: string) => Number(n));
       const start = body.startDate ? new Date(body.startDate) : new Date(Date.now() + 86400000);
 
-      // Resolver cuentas + userId UNA sola vez; si falla, no marcamos cientos de filas con error
       let groups: string[][] = [];
-      if (GHL_SOCIAL_ENABLED) {
-        const r = await resolveAccountIds(platforms);
+      if (conn) {
+        const r = await resolveAccountIds(platforms, conn);
         if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
         groups = r.groups;
-        const u = await resolveGHLUserId();
+        const u = await resolveGHLUserId(conn);
         if (!u.ok) return NextResponse.json({ error: u.error }, { status: 400 });
       }
 
@@ -150,15 +147,14 @@ export async function POST(req: NextRequest) {
         const d = new Date(start);
         d.setDate(d.getDate() + i);
         d.setHours(hh || 10, mm || 0, 0, 0);
-        const upd = await pushWithGroups(list[i], d.toISOString(), platforms, groups);
+        const upd = await pushWithGroups(list[i], d.toISOString(), platforms, groups, conn);
         await admin.from("content_posts").update(upd).eq("id", list[i].id);
         scheduled++;
-        if (GHL_SOCIAL_ENABLED && i < list.length - 1) await sleep(THROTTLE_MS);
+        if (conn && i < list.length - 1) await sleep(THROTTLE_MS);
       }
       return NextResponse.json({ ok: true, scheduled });
     }
 
-    // Modo bucle: distribuye todos los videos en cola en ciclo hasta endDate
     if (action === "batch-loop") {
       const { data: queued } = await admin
         .from("content_posts")
@@ -176,17 +172,15 @@ export async function POST(req: NextRequest) {
 
       const msPerDay = 86400000;
       const rawDays = Math.max(1, Math.floor((end.getTime() - start.getTime()) / msPerDay) + 1);
-      // Tope de seguridad: nunca generamos más de MAX_BATCH publicaciones de una vez.
       const totalDays = Math.min(rawDays, MAX_BATCH);
       const capped = rawDays > MAX_BATCH;
 
-      // Resolver cuentas + userId UNA sola vez; si falla, abortamos sin crear basura
       let groups: string[][] = [];
-      if (GHL_SOCIAL_ENABLED) {
-        const r = await resolveAccountIds(platforms);
+      if (conn) {
+        const r = await resolveAccountIds(platforms, conn);
         if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
         groups = r.groups;
-        const u = await resolveGHLUserId();
+        const u = await resolveGHLUserId(conn);
         if (!u.ok) return NextResponse.json({ error: u.error }, { status: 400 });
       }
 
@@ -199,28 +193,17 @@ export async function POST(req: NextRequest) {
         d.setDate(d.getDate() + i);
         d.setHours(hh || 10, mm || 0, 0, 0);
         const isoDate = d.toISOString();
-
-        const upd = await pushWithGroups(template, isoDate, platforms, groups);
-
+        const upd = await pushWithGroups(template, isoDate, platforms, groups, conn);
         if (i < list.length) {
-          // Primera pasada: actualiza la fila original
           await admin.from("content_posts").update(upd).eq("id", template.id);
         } else {
-          // Repeticiones: inserta nuevas filas
-          toInsert.push({
-            video_url: template.video_url,
-            caption: template.caption,
-            title: template.title,
-            ...upd,
-          });
+          toInsert.push({ video_url: template.video_url, caption: template.caption, title: template.title, ...upd });
         }
         scheduled++;
-        if (GHL_SOCIAL_ENABLED && i < totalDays - 1) await sleep(THROTTLE_MS);
+        if (conn && i < totalDays - 1) await sleep(THROTTLE_MS);
       }
 
-      if (toInsert.length > 0) {
-        await admin.from("content_posts").insert(toInsert);
-      }
+      if (toInsert.length > 0) await admin.from("content_posts").insert(toInsert);
 
       return NextResponse.json({
         ok: true,
@@ -231,14 +214,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Reciclar publicadas: vuelve al estado "queued" para repetir ciclo
     if (action === "recycle") {
       const { error } = await admin.from("content_posts").update({
-        status: "queued",
-        scheduled_at: null,
-        platforms: [],
-        ghl_post_id: null,
-        error: null,
+        status: "queued", scheduled_at: null, platforms: [], ghl_post_id: null, error: null,
       }).eq("status", "published");
       return NextResponse.json({ ok: !error, error: error?.message });
     }

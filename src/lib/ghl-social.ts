@@ -1,9 +1,7 @@
 import "server-only";
+import type { GhlConn } from "@/lib/ghl-projects";
 
 const API = "https://services.leadconnectorhq.com";
-
-/** ¿Está configurada la API de GHL Social Planner? (token + location) */
-export const GHL_SOCIAL_ENABLED = !!(process.env.GHL_API_TOKEN && process.env.GHL_LOCATION_ID);
 
 interface GHLPostParams {
   caption: string;
@@ -25,25 +23,22 @@ function mediaTypeFromUrl(url: string): string {
 }
 
 function ghlHeaders(token: string) {
-  return {
-    Authorization: `Bearer ${token}`,
-    Version: "2021-07-28",
-    "Content-Type": "application/json",
-  };
+  return { Authorization: `Bearer ${token}`, Version: "2021-07-28", "Content-Type": "application/json" };
 }
 
 /**
- * Resuelve los accountIds de GHL que coinciden con las plataformas pedidas.
- * Hace UNA sola llamada a la API: úsalo una vez por lote, no por publicación.
+ * Resuelve los accountIds de GHL que coinciden con las plataformas pedidas para
+ * la conexión dada. Hace UNA sola llamada: úsalo una vez por lote, no por post.
  */
 export async function resolveAccountIds(
-  platforms: string[]
+  platforms: string[],
+  conn: GhlConn,
 ): Promise<{ ok: boolean; accountIds: string[]; groups: string[][]; connected: string[]; error?: string }> {
-  const acc = await getGHLAccounts();
+  const acc = await getGHLAccounts(conn);
   if (!acc.ok) return { ok: false, accountIds: [], groups: [], connected: [], error: acc.error };
   const accounts = acc.accounts ?? [];
   if (accounts.length === 0) {
-    return { ok: false, accountIds: [], groups: [], connected: [], error: "GHL no tiene cuentas conectadas. Conecta tus redes en Social Planner." };
+    return { ok: false, accountIds: [], groups: [], connected: [], error: "Este proyecto GHL no tiene redes conectadas. Conéctalas en su Social Planner." };
   }
   const connected = accounts.map((a) => a.platform || "?");
   const wanted = (platforms ?? []).map((s) => String(s ?? "").toLowerCase()).filter(Boolean);
@@ -55,42 +50,34 @@ export async function resolveAccountIds(
   if (accountIds.length === 0) {
     return { ok: false, accountIds: [], groups: [], connected, error: `Ninguna red conectada coincide con [${wanted.join(", ")}]. Conectadas: ${connected.join(", ")}` };
   }
-
   // TikTok no acepta ir mezclado con otras plataformas en el mismo post de GHL.
-  // Lo separamos en su propio grupo; el resto va junto.
-  const isTikTok = (plat?: string) => {
-    const p = String(plat ?? "").toLowerCase();
-    return p.includes("tiktok") || p === "tt";
-  };
+  const isTikTok = (plat?: string) => { const p = String(plat ?? "").toLowerCase(); return p.includes("tiktok") || p === "tt"; };
   const tiktokIds = matched.filter((a) => isTikTok(a.platform)).map((a) => a.id).filter(Boolean);
   const otherIds = matched.filter((a) => !isTikTok(a.platform)).map((a) => a.id).filter(Boolean);
   const groups = [otherIds, tiktokIds].filter((g) => g.length > 0);
-
   return { ok: true, accountIds, groups, connected };
 }
 
-let cachedUserId: string | null = null;
+const userIdCache = new Map<string, string>();
 
-/** Resuelve el userId de GHL (obligatorio al crear posts). Usa GHL_USER_ID o lo busca por API. */
-export async function resolveGHLUserId(): Promise<{ ok: boolean; userId?: string; error?: string }> {
-  if (process.env.GHL_USER_ID) return { ok: true, userId: process.env.GHL_USER_ID };
-  if (cachedUserId) return { ok: true, userId: cachedUserId };
-  const token = process.env.GHL_API_TOKEN;
-  const locationId = process.env.GHL_LOCATION_ID;
-  if (!token || !locationId) return { ok: false, error: "GHL no configurado" };
+/** Resuelve el userId de GHL (obligatorio al crear posts) para la conexión dada. */
+export async function resolveGHLUserId(conn: GhlConn): Promise<{ ok: boolean; userId?: string; error?: string }> {
+  if (conn.userId) return { ok: true, userId: conn.userId };
+  const cached = userIdCache.get(conn.locationId);
+  if (cached) return { ok: true, userId: cached };
   try {
-    const res = await fetch(`${API}/users/?locationId=${locationId}`, { headers: ghlHeaders(token) });
+    const res = await fetch(`${API}/users/?locationId=${conn.locationId}`, { headers: ghlHeaders(conn.token) });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const m = (data && (data.message || data.error)) || `HTTP ${res.status}`;
-      return { ok: false, error: `GHL users (${res.status}): ${typeof m === "string" ? m : JSON.stringify(m)}. Define GHL_USER_ID en Vercel.` };
+      return { ok: false, error: `GHL users (${res.status}): ${typeof m === "string" ? m : JSON.stringify(m)}. Define el User ID del proyecto.` };
     }
     const users: unknown[] = Array.isArray(data?.users) ? data.users : (Array.isArray(data) ? data : []);
     const first = (users[0] ?? {}) as Record<string, unknown>;
     const id = first.id ?? first._id;
-    if (!id) return { ok: false, error: "GHL no devolvió usuarios. Define GHL_USER_ID en Vercel." };
-    cachedUserId = String(id);
-    return { ok: true, userId: cachedUserId };
+    if (!id) return { ok: false, error: "GHL no devolvió usuarios. Define el User ID del proyecto." };
+    userIdCache.set(conn.locationId, String(id));
+    return { ok: true, userId: String(id) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "error" };
   }
@@ -99,16 +86,12 @@ export async function resolveGHLUserId(): Promise<{ ok: boolean; userId?: string
 /** Publica en GHL usando accountIds ya resueltos (no vuelve a pedir cuentas). */
 export async function postToGHL(
   accountIds: string[],
-  p: GHLPostParams
+  p: GHLPostParams,
+  conn: GhlConn,
 ): Promise<{ ok: boolean; postId?: string; error?: string }> {
-  const token = process.env.GHL_API_TOKEN;
-  const locationId = process.env.GHL_LOCATION_ID;
-  if (!token || !locationId) return { ok: false, error: "GHL no configurado" };
   if (!accountIds || accountIds.length === 0) return { ok: false, error: "Sin cuentas destino" };
-
-  const u = await resolveGHLUserId();
+  const u = await resolveGHLUserId(conn);
   if (!u.ok || !u.userId) return { ok: false, error: u.error ?? "No se pudo resolver el userId de GHL" };
-
   try {
     const payload = {
       accountIds,
@@ -120,14 +103,11 @@ export async function postToGHL(
       userId: u.userId,
       tags: [] as string[],
     };
-    const res = await fetch(`${API}/social-media-posting/${locationId}/posts`, {
-      method: "POST",
-      headers: ghlHeaders(token),
-      body: JSON.stringify(payload),
+    const res = await fetch(`${API}/social-media-posting/${conn.locationId}/posts`, {
+      method: "POST", headers: ghlHeaders(conn.token), body: JSON.stringify(payload),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      // Mostramos el cuerpo crudo de GHL para poder diagnosticar qué campo le falta
       const m = (data && (data.message || data.error));
       const detail = typeof m === "string" ? m : JSON.stringify(data).slice(0, 300);
       return { ok: false, error: `GHL post (${res.status}): ${detail || "sin detalle"}` };
@@ -138,27 +118,17 @@ export async function postToGHL(
   }
 }
 
-/**
- * Crea un post PROGRAMADO en GoHighLevel Social Planner (resuelve cuentas + publica).
- * Para muchos posts a la vez usa resolveAccountIds + postToGHL para no saturar la API.
- */
-export async function createGHLSocialPost(
-  p: GHLPostParams
-): Promise<{ ok: boolean; postId?: string; error?: string }> {
-  const r = await resolveAccountIds(p.platforms ?? []);
+/** Crea un post programado (resuelve cuentas + publica) para la conexión dada. */
+export async function createGHLSocialPost(p: GHLPostParams, conn: GhlConn): Promise<{ ok: boolean; postId?: string; error?: string }> {
+  const r = await resolveAccountIds(p.platforms ?? [], conn);
   if (!r.ok) return { ok: false, error: r.error };
-  return postToGHL(r.accountIds, p);
+  return postToGHL(r.accountIds, p, conn);
 }
 
-/** Diagnóstico: devuelve las cuentas sociales conectadas en GHL */
-export async function getGHLAccounts(): Promise<{ ok: boolean; accounts?: { id: string; platform?: string }[]; error?: string; raw?: unknown }> {
-  const token = process.env.GHL_API_TOKEN;
-  const locationId = process.env.GHL_LOCATION_ID;
-  if (!token || !locationId) return { ok: false, error: "GHL no configurado (falta token o location id)" };
+/** Diagnóstico: cuentas sociales conectadas en GHL para la conexión dada. */
+export async function getGHLAccounts(conn: GhlConn): Promise<{ ok: boolean; accounts?: { id: string; platform?: string }[]; error?: string; raw?: unknown }> {
   try {
-    const res = await fetch(`${API}/social-media-posting/${locationId}/accounts`, {
-      headers: { Authorization: `Bearer ${token}`, Version: "2021-07-28", "Content-Type": "application/json" },
-    });
+    const res = await fetch(`${API}/social-media-posting/${conn.locationId}/accounts`, { headers: ghlHeaders(conn.token) });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       const m = (data && (data.message || data.error)) || `HTTP ${res.status}`;
@@ -176,9 +146,7 @@ function listAccounts(accData: unknown): { id: string; platform?: string }[] {
   if (!d) return [];
   const candidates: unknown[] = [
     (d.results as Record<string, unknown> | undefined)?.accounts,
-    d.accounts,
-    d.results,
-    d.data,
+    d.accounts, d.results, d.data,
   ];
   for (const c of candidates) {
     if (Array.isArray(c)) {

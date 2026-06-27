@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { CalendarClock, Lock, Plus, Trash2, RefreshCw, Send, Film, Wand2, UploadCloud, Loader2, Repeat2, RotateCcw, Sparkles } from "lucide-react";
+import { CalendarClock, Lock, Plus, Trash2, RefreshCw, Send, Film, Wand2, UploadCloud, Loader2, Repeat2, RotateCcw, Sparkles, Building2, Plug } from "lucide-react";
 import { AdminShell, KPIGrid } from "@/components/admin/AdminShell";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -65,6 +65,15 @@ export default function ContentPlannerPage() {
   const [loopMode, setLoopMode] = useState(false);
   const [batchEnd, setBatchEnd] = useState("");
 
+  // proyectos / cuentas GHL (multi-cuenta)
+  interface GhlProj { id: string; name: string; locationId: string; hasToken: boolean; isEnv?: boolean }
+  const [projects, setProjects] = useState<GhlProj[]>([]);
+  const [activeProject, setActiveProject] = useState<string>("");
+  const [showAddProject, setShowAddProject] = useState(false);
+  const [pName, setPName] = useState(""); const [pLoc, setPLoc] = useState("");
+  const [pToken, setPToken] = useState(""); const [pUser, setPUser] = useState("");
+  const [pMsg, setPMsg] = useState("");
+
   const call = useCallback((sec: string, method: string, body?: unknown) =>
     fetch("/api/content", {
       method,
@@ -79,6 +88,9 @@ export default function ContentPlannerPage() {
       if (r.status === 401) { setAuthed(false); try { localStorage.removeItem(SECRET_STORE); } catch {} setError("Secreto incorrecto."); return; }
       const d = await r.json();
       setPosts(d.posts ?? []); setGhlEnabled(!!d.ghlEnabled); setSecret(sec); setAuthed(true);
+      const projs: GhlProj[] = d.projects ?? [];
+      setProjects(projs);
+      setActiveProject((cur) => (cur && projs.some((p) => p.id === cur)) ? cur : (projs[0]?.id ?? ""));
       try { localStorage.setItem(SECRET_STORE, sec); } catch {}
     } catch { setError("Error de conexión."); }
     finally { setLoading(false); }
@@ -136,14 +148,14 @@ export default function ContentPlannerPage() {
       const cycles = batchEnd ? Math.ceil((new Date(batchEnd).getTime() - new Date(batchStart || Date.now() + 86400000).getTime()) / (86400000 * queued)) + 1 : 1;
       if (!confirm(`¿Programar ${queued} video(s) en bucle hasta el ${batchEnd}? (~${Math.max(1, cycles)} ciclos)`)) return;
       setLoading(true);
-      const r = await call(secret, "POST", { action: "batch-loop", platforms: batchPlatforms, time: batchTime, startDate: batchStart || undefined, endDate: batchEnd });
+      const r = await call(secret, "POST", { action: "batch-loop", platforms: batchPlatforms, time: batchTime, startDate: batchStart || undefined, endDate: batchEnd, projectId: activeProject });
       const d = await r.json();
       if (d.ok) alert(`✅ ${d.scheduled} publicaciones programadas en ${d.cycles} ciclo(s)`);
       else alert(`Error: ${d.error}`);
     } else {
       if (!confirm("¿Programar todos los videos en cola, 1 por día?")) return;
       setLoading(true);
-      await call(secret, "POST", { action: "batch", platforms: batchPlatforms, time: batchTime, startDate: batchStart || undefined });
+      await call(secret, "POST", { action: "batch", platforms: batchPlatforms, time: batchTime, startDate: batchStart || undefined, projectId: activeProject });
     }
     load(secret);
   };
@@ -164,14 +176,39 @@ export default function ContentPlannerPage() {
 
   const [diag, setDiag] = useState<string>("");
   const checkGhl = async () => {
+    if (!activeProject) { setDiag("⚠️ Añade y selecciona un proyecto GHL primero."); return; }
     setDiag("Consultando GHL...");
-    const r = await call(secret, "POST", { action: "ghl-accounts" });
+    const r = await call(secret, "POST", { action: "ghl-accounts", projectId: activeProject });
     const d = await r.json();
     if (d.ok && d.accounts?.length) {
-      setDiag(`✅ Cuentas conectadas en GHL: ${d.accounts.map((a: { platform?: string }) => a.platform || "?").join(", ")}`);
+      setDiag(`✅ Redes conectadas (${projects.find((p) => p.id === activeProject)?.name ?? "proyecto"}): ${d.accounts.map((a: { platform?: string }) => a.platform || "?").join(", ")}`);
     } else {
-      setDiag(`⚠️ ${d.error || "No hay cuentas conectadas en GHL Social Planner."}`);
+      setDiag(`⚠️ ${d.error || "No hay redes conectadas en este proyecto."}`);
     }
+  };
+
+  // ── Gestión de proyectos / cuentas GHL ──
+  const callProjects = (method: string, body?: unknown) =>
+    fetch("/api/social/ghl-projects", { method, headers: { "Content-Type": "application/json", "x-admin-secret": secret }, ...(body ? { body: JSON.stringify(body) } : {}) });
+  const addProject = async () => {
+    if (!pName.trim() || !pLoc.trim() || !pToken.trim()) { setPMsg("Completa nombre, Location ID y token."); return; }
+    setPMsg("Guardando…");
+    const r = await callProjects("POST", { action: "add", name: pName, locationId: pLoc, token: pToken, userId: pUser });
+    const d = await r.json();
+    if (d.ok) { setPMsg("✅ Proyecto conectado"); setPName(""); setPLoc(""); setPToken(""); setPUser(""); setShowAddProject(false); load(secret); }
+    else setPMsg(`⚠️ ${d.error || "error"}`);
+  };
+  const removeProject = async (id: string) => {
+    if (!confirm("¿Quitar este proyecto GHL?")) return;
+    await callProjects("POST", { action: "remove", id });
+    load(secret);
+  };
+  const verifyProject = async (id: string) => {
+    setDiag("Consultando GHL…");
+    const r = await callProjects("POST", { action: "verify", id });
+    const d = await r.json();
+    if (d.ok && d.accounts?.length) setDiag(`✅ ${projects.find((p) => p.id === id)?.name ?? "proyecto"}: ${d.accounts.map((a: { platform?: string }) => a.platform || "?").join(", ")}`);
+    else setDiag(`⚠️ ${d.error || "Sin redes conectadas en este proyecto."}`);
   };
 
   const togglePlat = (p: string) =>
@@ -211,9 +248,49 @@ export default function ContentPlannerPage() {
         <div className="space-y-4">
           {!ghlEnabled && (
             <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.06] p-4 text-sm text-amber-200/90">
-              ⚠️ La publicación a redes aún no está conectada. Puedes cargar y programar videos (quedan listos), pero para que <b>publique solo</b> falta conectar GoHighLevel: conecta tus redes en GHL Social Planner y pásame el <b>token de la API</b> (Private Integration). En cuanto lo configures, todo lo programado se enviará a GHL.
+              ⚠️ Aún no hay ninguna cuenta GHL conectada. Puedes cargar y programar videos (quedan listos), pero para que <b>publique solo</b> añade un <b>proyecto GHL</b> abajo (nombre + Location ID + Private Integration token). Cada proyecto = una cuenta GHL independiente.
             </div>
           )}
+
+          {/* Cuentas / Proyectos GHL (multi-cuenta) */}
+          <div className="glass-card rounded-2xl border border-white/10 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="flex items-center gap-2 text-white font-bold text-sm"><Building2 className="w-4 h-4 text-violet-400" /> Cuentas / Proyectos GHL</h3>
+              <button onClick={() => setShowAddProject((v) => !v)} className="inline-flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 text-xs font-semibold px-3 py-1.5 rounded-xl"><Plus className="w-3.5 h-3.5" /> Añadir proyecto</button>
+            </div>
+            {projects.length > 0 ? (
+              <>
+                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Publicar en el proyecto</label>
+                <select value={activeProject} onChange={(e) => setActiveProject(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40 mb-2">
+                  {projects.map((p) => <option key={p.id} value={p.id} className="bg-[#0f1219]">{p.name} · {p.locationId}</option>)}
+                </select>
+                <div className="space-y-1.5">
+                  {projects.map((p) => (
+                    <div key={p.id} className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                      <span className="text-white text-xs font-semibold flex-1 truncate">{p.name} {p.isEnv && <span className="text-white/40">(env)</span>}<span className="text-white/40 ml-2 font-mono text-[10px]">{p.locationId}</span></span>
+                      <button onClick={() => verifyProject(p.id)} className="text-[10px] font-bold text-cyan-300 hover:text-cyan-200">Verificar</button>
+                      {!p.isEnv && <button onClick={() => removeProject(p.id)} className="text-white/50 hover:text-red-300" title="Quitar"><Trash2 className="w-3.5 h-3.5" /></button>}
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-white/45 text-xs">No hay cuentas GHL. Añade una para publicar — cada proyecto es una cuenta GHL con su propio token privado.</p>
+            )}
+            {showAddProject && (
+              <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
+                <input value={pName} onChange={(e) => setPName(e.target.value)} placeholder="Nombre del proyecto (ej. Cliente A)" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/40" />
+                <input value={pLoc} onChange={(e) => setPLoc(e.target.value)} placeholder="Location ID de GHL" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/40 font-mono" />
+                <input type="password" value={pToken} onChange={(e) => setPToken(e.target.value)} placeholder="Private Integration token" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/40 font-mono" />
+                <input value={pUser} onChange={(e) => setPUser(e.target.value)} placeholder="User ID (opcional)" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/40 font-mono" />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button onClick={addProject} className="inline-flex items-center gap-1.5 bg-gradient-to-r from-pink-500 to-violet-600 text-white text-xs font-bold px-4 py-2 rounded-lg"><Plug className="w-3.5 h-3.5" /> Conectar proyecto</button>
+                  {pMsg && <span className="text-xs text-white/70">{pMsg}</span>}
+                </div>
+                <p className="text-white/35 text-[10px]">En GHL: <b>Ajustes → Private Integrations</b> → crea un token con permiso de <b>Social Planner</b>. El <b>Location ID</b> está en Ajustes → Business Info (o en la URL de la sub-cuenta).</p>
+              </div>
+            )}
+          </div>
 
           <KPIGrid kpis={[
             { label: "En cola", value: queued, gradient: "from-cyan-500 to-blue-600" },
