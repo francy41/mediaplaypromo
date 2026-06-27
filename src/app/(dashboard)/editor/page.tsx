@@ -113,10 +113,11 @@ export default function EditorPage() {
   const [customAudioDur, setCustomAudioDur] = useState(0);
   const [aligning, setAligning] = useState(false);
   const audioFileRef = useRef<HTMLInputElement | null>(null);
-  const [refImage, setRefImage] = useState<{ name: string; url: string } | null>(null);
-  const [refDesc, setRefDesc] = useState("");
+  const [refImages, setRefImages] = useState<{ name: string; url: string; desc: string }[]>([]);
   const [refLoading, setRefLoading] = useState(false);
   const refFileRef = useRef<HTMLInputElement | null>(null);
+  const subFileRef = useRef<HTMLInputElement | null>(null);
+  const refDesc = refImages.map((r) => r.desc).filter(Boolean).join(". "); // descripciones combinadas → guían NVIDIA
   const [subtitles, setSubtitles] = useState(false);
   const [musicFile, setMusicFile] = useState<{ name: string; file: File } | null>(null);
   const [musicVol, setMusicVol] = useState(0.22);
@@ -430,23 +431,58 @@ export default function EditorPage() {
     if (audioFileRef.current) audioFileRef.current.value = "";
   };
 
-  const onRefImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Varias imágenes de referencia: reduce, describe (best-effort) y guarda.
+  const onRefImages = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setError(null); setRefLoading(true);
+    for (const file of files) {
+      if (!file.type.startsWith("image/")) continue;
+      if (file.size > 10 * 1024 * 1024) { setError("Alguna imagen superaba 10 MB y se omitió."); continue; }
+      try {
+        const small = await downscale(file, 512);
+        setRefImages((prev) => [...prev, { name: file.name, url: small, desc: "" }]);
+        try {
+          const r = await fetch("/api/admin/editor/describe", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-secret": secret }, body: JSON.stringify({ image: small }) });
+          const d = await r.json();
+          if (d.description) setRefImages((prev) => prev.map((x) => (x.url === small ? { ...x, desc: d.description } : x)));
+        } catch { /* la descripción es opcional */ }
+      } catch { /* salta esta imagen */ }
+    }
+    setRefLoading(false);
+    if (refFileRef.current) refFileRef.current.value = "";
+  };
+  const removeRefImage = (url: string) => setRefImages((prev) => prev.filter((x) => x.url !== url));
+  const clearRefImages = () => { setRefImages([]); if (refFileRef.current) refFileRef.current.value = ""; };
+  const addRefToClip = (img: { url: string }) => addClip({ type: "photo", thumb: img.url, url: img.url }, "", "referencia");
+  const addAllRefToClips = () => refImages.forEach((img) => addClip({ type: "photo", thumb: img.url, url: img.url }, "", "referencia"));
+
+  // Subir las letras/subtítulos desde un .txt o .csv → una línea = una escena.
+  const onSubtitleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) { setError("Sube una imagen (JPG, PNG, WebP)."); return; }
-    if (file.size > 10 * 1024 * 1024) { setError("La imagen supera 10 MB."); return; }
-    setError(null); setRefLoading(true); setRefDesc("");
-    try {
-      const small = await downscale(file, 512);
-      setRefImage({ name: file.name, url: small });
-      const r = await fetch("/api/admin/editor/describe", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-secret": secret }, body: JSON.stringify({ image: small }) });
-      const d = await r.json();
-      if (d.description) setRefDesc(d.description);
-      else setError(d.error || "No se pudo analizar la imagen.");
-    } catch { setError("No se pudo procesar la imagen."); }
-    finally { setRefLoading(false); }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || "");
+      const lines = text.split(/\r?\n/)
+        .map((l) => (l.includes(",") ? l.split(",")[0] : l).replace(/^["']|["']$/g, "").trim())
+        .filter(Boolean);
+      if (!lines.length) { setError("El archivo no tiene texto."); return; }
+      const mk = (t: string): Clip => ({ id: uid(), narration: t, query: t.split(/\s+/).slice(0, 4).join(" "), visual: t, seconds: 5, startSec: 0, transition: "fade", effect: "none" });
+      setClips((prev) => {
+        if (prev.length === 0) return lines.map(mk);
+        const out = prev.map((c, i) => (lines[i] != null ? { ...c, narration: lines[i] } : c));
+        for (let i = prev.length; i < lines.length; i++) out.push(mk(lines[i]));
+        return out;
+      });
+      setSubtitles(true);
+      setError(null);
+      setFlash(`✓ ${lines.length} líneas cargadas como subtítulos`);
+      setTimeout(() => setFlash(""), 2600);
+    };
+    reader.readAsText(file);
+    if (subFileRef.current) subFileRef.current.value = "";
   };
-  const clearRefImage = () => { setRefImage(null); setRefDesc(""); if (refFileRef.current) refFileRef.current.value = ""; };
 
   const onMusicFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -561,33 +597,40 @@ export default function EditorPage() {
                   <p className="text-amber-300/80 text-[10px] mt-1">⚠️ MUAPI genera <b>video IA real</b>, pero es <b>de pago</b> (gasta tu saldo MUAPI) y <b>tarda</b> (~30 s a varios min por escena). Empieza con <b>Wan 2.2 5B Fast</b> (~$0.02) para probar. Genera ~5 s por escena; el render lo ajusta a tu duración.</p>
                 </div>
               )}
-              {sources.nvidia && (
-                <div>
-                  <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Imagen de referencia · NVIDIA (opcional)</label>
-                  <input ref={refFileRef} type="file" accept="image/*" onChange={onRefImage} className="hidden" />
-                  {refImage ? (
-                    <>
-                      <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl p-2">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={refImage.url} alt="ref" className="w-10 h-10 rounded object-cover flex-shrink-0" />
-                        <span className="text-white/70 text-[11px] truncate flex-1">{refImage.name}</span>
-                        <button type="button" onClick={clearRefImage} className="text-white/60 hover:text-red-300" title="Quitar"><X className="w-3.5 h-3.5" /></button>
-                      </div>
+              <div>
+                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Imágenes de referencia / locales (opcional)</label>
+                <input ref={refFileRef} type="file" accept="image/*" multiple onChange={onRefImages} className="hidden" />
+                {refImages.length > 0 && (
+                  <div className="space-y-1.5 mb-2">
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {refImages.map((img) => (
+                        <div key={img.url} className="relative group aspect-square rounded-lg overflow-hidden border border-white/10 bg-black">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={img.url} alt="ref" className="w-full h-full object-cover" />
+                          <button type="button" onClick={() => removeRefImage(img.url)} title="Quitar" className="absolute top-0.5 right-0.5 bg-black/70 hover:bg-black rounded p-0.5 text-white/80 hover:text-red-300"><X className="w-3 h-3" /></button>
+                          <button type="button" onClick={() => addRefToClip(img)} title="Añadir a clips" className="absolute bottom-0.5 right-0.5 bg-violet-600/85 hover:bg-violet-600 rounded p-0.5 text-white"><Plus className="w-3 h-3" /></button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
                       {refLoading ? (
-                        <p className="text-white/50 text-[10px] mt-1 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Analizando la imagen…</p>
-                      ) : refDesc ? (
-                        <p className="text-violet-300/70 text-[10px] mt-1">✓ Referencia: “{refDesc.slice(0, 90)}{refDesc.length > 90 ? "…" : ""}” — guiará las escenas IA.</p>
+                        <span className="text-white/50 text-[10px] flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Analizando…</span>
+                      ) : refDesc && sources.nvidia ? (
+                        <span className="text-violet-300/70 text-[10px] truncate">✓ {refImages.length} ref. guiarán la IA de NVIDIA</span>
                       ) : (
-                        <p className="text-amber-300/70 text-[10px] mt-1">Imagen cargada (no se pudo describir; se generará igual).</p>
+                        <span className="text-white/40 text-[10px]">{refImages.length} imagen(es) · pulsa + para añadir al clip</span>
                       )}
-                    </>
-                  ) : (
-                    <button type="button" onClick={() => refFileRef.current?.click()} className="w-full inline-flex items-center justify-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/70">
-                      <Upload className="w-3.5 h-3.5" /> Subir imagen de referencia
-                    </button>
-                  )}
-                </div>
-              )}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button type="button" onClick={addAllRefToClips} className="text-[10px] font-bold text-violet-300 hover:text-violet-200">+ Todas a clips</button>
+                        <button type="button" onClick={clearRefImages} className="text-[10px] font-bold text-white/40 hover:text-red-300">Quitar todas</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <button type="button" onClick={() => refFileRef.current?.click()} className="w-full inline-flex items-center justify-center gap-2 text-xs font-semibold px-3 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/70">
+                  <Upload className="w-3.5 h-3.5" /> Subir imágenes de referencia
+                </button>
+              </div>
               <div>
                 <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Formato</label>
                 <select value={aspect} onChange={(e) => setAspect(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40">
@@ -646,6 +689,10 @@ export default function EditorPage() {
                 <div className="space-y-2">
                   <button type="button" onClick={() => setSubtitles((v) => !v)} className={`w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold px-3 py-2 rounded-xl border transition-all ${subtitles ? "bg-violet-500/15 border-violet-500/30 text-violet-200" : "bg-white/5 border-white/10 text-white/55"}`}>
                     <Subtitles className="w-3.5 h-3.5" /> Subtítulos quemados {subtitles ? "ON" : "OFF"}
+                  </button>
+                  <input ref={subFileRef} type="file" accept=".txt,.csv,text/plain,text/csv" onChange={onSubtitleFile} className="hidden" />
+                  <button type="button" onClick={() => subFileRef.current?.click()} className="w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold px-3 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/55" title="Una línea = un subtítulo/escena">
+                    <Upload className="w-3.5 h-3.5" /> Subir letras (TXT/CSV)
                   </button>
                   <input ref={musicRef} type="file" accept="audio/*" onChange={onMusicFile} className="hidden" />
                   {musicFile ? (
@@ -733,7 +780,7 @@ export default function EditorPage() {
         <div className="space-y-4">
           {/* Preview */}
           <div className="glass-card rounded-2xl border border-white/10 p-3">
-            <div className={`relative ${aspectCls} max-h-[55vh] mx-auto rounded-xl overflow-hidden bg-black border border-white/10`}>
+            <div className={`relative ${aspectCls} w-full max-w-[460px] max-h-[40vh] sm:max-h-[46vh] mx-auto rounded-xl overflow-hidden bg-black border border-white/10`}>
               {cur ? (
                 <div key={cur.id} className="absolute inset-0 animate-in fade-in duration-500">
                   {cur.media ? (cur.media.type === "video" ? (
