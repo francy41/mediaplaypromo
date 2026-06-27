@@ -152,7 +152,8 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
           const cap = `cap${i}.png`;
           const segc = `segc${i}.mp4`;
           await f.writeFile(cap, png);
-          await f.exec(["-i", seg, "-i", cap, "-filter_complex", "[0:v][1:v]overlay=0:0", "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", segc]);
+          // -loop 1 + shortest=1 => el PNG se mantiene en TODOS los fotogramas hasta que acaba el clip.
+          await f.exec(["-i", seg, "-loop", "1", "-i", cap, "-filter_complex", "[0:v][1:v]overlay=0:0:format=auto:shortest=1[o]", "-map", "[o]", "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", segc]);
           try { await f.deleteFile(cap); } catch { /* noop */ }
           try { await f.deleteFile(seg); } catch { /* noop */ }
           finalSeg = segc;
