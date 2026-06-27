@@ -640,6 +640,34 @@ export default function EditorPage() {
                   </button>
                 )}
               </div>
+              {/* Subtítulos quemados + música de fondo (siempre visible) */}
+              <div>
+                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Subtítulos y música</label>
+                <div className="space-y-2">
+                  <button type="button" onClick={() => setSubtitles((v) => !v)} className={`w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold px-3 py-2 rounded-xl border transition-all ${subtitles ? "bg-violet-500/15 border-violet-500/30 text-violet-200" : "bg-white/5 border-white/10 text-white/55"}`}>
+                    <Subtitles className="w-3.5 h-3.5" /> Subtítulos quemados {subtitles ? "ON" : "OFF"}
+                  </button>
+                  <input ref={musicRef} type="file" accept="audio/*" onChange={onMusicFile} className="hidden" />
+                  {musicFile ? (
+                    <>
+                      <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-2.5 py-2">
+                        <Music className="w-3.5 h-3.5 text-emerald-300 flex-shrink-0" />
+                        <span className="text-white/70 text-[11px] truncate flex-1">{musicFile.name}</span>
+                        <button type="button" onClick={clearMusic} className="text-white/60 hover:text-red-300"><X className="w-3.5 h-3.5" /></button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-white/45 text-[10px] whitespace-nowrap">Vol. música</span>
+                        <input type="range" min={0} max={0.6} step={0.02} value={musicVol} onChange={(e) => setMusicVol(+e.target.value)} className="flex-1 accent-violet-500" />
+                        <span className="text-white/45 text-[10px] w-8 text-right">{Math.round(musicVol * 100)}%</span>
+                      </div>
+                    </>
+                  ) : (
+                    <button type="button" onClick={() => musicRef.current?.click()} className="w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold px-3 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/55">
+                      <Music className="w-3.5 h-3.5" /> Música de fondo (opcional)
+                    </button>
+                  )}
+                </div>
+              </div>
               <button onClick={generate} disabled={generating || !prompt.trim()} className="shine-btn w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:opacity-95 text-white font-bold text-sm px-5 py-3 rounded-xl shadow-lg shadow-violet-500/30 disabled:opacity-50">
                 {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generando…</> : <><Wand2 className="w-4 h-4" /> Generar storyboard</>}
               </button>
@@ -686,32 +714,6 @@ export default function EditorPage() {
             <div className="glass-card rounded-2xl border border-white/10 p-4 space-y-2">
               <div className="flex items-center justify-between text-xs"><span className="text-white/55">Clips</span><span className="text-white font-bold">{clips.length}</span></div>
               <div className="flex items-center justify-between text-xs"><span className="text-white/55">Duración</span><span className="text-white font-bold">{totalSec}s</span></div>
-
-              {/* Subtítulos + música de fondo */}
-              <div className="space-y-2 pt-2 border-t border-white/8">
-                <button onClick={() => setSubtitles((v) => !v)} className={`w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${subtitles ? "bg-violet-500/15 border-violet-500/30 text-violet-200" : "bg-white/5 border-white/10 text-white/55"}`}>
-                  <Subtitles className="w-3.5 h-3.5" /> Subtítulos quemados {subtitles ? "ON" : "OFF"}
-                </button>
-                <input ref={musicRef} type="file" accept="audio/*" onChange={onMusicFile} className="hidden" />
-                {musicFile ? (
-                  <>
-                    <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5">
-                      <Music className="w-3.5 h-3.5 text-emerald-300 flex-shrink-0" />
-                      <span className="text-white/70 text-[11px] truncate flex-1">{musicFile.name}</span>
-                      <button type="button" onClick={clearMusic} className="text-white/60 hover:text-red-300"><X className="w-3.5 h-3.5" /></button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-white/45 text-[10px] whitespace-nowrap">Vol. música</span>
-                      <input type="range" min={0} max={0.6} step={0.02} value={musicVol} onChange={(e) => setMusicVol(+e.target.value)} className="flex-1 accent-violet-500" />
-                      <span className="text-white/45 text-[10px] w-8 text-right">{Math.round(musicVol * 100)}%</span>
-                    </div>
-                  </>
-                ) : (
-                  <button type="button" onClick={() => musicRef.current?.click()} className="w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-white/55">
-                    <Music className="w-3.5 h-3.5" /> Música de fondo (opcional)
-                  </button>
-                )}
-              </div>
 
               <div className="flex gap-2 pt-1">
                 <button onClick={() => (previewIndex >= 0 ? stopPreview() : setPreviewIndex(0))} className="flex-1 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-bold px-3 py-2 rounded-lg">
