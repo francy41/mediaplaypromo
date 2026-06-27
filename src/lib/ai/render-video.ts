@@ -21,6 +21,7 @@ interface RenderOpts {
   music?: Uint8Array; musicExt?: string; musicVol?: number;
   subtitles?: boolean;
   transitions?: boolean; // fundido entrada/salida entre clips (default: true)
+  transitionStyle?: "fade" | "xfade"; // "xfade" = crossfade real (solo videos cortos)
 }
 
 const DIMS: Record<string, [number, number]> = { "16:9": [1280, 720], "9:16": [720, 1280], "1:1": [720, 720] };
@@ -162,6 +163,15 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
     effDur[i] = dur;
   }
 
+  // Crossfade real (xfade) solo si: lo piden, no hay audio propio, pocas escenas y video corto
+  // (decodifica varios clips a la vez → limitado por memoria del navegador).
+  const totalEff = effDur.reduce((a, b) => a + b, 0);
+  const minEff = effDur.length ? Math.min(...effDur) : 0;
+  const xfadeMode = opts.transitionStyle === "xfade" && !opts.customAudio
+    && usable.length >= 2 && usable.length <= 12 && totalEff <= 35 && minEff >= 1.2;
+  const XT = 0.5; // duración del crossfade (s)
+  const segFade = fadeOn && !xfadeMode; // si hay xfade, él gestiona la transición
+
   // ── Segmentos de video (duración = effDur, con efecto/Ken Burns/fundidos) ──
   const segs: string[] = [];
   for (let i = 0; i < usable.length; i++) {
@@ -171,7 +181,7 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
     onProgress(`Procesando escena ${i + 1}/${usable.length}…`, 18 + Math.round((i / usable.length) * 62));
     const bytes = await loadBytes(s.media!.url, secret);
     const seg = `seg${i}.mp4`;
-    const fade = fadeSuffix(dur, fadeOn);
+    const fade = fadeSuffix(dur, segFade);
 
     if (s.media!.type === "photo") {
       const fn = `img${i}.jpg`;
@@ -209,9 +219,20 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
     segs.push(finalSeg);
   }
 
-  onProgress("Uniendo escenas…", 84);
-  await f.writeFile("list.txt", new TextEncoder().encode(segs.map((s) => `file ${s}`).join("\n")));
-  await f.exec(["-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "out.mp4"]);
+  onProgress(xfadeMode ? "Aplicando crossfade…" : "Uniendo escenas…", 84);
+  if (xfadeMode) {
+    const inputs = segs.flatMap((s) => ["-i", s]);
+    let fc = ""; let prev = "[0:v]"; let runLen = effDur[0];
+    for (let i = 1; i < segs.length; i++) {
+      const out = i === segs.length - 1 ? "vout" : `vx${i}`;
+      fc += `${prev}[${i}:v]xfade=transition=fade:duration=${XT}:offset=${(runLen - XT).toFixed(3)}[${out}];`;
+      prev = `[${out}]`; runLen += effDur[i] - XT;
+    }
+    await f.exec([...inputs, "-filter_complex", fc.replace(/;$/, ""), "-map", "[vout]", "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "out.mp4"]);
+  } else {
+    await f.writeFile("list.txt", new TextEncoder().encode(segs.map((s) => `file ${s}`).join("\n")));
+    await f.exec(["-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "out.mp4"]);
+  }
 
   // ── Audio: voz (TTS sincronizado o tu MP3) + música de fondo ──
   let finalFile = "out.mp4";
@@ -236,8 +257,20 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
         }
         aSegs.push(aseg);
       }
-      await f.writeFile("alist.txt", new TextEncoder().encode(aSegs.map((a) => `file ${a}`).join("\n")));
-      await f.exec(["-f", "concat", "-safe", "0", "-i", "alist.txt", "-c", "copy", "voiceaudio.m4a"]);
+      if (xfadeMode && aSegs.length >= 2) {
+        // El audio se solapa igual que el video (acrossfade) → la sincronía se mantiene.
+        const inputs = aSegs.flatMap((a) => ["-i", a]);
+        let fc = ""; let prev = "[0:a]";
+        for (let i = 1; i < aSegs.length; i++) {
+          const out = i === aSegs.length - 1 ? "aout" : `ax${i}`;
+          fc += `${prev}[${i}:a]acrossfade=d=${XT}[${out}];`;
+          prev = `[${out}]`;
+        }
+        await f.exec([...inputs, "-filter_complex", fc.replace(/;$/, ""), "-map", "[aout]", "-c:a", "aac", "voiceaudio.m4a"]);
+      } else {
+        await f.writeFile("alist.txt", new TextEncoder().encode(aSegs.map((a) => `file ${a}`).join("\n")));
+        await f.exec(["-f", "concat", "-safe", "0", "-i", "alist.txt", "-c", "copy", "voiceaudio.m4a"]);
+      }
       voiceFile = "voiceaudio.m4a";
     }
 

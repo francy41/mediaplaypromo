@@ -120,6 +120,7 @@ export default function EditorPage() {
   const refDesc = refImages.map((r) => r.desc).filter(Boolean).join(". "); // descripciones combinadas → guían NVIDIA
   const [subtitles, setSubtitles] = useState(false);
   const [transitions, setTransitions] = useState(true);
+  const [transitionStyle, setTransitionStyle] = useState<"fade" | "xfade">("fade");
   const [musicFile, setMusicFile] = useState<{ name: string; file: File } | null>(null);
   const [musicVol, setMusicVol] = useState(0.22);
   const musicRef = useRef<HTMLInputElement | null>(null);
@@ -513,7 +514,7 @@ export default function EditorPage() {
     setRendering(true); setRenderPct(0); setRenderMsg("Iniciando…"); setError(null);
     try {
       const { renderVideo } = await import("@/lib/ai/render-video");
-      const opts: { ttsLang?: string; customAudio?: Uint8Array; customAudioExt?: string; music?: Uint8Array; musicExt?: string; musicVol?: number; subtitles?: boolean; transitions?: boolean } = { subtitles, transitions };
+      const opts: { ttsLang?: string; customAudio?: Uint8Array; customAudioExt?: string; music?: Uint8Array; musicExt?: string; musicVol?: number; subtitles?: boolean; transitions?: boolean; transitionStyle?: "fade" | "xfade" } = { subtitles, transitions, transitionStyle };
       if (customAudio) {
         opts.customAudio = new Uint8Array(await customAudio.file.arrayBuffer());
         opts.customAudioExt = (customAudio.name.split(".").pop() || "mp3").toLowerCase();
@@ -695,9 +696,15 @@ export default function EditorPage() {
                   <button type="button" onClick={() => subFileRef.current?.click()} className="w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold px-3 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white/55" title="Una línea = un subtítulo/escena">
                     <Upload className="w-3.5 h-3.5" /> Subir letras (TXT/CSV)
                   </button>
-                  <button type="button" onClick={() => setTransitions((v) => !v)} className={`w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold px-3 py-2 rounded-xl border transition-all ${transitions ? "bg-violet-500/15 border-violet-500/30 text-violet-200" : "bg-white/5 border-white/10 text-white/55"}`} title="Fundido de entrada/salida entre clips">
-                    <Film className="w-3.5 h-3.5" /> Transiciones (fundido) {transitions ? "ON" : "OFF"}
+                  <button type="button" onClick={() => setTransitions((v) => !v)} className={`w-full inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold px-3 py-2 rounded-xl border transition-all ${transitions ? "bg-violet-500/15 border-violet-500/30 text-violet-200" : "bg-white/5 border-white/10 text-white/55"}`} title="Transición entre clips">
+                    <Film className="w-3.5 h-3.5" /> Transiciones {transitions ? "ON" : "OFF"}
                   </button>
+                  {transitions && (
+                    <select value={transitionStyle} onChange={(e) => setTransitionStyle(e.target.value as "fade" | "xfade")} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-[11px] text-white focus:outline-none focus:border-violet-500/40" title="Estilo de transición">
+                      <option value="fade" className="bg-[#0f1219]">Fundido (todas las duraciones)</option>
+                      <option value="xfade" className="bg-[#0f1219]">Crossfade real (videos ≤30s)</option>
+                    </select>
+                  )}
                   <input ref={musicRef} type="file" accept="audio/*" onChange={onMusicFile} className="hidden" />
                   {musicFile ? (
                     <>
