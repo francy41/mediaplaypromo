@@ -1,10 +1,12 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { CalendarClock, Lock, Plus, Trash2, RefreshCw, Send, Film, Wand2, UploadCloud, Loader2, Repeat2, RotateCcw, Sparkles, Building2, Plug } from "lucide-react";
+import { CalendarClock, Lock, Plus, Trash2, RefreshCw, Send, Film, Wand2, UploadCloud, Loader2, Repeat2, RotateCcw, Sparkles, Building2, Plug, Crown, Check } from "lucide-react";
 import { AdminShell, KPIGrid } from "@/components/admin/AdminShell";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const SALES_LINK = "https://mediaplaypromo.com/categories/editor-video/yf-auto-clip-v1";
+// Contacto para activar la Marca Blanca del Planificador (cliente). Cambiable.
+const WHITELABEL_CONTACT = "mailto:ventas@mediaplaypromo.com?subject=Quiero%20la%20Marca%20Blanca%20de%20MediaPlayPromo%20(100%E2%82%AC%2Fmes)";
 
 const CAPTION_TEMPLATES = [
   {
@@ -44,6 +46,7 @@ export default function ContentPlannerPage() {
   const [secret, setSecret] = useState("");
   const [input, setInput] = useState("");
   const [authed, setAuthed] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [ghlEnabled, setGhlEnabled] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(false);
@@ -234,16 +237,45 @@ export default function ContentPlannerPage() {
       )}
     >
       {!authed ? (
-        <div className="glass-card rounded-2xl border border-white/10 p-8 max-w-md mx-auto text-center">
-          <div className="inline-flex w-14 h-14 rounded-2xl bg-pink-500/15 border border-pink-500/30 items-center justify-center mb-4"><Lock className="w-7 h-7 text-pink-400" /></div>
-          <h2 className="text-white font-bold text-lg mb-1">Planificador de Contenido</h2>
-          <p className="text-white/50 text-sm mb-5">Introduce el secreto de administrador.</p>
-          <form onSubmit={(e) => { e.preventDefault(); if (input.trim()) load(input.trim()); }} className="space-y-3">
-            <input type="password" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Secreto de admin" className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-pink-500/40" />
-            {error && <p className="text-red-400 text-xs">{error}</p>}
-            <button type="submit" className="shine-btn w-full bg-gradient-to-r from-pink-500 to-violet-600 text-white font-bold text-sm px-5 py-3 rounded-xl shadow-lg shadow-pink-500/30">Entrar</button>
-          </form>
-        </div>
+        showAdminLogin ? (
+          <div className="glass-card rounded-2xl border border-white/10 p-8 max-w-md mx-auto text-center">
+            <div className="inline-flex w-14 h-14 rounded-2xl bg-pink-500/15 border border-pink-500/30 items-center justify-center mb-4"><Lock className="w-7 h-7 text-pink-400" /></div>
+            <h2 className="text-white font-bold text-lg mb-1">Acceso administrador</h2>
+            <p className="text-white/50 text-sm mb-5">Introduce el secreto de administrador.</p>
+            <form onSubmit={(e) => { e.preventDefault(); if (input.trim()) load(input.trim()); }} className="space-y-3">
+              <input type="password" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Secreto de admin" className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-pink-500/40" />
+              {error && <p className="text-red-400 text-xs">{error}</p>}
+              <button type="submit" className="shine-btn w-full bg-gradient-to-r from-pink-500 to-violet-600 text-white font-bold text-sm px-5 py-3 rounded-xl shadow-lg shadow-pink-500/30">Entrar</button>
+            </form>
+            <button onClick={() => { setShowAdminLogin(false); setError(null); }} className="mt-4 text-white/40 text-xs hover:text-white/70">← Volver</button>
+          </div>
+        ) : (
+          <div className="glass-card rounded-3xl border border-violet-500/25 bg-gradient-to-br from-violet-600/10 via-transparent to-pink-600/10 p-8 sm:p-10 max-w-xl mx-auto text-center">
+            <div className="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-500 to-violet-600 items-center justify-center mb-4 shadow-lg shadow-violet-500/30 ring-1 ring-white/15"><Crown className="w-8 h-8 text-white" /></div>
+            <span className="inline-block text-[11px] font-bold px-3 py-1 rounded-full bg-violet-500/20 text-violet-200 border border-violet-400/30 mb-3 tracking-wide">MARCA BLANCA · MEDIAPLAYPROMO</span>
+            <h2 className="text-white font-black text-2xl sm:text-3xl mb-2 tracking-tight">Planificador de Contenido</h2>
+            <p className="text-white/70 text-base sm:text-lg leading-relaxed mb-1">
+              Para poder usar el Planificador tienes que tener la <b className="text-white">Marca Blanca de MediaPlayPromo</b>, que son <b className="text-white">100 € al mes</b>.
+            </p>
+            <p className="text-white/45 text-sm mb-5">Incluye tu sub-cuenta lista para publicar bajo tu propia marca.</p>
+            <ul className="text-left max-w-sm mx-auto space-y-2 mb-6">
+              {[
+                "Publica en Instagram, TikTok, YouTube, Facebook y LinkedIn",
+                "Programación automática: 1 por día o en bucle",
+                "Sube tus videos y se publican solos",
+                "Todo bajo tu propia marca, sin límites",
+              ].map((b) => (
+                <li key={b} className="flex items-start gap-2 text-white/75 text-sm">
+                  <Check className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" /> {b}
+                </li>
+              ))}
+            </ul>
+            <a href={WHITELABEL_CONTACT} className="shine-btn inline-flex items-center justify-center gap-2 w-full sm:w-auto bg-gradient-to-r from-pink-500 to-violet-600 text-white font-bold text-sm px-7 py-3.5 rounded-xl shadow-lg shadow-pink-500/30">
+              <Crown className="w-4 h-4" /> Quiero la Marca Blanca · 100€/mes
+            </a>
+            <p className="text-white/40 text-xs mt-5">¿Ya eres administrador? <button onClick={() => setShowAdminLogin(true)} className="text-violet-300 hover:text-violet-200 font-semibold underline underline-offset-2">Acceso administrador</button></p>
+          </div>
+        )
       ) : (
         <div className="space-y-4">
           {!ghlEnabled && (
