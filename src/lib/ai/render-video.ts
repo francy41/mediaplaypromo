@@ -132,7 +132,11 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
     if (s.media!.type === "photo") {
       const fn = `img${i}.jpg`;
       await f.writeFile(fn, bytes);
-      await f.exec(["-loop", "1", "-t", String(sec), "-i", fn, "-vf", fullVf, "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", seg]);
+      // Ken Burns real (zoom progresivo) para el efecto "zoom"; resto = filtro normal.
+      const vf = s.effect === "zoom"
+        ? `scale=${W * 2}:${H * 2}:force_original_aspect_ratio=increase,crop=${W * 2}:${H * 2},zoompan=z='min(zoom+0.0012,1.2)':d=${sec * 25}:s=${W}x${H}:fps=25,setsar=1,format=yuv420p`
+        : fullVf;
+      await f.exec(["-loop", "1", "-t", String(sec), "-i", fn, "-vf", vf, "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", seg]);
       try { await f.deleteFile(fn); } catch { /* noop */ }
     } else {
       const fn = `in${i}.mp4`;

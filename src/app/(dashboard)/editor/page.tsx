@@ -759,7 +759,13 @@ export default function EditorPage() {
           {/* Acciones de proyecto */}
           {clips.length > 0 && (
             <div className="glass-card rounded-2xl border border-white/10 p-4 space-y-2">
-              <div className="flex items-center justify-between text-xs"><span className="text-white/55">Clips</span><span className="text-white font-bold">{clips.length}</span></div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-white/55">Clips</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-white font-bold">{clips.length}</span>
+                  <button onClick={() => { stopPreview(); setClips([]); setSelectedId(null); }} className="text-[10px] font-bold text-white/40 hover:text-red-300">Vaciar</button>
+                </div>
+              </div>
               <div className="flex items-center justify-between text-xs"><span className="text-white/55">Duración</span><span className="text-white font-bold">{totalSec}s</span></div>
 
               <div className="flex gap-2 pt-1">
@@ -772,6 +778,7 @@ export default function EditorPage() {
               </div>
               {rendering && <><div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-600 transition-all" style={{ width: `${renderPct}%` }} /></div><p className="text-white/45 text-[10px]">{renderMsg}</p></>}
               <p className="text-white/35 text-[10px] pt-1">Render en navegador {customAudio ? "con TU audio" : voice ? "con voz (Google TTS gratis)" : "(sin audio)"}. Mejor ≤ ~90s.</p>
+              {error && <p className="text-red-400 text-xs">{error}</p>}
             </div>
           )}
         </div>
@@ -823,8 +830,12 @@ export default function EditorPage() {
                   <div key={c.id} onClick={() => setSelectedId(c.id)} style={{ width: Math.max(64, c.seconds * PX_PER_SEC) }}
                     className={`group relative h-16 rounded-lg overflow-hidden border flex-shrink-0 transition-all cursor-pointer ${selectedId === c.id ? "border-violet-400 ring-2 ring-violet-500/40" : "border-white/10 hover:border-white/30"}`}>
                     {c.media ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={c.media.thumb} alt="" className="w-full h-full object-cover pointer-events-none" style={{ filter: cssFilter(c.effect) }} />
+                      c.media.type === "video" && c.media.thumb === c.media.url ? (
+                        <video src={c.media.url} muted playsInline preload="metadata" className="w-full h-full object-cover pointer-events-none" style={{ filter: cssFilter(c.effect) }} />
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={c.media.thumb} alt="" className="w-full h-full object-cover pointer-events-none" style={{ filter: cssFilter(c.effect) }} />
+                      )
                     ) : c.loadingMedia ? <div className="w-full h-full flex items-center justify-center bg-black"><Loader2 className="w-4 h-4 animate-spin text-white/40" /></div> : <div className="w-full h-full bg-gradient-to-br from-violet-700 to-fuchsia-900" />}
                     <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[9px] font-bold bg-black/60 text-white px-1 rounded pointer-events-none">{c.seconds}s</span>
                     <span className="absolute top-0.5 left-1/2 -translate-x-1/2 text-[9px] font-bold text-white/80 pointer-events-none">{i + 1}</span>
