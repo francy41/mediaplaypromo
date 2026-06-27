@@ -4,8 +4,8 @@ import { toBlobURL } from "@ffmpeg/util";
 /**
  * Render client-side (ffmpeg.wasm) del montaje a MP4.
  * Single-thread core → no requiere cross-origin isolation.
- * Soporta: efectos/looks, recorte, narración (TTS o voz propia), música de fondo
- * y subtítulos quemados (overlay de PNG generado con canvas).
+ * Soporta: efectos/looks, Ken Burns, recorte, transiciones (fundido), narración
+ * (TTS o voz propia) con SINCRONÍA real texto↔audio, música de fondo y subtítulos quemados.
  */
 export interface RenderScene {
   seconds: number;
@@ -20,9 +20,11 @@ interface RenderOpts {
   customAudio?: Uint8Array; customAudioExt?: string;
   music?: Uint8Array; musicExt?: string; musicVol?: number;
   subtitles?: boolean;
+  transitions?: boolean; // fundido entrada/salida entre clips (default: true)
 }
 
 const DIMS: Record<string, [number, number]> = { "16:9": [1280, 720], "9:16": [720, 1280], "1:1": [720, 720] };
+const FD = 0.3; // duración del fundido (s)
 
 function effectFilter(effect?: string): string {
   switch (effect) {
@@ -36,8 +38,26 @@ function effectFilter(effect?: string): string {
     default: return "";
   }
 }
+function fadeSuffix(dur: number, on: boolean): string {
+  if (!on || dur <= 1) return "";
+  return `,fade=t=in:st=0:d=${FD},fade=t=out:st=${(dur - FD).toFixed(2)}:d=${FD}`;
+}
 
-/** Genera un PNG (W×H, transparente) con el subtítulo abajo. Usa canvas del navegador. */
+/** Mide la duración real de un audio (mp3) con la Web Audio API. 0 si falla. */
+async function audioDurationOf(bytes: Uint8Array): Promise<number> {
+  try {
+    const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AC) return 0;
+    const ctx = new AC();
+    const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+    const buf = await ctx.decodeAudioData(ab);
+    const d = buf.duration;
+    try { await ctx.close(); } catch { /* noop */ }
+    return d;
+  } catch { return 0; }
+}
+
+/** PNG (W×H, transparente) con el subtítulo abajo. Canvas del navegador. */
 function captionPng(text: string, W: number, H: number): Uint8Array {
   const c = document.createElement("canvas");
   c.width = W; c.height = H;
@@ -47,7 +67,6 @@ function captionPng(text: string, W: number, H: number): Uint8Array {
   ctx.font = `bold ${fontSize}px Arial, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
-  // wrap
   const maxW = W * 0.86;
   const words = text.trim().split(/\s+/);
   const lines: string[] = [];
@@ -60,11 +79,9 @@ function captionPng(text: string, W: number, H: number): Uint8Array {
   const lh = Math.round(fontSize * 1.3);
   const bottomPad = Math.round(H * 0.06);
   const startY = H - bottomPad - (lines.length - 1) * lh;
-  // caja semitransparente
   const boxTop = startY - fontSize - 10;
   ctx.fillStyle = "rgba(0,0,0,0.45)";
   ctx.fillRect(0, boxTop, W, H - boxTop);
-  // texto con sombra
   ctx.fillStyle = "#ffffff";
   ctx.shadowColor = "rgba(0,0,0,0.85)";
   ctx.shadowBlur = 4;
@@ -120,34 +137,60 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
   const baseVf = `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1,format=yuv420p`;
   const usable = scenes.filter((s) => s.media?.url);
   if (usable.length === 0) throw new Error("No hay escenas con clip para renderizar.");
+  const fadeOn = opts.transitions !== false;
+  const ttsMode = !!opts.ttsLang && !opts.customAudio;
 
+  // ── Pre-pass: si hay TTS, genera la voz y MIDE su duración real → cada escena
+  //    durará lo mismo que su locución (sincronía texto↔audio↔video perfecta).
+  const ttsCache: (Uint8Array | null)[] = [];
+  const effDur: number[] = [];
+  for (let i = 0; i < usable.length; i++) {
+    const s = usable[i];
+    let dur = Math.min(Math.max(Math.round(s.seconds) || 4, 2), 60);
+    if (ttsMode) {
+      const nar = (s.narration || "").trim();
+      if (nar) {
+        onProgress(`Generando narración ${i + 1}/${usable.length}…`, 4 + Math.round((i / usable.length) * 12));
+        const mp3 = await ttsBytes(nar, opts.ttsLang!, secret);
+        ttsCache[i] = mp3 && mp3.length > 200 ? mp3 : null;
+        if (ttsCache[i]) {
+          const d = await audioDurationOf(ttsCache[i]!);
+          if (d && isFinite(d) && d > 0.3) dur = Math.min(Math.max(d + 0.4, 1.5), 60);
+        }
+      } else ttsCache[i] = null;
+    }
+    effDur[i] = dur;
+  }
+
+  // ── Segmentos de video (duración = effDur, con efecto/Ken Burns/fundidos) ──
   const segs: string[] = [];
   for (let i = 0; i < usable.length; i++) {
     const s = usable[i];
-    const sec = Math.min(Math.max(Math.round(s.seconds) || 4, 2), 60);
-    onProgress(`Procesando escena ${i + 1}/${usable.length}…`, 5 + Math.round((i / usable.length) * 75));
+    const dur = effDur[i];
+    const t = dur.toFixed(2);
+    onProgress(`Procesando escena ${i + 1}/${usable.length}…`, 18 + Math.round((i / usable.length) * 62));
     const bytes = await loadBytes(s.media!.url, secret);
     const seg = `seg${i}.mp4`;
-    const fullVf = baseVf + effectFilter(s.effect);
+    const fade = fadeSuffix(dur, fadeOn);
+
     if (s.media!.type === "photo") {
       const fn = `img${i}.jpg`;
       await f.writeFile(fn, bytes);
-      // Ken Burns real (zoom progresivo) para el efecto "zoom"; resto = filtro normal.
       const vf = s.effect === "zoom"
-        ? `scale=${W * 2}:${H * 2}:force_original_aspect_ratio=increase,crop=${W * 2}:${H * 2},zoompan=z='min(zoom+0.0012,1.2)':d=${sec * 25}:s=${W}x${H}:fps=25,setsar=1,format=yuv420p`
-        : fullVf;
-      await f.exec(["-loop", "1", "-t", String(sec), "-i", fn, "-vf", vf, "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", seg]);
+        ? `scale=${W * 2}:${H * 2}:force_original_aspect_ratio=increase,crop=${W * 2}:${H * 2},zoompan=z='min(zoom+0.0012,1.2)':d=${Math.round(dur * 25)}:s=${W}x${H}:fps=25,setsar=1,format=yuv420p${fade}`
+        : baseVf + effectFilter(s.effect) + fade;
+      await f.exec(["-loop", "1", "-t", t, "-i", fn, "-vf", vf, "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", seg]);
       try { await f.deleteFile(fn); } catch { /* noop */ }
     } else {
       const fn = `in${i}.mp4`;
       await f.writeFile(fn, bytes);
       const start = Math.max(0, Math.round(s.startSec || 0));
       const pre = start > 0 ? ["-ss", String(start)] : [];
-      await f.exec(["-stream_loop", "-1", ...pre, "-i", fn, "-t", String(sec), "-an", "-vf", fullVf, "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", seg]);
+      await f.exec(["-stream_loop", "-1", ...pre, "-i", fn, "-t", t, "-an", "-vf", baseVf + effectFilter(s.effect) + fade, "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", seg]);
       try { await f.deleteFile(fn); } catch { /* noop */ }
     }
 
-    // Subtítulos quemados (overlay de PNG, best-effort)
+    // Subtítulo quemado (overlay PNG; -loop 1 + shortest → en todos los fotogramas)
     let finalSeg = seg;
     if (opts.subtitles && (s.narration || "").trim()) {
       try {
@@ -156,7 +199,6 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
           const cap = `cap${i}.png`;
           const segc = `segc${i}.mp4`;
           await f.writeFile(cap, png);
-          // -loop 1 + shortest=1 => el PNG se mantiene en TODOS los fotogramas hasta que acaba el clip.
           await f.exec(["-i", seg, "-loop", "1", "-i", cap, "-filter_complex", "[0:v][1:v]overlay=0:0:format=auto:shortest=1[o]", "-map", "[o]", "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", segc]);
           try { await f.deleteFile(cap); } catch { /* noop */ }
           try { await f.deleteFile(seg); } catch { /* noop */ }
@@ -171,7 +213,7 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
   await f.writeFile("list.txt", new TextEncoder().encode(segs.map((s) => `file ${s}`).join("\n")));
   await f.exec(["-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "out.mp4"]);
 
-  // ── Audio: voz (propia o TTS) + música de fondo ──
+  // ── Audio: voz (TTS sincronizado o tu MP3) + música de fondo ──
   let finalFile = "out.mp4";
   const aSegs: string[] = [];
   let voiceFile: string | null = null;
@@ -180,24 +222,18 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
     if (opts.customAudio && opts.customAudio.length > 100) {
       voiceFile = `voice.${opts.customAudioExt || "mp3"}`;
       await f.writeFile(voiceFile, opts.customAudio);
-    } else if (opts.ttsLang && usable.some((s) => (s.narration || "").trim())) {
-      onProgress("Generando narración…", 88);
+    } else if (ttsMode && ttsCache.some((b) => b)) {
+      onProgress("Montando narración…", 90);
       for (let i = 0; i < usable.length; i++) {
-        const s = usable[i];
-        const sec = Math.min(Math.max(Math.round(s.seconds) || 4, 2), 60);
+        const t = effDur[i].toFixed(2);
         const aseg = `a${i}.m4a`;
-        const narration = (s.narration || "").trim();
-        let made = false;
-        if (narration) {
-          const mp3 = await ttsBytes(narration, opts.ttsLang, secret);
-          if (mp3 && mp3.length > 200) {
-            await f.writeFile(`n${i}.mp3`, mp3);
-            await f.exec(["-i", `n${i}.mp3`, "-af", "apad", "-t", String(sec), "-ar", "44100", "-ac", "2", "-c:a", "aac", aseg]);
-            try { await f.deleteFile(`n${i}.mp3`); } catch { /* noop */ }
-            made = true;
-          }
+        if (ttsCache[i]) {
+          await f.writeFile(`n${i}.mp3`, ttsCache[i]!);
+          await f.exec(["-i", `n${i}.mp3`, "-af", "apad", "-t", t, "-ar", "44100", "-ac", "2", "-c:a", "aac", aseg]);
+          try { await f.deleteFile(`n${i}.mp3`); } catch { /* noop */ }
+        } else {
+          await f.exec(["-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100", "-t", t, "-c:a", "aac", aseg]);
         }
-        if (!made) await f.exec(["-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100", "-t", String(sec), "-c:a", "aac", aseg]);
         aSegs.push(aseg);
       }
       await f.writeFile("alist.txt", new TextEncoder().encode(aSegs.map((a) => `file ${a}`).join("\n")));
@@ -212,7 +248,7 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
     }
 
     if (voiceFile || musicFile) {
-      onProgress("Montando audio…", 95);
+      onProgress("Mezclando audio…", 95);
       if (voiceFile && musicFile) {
         await f.exec(["-i", "out.mp4", "-i", voiceFile, "-stream_loop", "-1", "-i", musicFile,
           "-filter_complex", `[2:a]volume=${VOL(opts.musicVol)}[m];[1:a][m]amix=inputs=2:duration=first:dropout_transition=2[a]`,
