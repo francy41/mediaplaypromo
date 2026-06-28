@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { KeyRound, Lock, Plus, Trash2, RefreshCw, Copy, Check, UserPlus, CalendarClock, Power } from "lucide-react";
+import { KeyRound, Lock, Plus, Trash2, RefreshCw, UserPlus, CalendarClock, Power, Eye, EyeOff } from "lucide-react";
 import { AdminShell, KPIGrid } from "@/components/admin/AdminShell";
 
 const SECRET_STORE = "mpp_license_admin_secret";
@@ -9,8 +9,8 @@ const SECRET_STORE = "mpp_license_admin_secret";
 interface Admin {
   id: string;
   name: string;
+  username: string;
   email: string | null;
-  code: string;
   active: boolean;
   createdAt: string;
 }
@@ -24,9 +24,10 @@ export default function PlannerAdminsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [msg, setMsg] = useState("");
-  const [copied, setCopied] = useState<string | null>(null);
   const [justCreated, setJustCreated] = useState<string | null>(null);
 
   const call = useCallback((sec: string, method: string, body?: unknown) =>
@@ -56,15 +57,23 @@ export default function PlannerAdminsPage() {
   }, [load]);
 
   const create = async () => {
-    if (!name.trim()) { setMsg("Escribe un nombre."); return; }
+    if (!username.trim() || !password.trim()) { setMsg("Escribe usuario y contraseña."); return; }
     setMsg("Creando…");
-    const r = await call(secret, "POST", { action: "create", name, email });
+    const r = await call(secret, "POST", { action: "create", name, username, password });
     const d = await r.json();
     if (d.ok && d.admin) {
-      setMsg(""); setName(""); setEmail("");
+      setMsg("✅ Administrador creado"); setName(""); setUsername(""); setPassword("");
       setJustCreated(d.admin.id);
       load(secret);
     } else setMsg(`⚠️ ${d.error || "No se pudo crear"}`);
+  };
+
+  const changePassword = async (a: Admin) => {
+    const pw = prompt(`Nueva contraseña para "${a.username}":`);
+    if (!pw) return;
+    const r = await call(secret, "POST", { action: "password", id: a.id, password: pw });
+    const d = await r.json();
+    alert(d.ok ? "✅ Contraseña actualizada" : `⚠️ ${d.error || "Error"}`);
   };
 
   const toggle = async (a: Admin) => {
@@ -73,13 +82,9 @@ export default function PlannerAdminsPage() {
   };
 
   const remove = async (a: Admin) => {
-    if (!confirm(`¿Eliminar al administrador "${a.name}"? Su código dejará de funcionar.`)) return;
+    if (!confirm(`¿Eliminar al administrador "${a.username}"? No podrá volver a entrar.`)) return;
     await call(secret, "POST", { action: "remove", id: a.id });
     load(secret);
-  };
-
-  const copy = async (code: string) => {
-    try { await navigator.clipboard.writeText(code); setCopied(code); setTimeout(() => setCopied(null), 1500); } catch {}
   };
 
   const activeCount = admins.filter((a) => a.active).length;
@@ -87,7 +92,7 @@ export default function PlannerAdminsPage() {
   return (
     <AdminShell
       title="Admins del Planificador"
-      description="Crea administradores con acceso gratis al Planificador y a sus propias cuentas GHL."
+      description="Crea administradores con usuario y contraseña: acceso gratis al Planificador y a sus propias cuentas GHL."
       icon={KeyRound}
       iconGradient="from-pink-500 to-violet-600"
       status="live"
@@ -120,15 +125,19 @@ export default function PlannerAdminsPage() {
           {/* Crear admin */}
           <div className="glass-card rounded-2xl border border-violet-500/25 bg-violet-500/[0.03] p-5">
             <h3 className="flex items-center gap-2 text-white font-bold text-sm mb-3"><UserPlus className="w-4 h-4 text-violet-400" /> Crear administrador</h3>
-            <div className="grid sm:grid-cols-2 gap-2 mb-2">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre (ej. Cliente A)" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/40" />
-              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (opcional)" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/40" />
+            <div className="grid sm:grid-cols-3 gap-2 mb-2">
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre (opcional)" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/40" />
+              <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Usuario *" autoComplete="off" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/40" />
+              <div className="relative">
+                <input value={password} onChange={(e) => setPassword(e.target.value)} type={showPw ? "text" : "password"} placeholder="Contraseña *" autoComplete="new-password" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 pr-9 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/40" />
+                <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70">{showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
+              </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <button onClick={create} className="inline-flex items-center gap-1.5 bg-gradient-to-r from-pink-500 to-violet-600 text-white text-xs font-bold px-4 py-2 rounded-lg shadow shadow-violet-500/30"><Plus className="w-3.5 h-3.5" /> Crear y generar código</button>
+              <button onClick={create} className="inline-flex items-center gap-1.5 bg-gradient-to-r from-pink-500 to-violet-600 text-white text-xs font-bold px-4 py-2 rounded-lg shadow shadow-violet-500/30"><Plus className="w-3.5 h-3.5" /> Crear administrador</button>
               {msg && <span className="text-xs text-white/70">{msg}</span>}
             </div>
-            <p className="text-white/35 text-[10px] mt-2">Se genera un código <b>ADM-XXXX-XXXX</b>. Dáselo al cliente: lo pega en el Planificador → <b>Acceso administrador</b>. Tendrá su propio espacio aislado para conectar sus cuentas GHL y programar videos, gratis.</p>
+            <p className="text-white/35 text-[10px] mt-2">Dale el <b>usuario y la contraseña</b> a tu cliente. Entra en el Planificador → <b>Acceso administrador</b>, los introduce y tendrá su propio espacio aislado para conectar sus cuentas GHL y programar videos, gratis.</p>
           </div>
 
           {/* Lista de admins */}
@@ -138,7 +147,7 @@ export default function PlannerAdminsPage() {
                 <thead>
                   <tr className="border-b border-white/8 text-white/45 text-[10px] uppercase tracking-wider">
                     <th className="text-left font-bold px-4 py-3">Administrador</th>
-                    <th className="text-left font-bold px-4 py-3">Código de acceso</th>
+                    <th className="text-left font-bold px-4 py-3">Usuario</th>
                     <th className="text-left font-bold px-4 py-3">Estado</th>
                     <th className="text-left font-bold px-4 py-3">Creado</th>
                     <th className="text-right font-bold px-4 py-3"></th>
@@ -152,12 +161,7 @@ export default function PlannerAdminsPage() {
                         {a.email && <span className="text-white/40 text-[11px] block">{a.email}</span>}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="inline-flex items-center gap-1.5">
-                          <code className="text-cyan-300 font-mono text-xs bg-white/5 border border-white/10 rounded px-2 py-1">{a.code}</code>
-                          <button onClick={() => copy(a.code)} className="text-white/45 hover:text-white/80" title="Copiar">
-                            {copied === a.code ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
+                        <code className="text-cyan-300 font-mono text-xs bg-white/5 border border-white/10 rounded px-2 py-1">{a.username}</code>
                       </td>
                       <td className="px-4 py-3">
                         <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${a.active ? "bg-green-500/15 text-green-400 border border-green-500/30" : "bg-white/8 text-white/40 border border-white/15"}`}>
@@ -166,10 +170,13 @@ export default function PlannerAdminsPage() {
                       </td>
                       <td className="px-4 py-3 text-white/55 text-xs">{a.createdAt ? new Date(a.createdAt).toLocaleDateString() : "—"}</td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <button onClick={() => changePassword(a)} className="inline-flex items-center gap-1 bg-white/5 hover:bg-cyan-500/15 border border-white/10 hover:border-cyan-500/30 text-white/60 hover:text-cyan-300 text-[11px] px-2.5 py-1.5 rounded-lg transition-colors mr-1.5" title="Cambiar contraseña">
+                          <KeyRound className="w-3.5 h-3.5" />
+                        </button>
                         <button onClick={() => toggle(a)} className={`inline-flex items-center gap-1 border text-[11px] px-2.5 py-1.5 rounded-lg transition-colors mr-1.5 ${a.active ? "bg-white/5 hover:bg-amber-500/15 border-white/10 hover:border-amber-500/30 text-white/60 hover:text-amber-300" : "bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 text-emerald-300"}`} title={a.active ? "Suspender" : "Reactivar"}>
                           <Power className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => remove(a)} className="inline-flex items-center gap-1 bg-white/5 hover:bg-red-500/15 border border-white/10 hover:border-red-500/30 text-white/60 hover:text-red-300 text-[11px] px-2.5 py-1.5 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => remove(a)} className="inline-flex items-center gap-1 bg-white/5 hover:bg-red-500/15 border border-white/10 hover:border-red-500/30 text-white/60 hover:text-red-300 text-[11px] px-2.5 py-1.5 rounded-lg transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
                       </td>
                     </tr>
                   ))}

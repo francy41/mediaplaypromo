@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listAdmins, createAdmin, setAdminActive, removeAdmin } from "@/lib/planner-admins";
+import { listAdmins, createAdmin, setAdminActive, setAdminPassword, removeAdmin } from "@/lib/planner-admins";
 
 export const runtime = "nodejs";
 
 /**
  * Gestión de administradores del Planificador. SOLO SuperAdmin.
- * Header: x-admin-secret == LICENSE_ADMIN_SECRET (el código de un admin NO sirve aquí).
- *   GET                                  → { admins: [...] }
- *   POST { action: "create", name, email? } → { ok, admin }
- *   POST { action: "toggle", id, active }   → { ok }
- *   POST { action: "remove", id }           → { ok }
+ * Header: x-admin-secret == LICENSE_ADMIN_SECRET.
+ *   GET                                                  → { admins: [...] }
+ *   POST { action: "create", name?, username, password, email? } → { ok, admin }
+ *   POST { action: "password", id, password }            → { ok }
+ *   POST { action: "toggle", id, active }                → { ok }
+ *   POST { action: "remove", id }                        → { ok }
  */
 function isSuper(req: NextRequest): boolean {
   const secret = process.env.LICENSE_ADMIN_SECRET;
@@ -27,7 +28,11 @@ export async function POST(req: NextRequest) {
   const action = body?.action;
 
   if (action === "create") {
-    const r = await createAdmin({ name: body.name, email: body.email });
+    const r = await createAdmin({ name: body.name, username: body.username, password: body.password, email: body.email });
+    return NextResponse.json(r, { status: r.ok ? 200 : 400 });
+  }
+  if (action === "password") {
+    const r = await setAdminPassword(String(body.id ?? ""), String(body.password ?? ""));
     return NextResponse.json(r, { status: r.ok ? 200 : 400 });
   }
   if (action === "toggle") {

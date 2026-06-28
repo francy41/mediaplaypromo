@@ -45,7 +45,8 @@ const PLATFORMS = ["instagram", "facebook", "youtube", "tiktok", "linkedin"];
 
 export default function ContentPlannerPage() {
   const [secret, setSecret] = useState("");
-  const [input, setInput] = useState("");
+  const [loginUser, setLoginUser] = useState("");
+  const [loginPass, setLoginPass] = useState("");
   const [authed, setAuthed] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [role, setRole] = useState<"super" | "admin" | null>(null);
@@ -107,6 +108,22 @@ export default function ContentPlannerPage() {
     const t = setTimeout(() => load(s), 0);
     return () => clearTimeout(t);
   }, [load]);
+
+  const doLogin = async () => {
+    if (!loginUser.trim() || !loginPass.trim()) { setError("Escribe usuario y contraseña."); return; }
+    setError(null);
+    try {
+      const r = await fetch("/api/planner-auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: loginUser.trim(), password: loginPass }),
+      });
+      const d = await r.json();
+      if (!d.ok || !d.token) { setError(d.error || "Usuario o contraseña incorrectos."); return; }
+      setLoginPass("");
+      load(d.token);
+    } catch { setError("Error de conexión."); }
+  };
 
   const addVideos = async () => {
     const urls = bulk.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -252,9 +269,10 @@ export default function ContentPlannerPage() {
           <div className="glass-card rounded-2xl border border-white/10 p-8 max-w-md mx-auto text-center">
             <div className="inline-flex w-14 h-14 rounded-2xl bg-pink-500/15 border border-pink-500/30 items-center justify-center mb-4"><Lock className="w-7 h-7 text-pink-400" /></div>
             <h2 className="text-white font-bold text-lg mb-1">Acceso administrador</h2>
-            <p className="text-white/50 text-sm mb-5">Introduce tu secreto de SuperAdmin o tu código de administrador (ADM-…).</p>
-            <form onSubmit={(e) => { e.preventDefault(); if (input.trim()) load(input.trim()); }} className="space-y-3">
-              <input type="password" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Secreto o código de admin" className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-pink-500/40" />
+            <p className="text-white/50 text-sm mb-5">Introduce el usuario y la contraseña que te dieron.</p>
+            <form onSubmit={(e) => { e.preventDefault(); doLogin(); }} className="space-y-3">
+              <input type="text" value={loginUser} onChange={(e) => setLoginUser(e.target.value)} placeholder="Usuario" autoComplete="username" className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-pink-500/40" />
+              <input type="password" value={loginPass} onChange={(e) => setLoginPass(e.target.value)} placeholder="Contraseña" autoComplete="current-password" className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-pink-500/40" />
               {error && <p className="text-red-400 text-xs">{error}</p>}
               <button type="submit" className="shine-btn w-full bg-gradient-to-r from-pink-500 to-violet-600 text-white font-bold text-sm px-5 py-3 rounded-xl shadow-lg shadow-pink-500/30">Entrar</button>
             </form>
