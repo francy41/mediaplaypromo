@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { CalendarClock, Lock, Plus, Trash2, RefreshCw, Send, Film, Wand2, UploadCloud, Loader2, Repeat2, RotateCcw, Sparkles, Building2, Plug, Crown, Check } from "lucide-react";
+import Link from "next/link";
+import { CalendarClock, Lock, Plus, Trash2, RefreshCw, Send, Film, Wand2, UploadCloud, Loader2, Repeat2, RotateCcw, Sparkles, Building2, Plug, Crown, Check, KeyRound } from "lucide-react";
 import { AdminShell, KPIGrid } from "@/components/admin/AdminShell";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -47,6 +48,7 @@ export default function ContentPlannerPage() {
   const [input, setInput] = useState("");
   const [authed, setAuthed] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [role, setRole] = useState<"super" | "admin" | null>(null);
   const [ghlEnabled, setGhlEnabled] = useState(false);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(false);
@@ -90,7 +92,7 @@ export default function ContentPlannerPage() {
       const r = await call(sec, "GET");
       if (r.status === 401) { setAuthed(false); try { localStorage.removeItem(SECRET_STORE); } catch {} setError("Secreto incorrecto."); return; }
       const d = await r.json();
-      setPosts(d.posts ?? []); setGhlEnabled(!!d.ghlEnabled); setSecret(sec); setAuthed(true);
+      setPosts(d.posts ?? []); setGhlEnabled(!!d.ghlEnabled); setRole(d.role ?? null); setSecret(sec); setAuthed(true);
       const projs: GhlProj[] = d.projects ?? [];
       setProjects(projs);
       setActiveProject((cur) => (cur && projs.some((p) => p.id === cur)) ? cur : (projs[0]?.id ?? ""));
@@ -101,7 +103,9 @@ export default function ContentPlannerPage() {
 
   useEffect(() => {
     let s = ""; try { s = localStorage.getItem(SECRET_STORE) ?? ""; } catch {}
-    if (s) load(s);
+    if (!s) return;
+    const t = setTimeout(() => load(s), 0);
+    return () => clearTimeout(t);
   }, [load]);
 
   const addVideos = async () => {
@@ -231,9 +235,16 @@ export default function ContentPlannerPage() {
       status="live"
       breadcrumb={[{ label: "Planificador" }]}
       actions={authed && (
-        <button onClick={() => load(secret)} className="inline-flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors">
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Actualizar
-        </button>
+        <>
+          {role === "super" && (
+            <Link href="/admin/planner-admins" className="inline-flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors">
+              <KeyRound className="w-3.5 h-3.5 text-pink-400" /> Administradores
+            </Link>
+          )}
+          <button onClick={() => load(secret)} className="inline-flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Actualizar
+          </button>
+        </>
       )}
     >
       {!authed ? (
@@ -241,9 +252,9 @@ export default function ContentPlannerPage() {
           <div className="glass-card rounded-2xl border border-white/10 p-8 max-w-md mx-auto text-center">
             <div className="inline-flex w-14 h-14 rounded-2xl bg-pink-500/15 border border-pink-500/30 items-center justify-center mb-4"><Lock className="w-7 h-7 text-pink-400" /></div>
             <h2 className="text-white font-bold text-lg mb-1">Acceso administrador</h2>
-            <p className="text-white/50 text-sm mb-5">Introduce el secreto de administrador.</p>
+            <p className="text-white/50 text-sm mb-5">Introduce tu secreto de SuperAdmin o tu código de administrador (ADM-…).</p>
             <form onSubmit={(e) => { e.preventDefault(); if (input.trim()) load(input.trim()); }} className="space-y-3">
-              <input type="password" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Secreto de admin" className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-pink-500/40" />
+              <input type="password" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Secreto o código de admin" className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-pink-500/40" />
               {error && <p className="text-red-400 text-xs">{error}</p>}
               <button type="submit" className="shine-btn w-full bg-gradient-to-r from-pink-500 to-violet-600 text-white font-bold text-sm px-5 py-3 rounded-xl shadow-lg shadow-pink-500/30">Entrar</button>
             </form>

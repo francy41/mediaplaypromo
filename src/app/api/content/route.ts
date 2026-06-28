@@ -2,17 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { createGHLSocialPost, postToGHL, resolveAccountIds, resolveGHLUserId, getGHLAccounts } from "@/lib/ghl-social";
 import { getGhlConn, listGhlProjectsSafe, type GhlConn } from "@/lib/ghl-projects";
+import { resolveOwner } from "@/lib/planner-admins";
 
 export const maxDuration = 60;
 
 const MAX_BATCH = 40;
 const THROTTLE_MS = 250;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-function authed(req: NextRequest): boolean {
-  const secret = process.env.LICENSE_ADMIN_SECRET;
-  return !!secret && req.headers.get("x-admin-secret") === secret;
-}
 
 type GhlResult = { ok: boolean; postId?: string; error?: string };
 
@@ -52,29 +48,32 @@ async function pushWithGroups(post: { caption: string | null; video_url: string 
 }
 
 export async function GET(req: NextRequest) {
-  if (!authed(req)) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const owner = await resolveOwner(req.headers.get("x-admin-secret"));
+  if (!owner) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
     const admin = createSupabaseAdminClient();
     const { data, error } = await admin
       .from("content_posts")
       .select("*")
+      .eq("owner_id", owner.ownerId)
       .order("scheduled_at", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false })
       .limit(500);
-    const projects = await listGhlProjectsSafe();
-    return NextResponse.json({ posts: error ? [] : data ?? [], projects, ghlEnabled: projects.length > 0, error: error?.message });
+    const projects = await listGhlProjectsSafe(owner.ownerId);
+    return NextResponse.json({ posts: error ? [] : data ?? [], projects, ghlEnabled: projects.length > 0, role: owner.role, name: owner.name, error: error?.message });
   } catch {
     return NextResponse.json({ posts: [], projects: [], ghlEnabled: false });
   }
 }
 
 export async function POST(req: NextRequest) {
-  if (!authed(req)) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const owner = await resolveOwner(req.headers.get("x-admin-secret"));
+  if (!owner) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const action = body?.action;
   const admin = createSupabaseAdminClient();
-  // Conexión GHL del proyecto seleccionado (o env por defecto)
-  const conn = await getGhlConn(body?.projectId);
+  // Conexión GHL del proyecto seleccionado (aislada por owner; env solo para super)
+  const conn = await getGhlConn(body?.projectId, owner.ownerId);
 
   try {
     if (action === "add") {
@@ -88,6 +87,7 @@ export async function POST(req: NextRequest) {
           title: v.title?.trim() || null,
           caption: v.caption?.trim() || null,
           status: "queued",
+          owner_id: owner.ownerId,
         }));
       if (rows.length === 0) return NextResponse.json({ error: "Falta la URL del video" }, { status: 400 });
       const { error } = await admin.from("content_posts").insert(rows);
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "delete") {
-      const { error } = await admin.from("content_posts").delete().eq("id", body.id);
+      const { error } = await admin.from("content_posts").delete().eq("id", body.id).eq("owner_id", owner.ownerId);
       return NextResponse.json({ ok: !error });
     }
 
@@ -108,16 +108,16 @@ export async function POST(req: NextRequest) {
 
     if (action === "clear") {
       const scope = body.scope === "all" ? null : "failed";
-      const q = admin.from("content_posts").delete();
-      const { error } = scope ? await q.eq("status", scope) : await q.neq("id", "00000000-0000-0000-0000-000000000000");
+      const q = admin.from("content_posts").delete().eq("owner_id", owner.ownerId);
+      const { error } = scope ? await q.eq("status", scope) : await q;
       return NextResponse.json({ ok: !error, error: error?.message });
     }
 
     if (action === "schedule") {
-      const { data: post } = await admin.from("content_posts").select("caption,video_url").eq("id", body.id).maybeSingle();
+      const { data: post } = await admin.from("content_posts").select("caption,video_url").eq("id", body.id).eq("owner_id", owner.ownerId).maybeSingle();
       if (!post) return NextResponse.json({ error: "Post no encontrado" }, { status: 404 });
       const upd = await pushAndStatus(post, body.scheduled_at, body.platforms ?? [], conn);
-      const { error } = await admin.from("content_posts").update(upd).eq("id", body.id);
+      const { error } = await admin.from("content_posts").update(upd).eq("id", body.id).eq("owner_id", owner.ownerId);
       return NextResponse.json({ ok: !error, status: upd.status, error: upd.error });
     }
 
@@ -125,6 +125,7 @@ export async function POST(req: NextRequest) {
       const { data: queued } = await admin
         .from("content_posts")
         .select("id,caption,video_url")
+        .eq("owner_id", owner.ownerId)
         .eq("status", "queued")
         .order("created_at", { ascending: true });
       const list = queued ?? [];
@@ -148,7 +149,7 @@ export async function POST(req: NextRequest) {
         d.setDate(d.getDate() + i);
         d.setHours(hh || 10, mm || 0, 0, 0);
         const upd = await pushWithGroups(list[i], d.toISOString(), platforms, groups, conn);
-        await admin.from("content_posts").update(upd).eq("id", list[i].id);
+        await admin.from("content_posts").update(upd).eq("id", list[i].id).eq("owner_id", owner.ownerId);
         scheduled++;
         if (conn && i < list.length - 1) await sleep(THROTTLE_MS);
       }
@@ -159,6 +160,7 @@ export async function POST(req: NextRequest) {
       const { data: queued } = await admin
         .from("content_posts")
         .select("id,caption,video_url,title")
+        .eq("owner_id", owner.ownerId)
         .eq("status", "queued")
         .order("created_at", { ascending: true });
       const list = queued ?? [];
@@ -195,9 +197,9 @@ export async function POST(req: NextRequest) {
         const isoDate = d.toISOString();
         const upd = await pushWithGroups(template, isoDate, platforms, groups, conn);
         if (i < list.length) {
-          await admin.from("content_posts").update(upd).eq("id", template.id);
+          await admin.from("content_posts").update(upd).eq("id", template.id).eq("owner_id", owner.ownerId);
         } else {
-          toInsert.push({ video_url: template.video_url, caption: template.caption, title: template.title, ...upd });
+          toInsert.push({ video_url: template.video_url, caption: template.caption, title: template.title, owner_id: owner.ownerId, ...upd });
         }
         scheduled++;
         if (conn && i < totalDays - 1) await sleep(THROTTLE_MS);
@@ -217,7 +219,7 @@ export async function POST(req: NextRequest) {
     if (action === "recycle") {
       const { error } = await admin.from("content_posts").update({
         status: "queued", scheduled_at: null, platforms: [], ghl_post_id: null, error: null,
-      }).eq("status", "published");
+      }).eq("status", "published").eq("owner_id", owner.ownerId);
       return NextResponse.json({ ok: !error, error: error?.message });
     }
 
