@@ -1,25 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
+import { resolveOwner } from "@/lib/planner-admins";
 
 const BUCKET = "content-videos";
 
-function authed(req: NextRequest): boolean {
-  const secret = process.env.LICENSE_ADMIN_SECRET;
-  return !!secret && req.headers.get("x-admin-secret") === secret;
-}
-
 /**
- * POST /api/content/upload-url   Header: x-admin-secret
+ * POST /api/content/upload-url   Header: x-admin-secret (master o código de admin)
  * Devuelve una URL firmada para subir un video directo a Supabase Storage
  * (evita el límite de tamaño del servidor). Body: { filename }
  */
 export async function POST(req: NextRequest) {
-  if (!authed(req)) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const owner = await resolveOwner(req.headers.get("x-admin-secret"));
+  if (!owner) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const { filename } = await req.json().catch(() => ({}));
   if (!filename) return NextResponse.json({ error: "Falta filename" }, { status: 400 });
 
   const safe = String(filename).replace(/[^a-zA-Z0-9._-]/g, "_").slice(-80);
-  const path = `${Date.now()}-${safe}`;
+  const path = `${owner.ownerId}/${Date.now()}-${safe}`;
 
   try {
     const admin = createSupabaseAdminClient();
