@@ -5,26 +5,26 @@ import { CalendarClock, Lock, Plus, Trash2, RefreshCw, Send, Film, Wand2, Upload
 import { AdminShell, KPIGrid } from "@/components/admin/AdminShell";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
-const SALES_LINK = "https://mediaplaypromo.com/categories/editor-video/yf-auto-clip-v1";
+const SALES_LINK = "https://yfsportshop.com/";
 // Contacto para activar la Marca Blanca del Planificador (cliente). Cambiable.
 const WHITELABEL_CONTACT = "mailto:ventas@mediaplaypromo.com?subject=Quiero%20la%20Marca%20Blanca%20de%20MediaPlayPromo%20(100%E2%82%AC%2Fmes)";
 
 const CAPTION_TEMPLATES = [
   {
     label: "🎬 Reels / TikTok",
-    text: `¿Sigues editando videos uno por uno? 😵‍💫\n\nProcesa 100 clips en menos de 1 hora con YF Auto Clip ⚡\n\n✅ Audio replace masivo en segundos\n✅ Corte automático de clips\n✅ Convierte formatos al instante\n✅ 100% local — sin subir nada a la nube\n\n+2,800 creadores en LATAM ya ahorra horas cada semana 🔥\n\n🔗 Consíguelo aquí 👇\n${SALES_LINK}\n\n#edicióndevideo #creadordecontenido #automatización #YFAutoClip #videoedit #contentcreator #reels #tiktokedit #productividad #marketingdigital #herramientasdigitales #youtubetips #videocontent #emprendedores #workflow`,
+    text: `👟🔥 Zapatillas y ropa de marca 100% originales en YF Sport Shop\n\nLo último de Nike, Adidas y Jordan al mejor precio 💸\n\n✅ Originales garantizados\n✅ Envíos a todo el país 📦\n✅ Nuevos modelos cada semana\n✅ Pago seguro y fácil\n\n💰 ¿Quieres ganar dinero? Hazte afiliado y cobra comisión por cada venta que traigas 🤝\n\n🛒 Compra o únete como afiliado 👇\n${SALES_LINK}\n\n#zapatillas #sneakers #Nike #Adidas #Jordan #ropadedemarca #streetwear #moda #ofertas #afiliados #ganardinero #emprende`,
   },
   {
     label: "📸 Instagram",
-    text: `Hace 3 meses tardaba 6 horas editando 20 videos. Ahora tardo 45 minutos para 100. 🤯\n\nLa diferencia: YF Auto Clip.\n\nUna sola herramienta que automatiza todo:\n🎬 Audio replace en lote\n✂️ Corte y recorte al segundo\n🔄 Conversión de formatos\n💻 Todo en tu PC, sin internet\n\nSin suscripciones. Sin cuentas cloud. Sin complicaciones.\n\n¿Quieres recuperar tu tiempo? 👇\n${SALES_LINK}\n\n#creadordecontenido #edicióndevideo #YFAutoClip #productividad #automatización #youtubetips #videocreator #contentcreator #herramientasdigitales #emprendimientodigital #reels #shortvideo #videoedit #workflow`,
+    text: `El drip correcto lo cambia todo. 👟🔥\n\nEn YF Sport Shop tienes Nike, Adidas y Jordan originales, nuevos modelos cada semana y envíos a todo el país 📦\n\n✅ 100% originales\n✅ Mejor precio\n✅ Pago seguro\n\nY si te encanta la moda… conviértela en ingresos 💰 Únete a nuestro programa de afiliados y gana comisión revendiendo lo que ya amas.\n\n🛒 Compra o hazte afiliado 👇\n${SALES_LINK}\n\n#sneakers #ropadedemarca #Nike #Adidas #Jordan #outfit #streetwear #moda #afiliados #negocio #emprendimiento #reseller`,
   },
   {
     label: "▶️ YouTube",
-    text: `🔥 YF Auto Clip — Edita 100 videos en 1 hora\n\n¿Cuántas horas pierdes cada semana editando manualmente? Con YF Auto Clip automatizas la edición masiva de videos sin experiencia previa.\n\n⚡ QUÉ PUEDES HACER:\n• Audio replace automático en lote\n• Corte y recorte de clips al segundo exacto\n• Conversión de formatos (MP4, MOV, WebM y más)\n• 100% local — privacidad total, sin subir a servidores externos\n\n📊 RESULTADOS REALES:\n• Ahorra entre 3-8 horas de trabajo por semana\n• Procesa 100+ videos en menos de 1 hora\n• Más de 2,800 creadores en toda Latinoamérica ya lo usan\n\n💰 OBTÉN YF AUTO CLIP:\n${SALES_LINK}\n\n━━━━━━━━━━━━━━━━━━━━━━━━\n🔔 Suscríbete para más herramientas de productividad para creadores\n━━━━━━━━━━━━━━━━━━━━━━━━\n\n#YFAutoClip #edicióndevideo #automatización #creadordecontenido #productividad`,
+    text: `👟 YF Sport Shop — Zapatillas y ropa de marca originales al mejor precio\n\nEncuentra Nike, Adidas, Jordan y las últimas tendencias con envíos a todo el país y pago 100% seguro.\n\n✅ Productos originales garantizados\n✅ Nuevos modelos cada semana\n✅ Envíos rápidos\n\n💼 PROGRAMA DE AFILIADOS: gana comisión por cada venta que refieras. Ideal si tienes redes, comunidad o simplemente quieres emprender. Únete gratis.\n\n🛒 Comprar / Hacerme afiliado:\n${SALES_LINK}\n\n#zapatillas #sneakers #Nike #Adidas #Jordan #moda #afiliados #emprender #negociodigital`,
   },
   {
     label: "⏰ Urgencia / CTA",
-    text: `⏰ ¿Cuánto tiempo más vas a perder editando videos a mano?\n\nLa realidad: editar 20 videos manualmente = 4-6 horas de tu vida.\nCon YF Auto Clip: 20 videos = 12 minutos. ⚡\n\n🎯 Audio replace masivo\n🎯 Corte automático de clips\n🎯 Conversión de formatos\n🎯 Sin suscripciones ni cloud\n\n+2,800 creadores ya lo tienen. ¿Cuándo lo consigues tú?\n\n👉 PRECIO ESPECIAL:\n${SALES_LINK}\n\nCódigo de descuento: YFAUTOCLIP 🎁\n\n#YFAutoClip #edicióndevideo #herramientasdigitales #creadordecontenido #automatización #productividad #contentcreator #videoedit #emprendedoreslatinos #marketingdigital #reels #tiktok #youtube #workflow`,
+    text: `⏰ Se agotan rápido… ¿te vas a quedar sin tu talla? 👟\n\nYF Sport Shop — Nike, Adidas y Jordan originales al mejor precio. Nuevos modelos cada semana.\n\n🔥 Oferta por tiempo limitado\n✅ Originales garantizados\n✅ Envíos a todo el país\n\n💰 Gana dinero con nosotros: hazte afiliado y cobra comisión por cada venta.\n\n👉 Compra ya o únete como afiliado:\n${SALES_LINK}\n\n#ofertas #zapatillas #sneakers #Nike #Adidas #Jordan #afiliados #ganardinero #emprende`,
   },
 ];
 
@@ -444,7 +444,7 @@ export default function ContentPlannerPage() {
                 placeholder="Escribe o selecciona un template de marketing arriba..."
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-cyan-500/40 resize-y leading-relaxed"
               />
-              <p className="text-white/30 text-[10px] mt-1">💡 Los templates incluyen copy optimizado + hashtags + enlace de ventas para YF Auto Clip</p>
+              <p className="text-white/30 text-[10px] mt-1">💡 Los templates incluyen copy optimizado + hashtags + enlace de ventas de YF Sport Shop</p>
             </div>
             <button onClick={addVideos} className="mt-3 inline-flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-bold px-4 py-2 rounded-lg shadow shadow-cyan-500/30"><Plus className="w-3.5 h-3.5" /> Añadir a la cola</button>
           </div>
