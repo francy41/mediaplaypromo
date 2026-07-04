@@ -437,6 +437,24 @@ export default function EditorPage() {
     updateClip(id, { media: pick, loadingMedia: false });
   };
 
+  // Rellena todos los clips vacíos con stock (prueba las fuentes; archive/wikimedia son gratis y siempre responden).
+  const fillMissing = async () => {
+    const missing = clips.filter((c) => !c.media);
+    if (missing.length === 0) { setFlash("No hay clips vacíos."); setTimeout(() => setFlash(""), 1600); return; }
+    const ori = orientationFor(aspect);
+    for (const c of missing) {
+      updateClip(c.id, { loadingMedia: true });
+      const q = c.query || c.visual || "cinematic background";
+      let cands = await sceneMedia(q, c.visual || q, ori);
+      if (cands.length === 0) cands = await pexels(q, "video", ori);
+      if (cands.length === 0) cands = await pixabay(q, "video", ori);
+      if (cands.length === 0) cands = await archive(q);
+      if (cands.length === 0) cands = await wikimedia(q);
+      updateClip(c.id, { media: cands[0], loadingMedia: false });
+    }
+    setFlash("✓ Clips vacíos rellenados"); setTimeout(() => setFlash(""), 2500);
+  };
+
   /* ── Voz / preview (Google TTS gratis) ── */
   const speak = useCallback(async (text: string) => {
     if (!voice || !text?.trim()) return;
@@ -892,6 +910,12 @@ export default function EditorPage() {
                 </div>
               </div>
               <div className="flex items-center justify-between text-xs"><span className="text-white/55">Duración</span><span className="text-white font-bold">{totalSec}s</span></div>
+
+              {clips.some((c) => !c.media && !c.loadingMedia) && (
+                <button onClick={fillMissing} className="w-full inline-flex items-center justify-center gap-1.5 bg-amber-500/15 border border-amber-500/30 text-amber-200 text-[11px] font-bold px-3 py-2 rounded-lg hover:bg-amber-500/25">
+                  <RefreshCw className="w-3.5 h-3.5" /> Rellenar {clips.filter((c) => !c.media && !c.loadingMedia).length} clip(s) vacío(s)
+                </button>
+              )}
 
               <div className="flex gap-2 pt-1">
                 <button onClick={() => (previewIndex >= 0 ? stopPreview() : setPreviewIndex(0))} className="flex-1 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-bold px-3 py-2 rounded-lg">
