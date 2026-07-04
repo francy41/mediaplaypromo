@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get("q") || "").trim();
   const srcParam = searchParams.get("source") || "";
-  const source = ["archive", "wikimedia", "pixabay"].includes(srcParam) ? srcParam : "pexels";
+  const source = ["archive", "wikimedia", "pixabay", "coverr"].includes(srcParam) ? srcParam : "pexels";
   const type = searchParams.get("type") === "video" ? "video" : "photo";
   const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
   if (!q) return NextResponse.json({ results: [], page });
@@ -81,6 +81,32 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ results, page });
     } catch (e) {
       return NextResponse.json({ results: [], error: e instanceof Error ? e.message : "Error Wikimedia" });
+    }
+  }
+
+  /* ── Coverr — videos cinematográficos gratis (uso comercial, sin atribución) ── */
+  if (source === "coverr") {
+    const cv = await getIntegration("coverr");
+    if (!cv?.apiKey) return NextResponse.json({ results: [], error: "Conecta tu clave de Coverr en Integraciones / APIs (proveedor: coverr)." });
+    const cbase = (cv.baseUrl || "https://api.coverr.co").replace(/\/+$/, "");
+    try {
+      const sr = await fetch(`${cbase}/videos?query=${encodeURIComponent(q)}&page_size=12&page=${Math.max(0, page - 1)}&api_key=${cv.apiKey}`, { cache: "no-store" });
+      const sd = await sr.json().catch(() => ({} as Record<string, unknown>)) as { hits?: Array<{ id?: string; poster?: string; thumbnail?: string }> };
+      if (!sr.ok) return NextResponse.json({ results: [], error: `Coverr error ${sr.status}` });
+      const hits = (sd.hits || []).filter((h) => h.id).slice(0, 12);
+      const details = await Promise.all(hits.map(async (h) => {
+        try {
+          const dr = await fetch(`${cbase}/videos/${h.id}?api_key=${cv.apiKey}`, { cache: "no-store" });
+          const dd = await dr.json().catch(() => ({} as Record<string, unknown>)) as { urls?: { mp4?: string; mp4_preview?: string }; poster?: string; thumbnail?: string; duration?: number; max_width?: number; max_height?: number };
+          const url = dd.urls?.mp4 || dd.urls?.mp4_preview;
+          if (!url) return null;
+          return { id: String(h.id), type: "video", thumb: dd.thumbnail || dd.poster || h.thumbnail || h.poster || "", url, duration: dd.duration, width: dd.max_width, height: dd.max_height, author: "Coverr" } as StockItem;
+        } catch { return null; }
+      }));
+      const results = details.filter(Boolean) as StockItem[];
+      return NextResponse.json({ results, page });
+    } catch (e) {
+      return NextResponse.json({ results: [], error: e instanceof Error ? e.message : "Error de red" });
     }
   }
 

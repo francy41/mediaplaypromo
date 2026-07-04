@@ -247,6 +247,12 @@ export const PROVIDER_CATALOG: ProviderSpec[] = [
     icon: Camera, accent: "from-lime-500 to-green-600",
     keyPlaceholder: "pixabay key…", defaultBaseUrl: "https://pixabay.com/api", docsUrl: "https://pixabay.com/api/docs/",
   },
+  {
+    id: "coverr", label: "Coverr", category: "Stock / Medios",
+    description: "Videos de stock cinematográficos gratis (uso comercial, sin atribución). Ideal para fondos y documental.",
+    icon: Camera, accent: "from-sky-500 to-indigo-600",
+    keyPlaceholder: "coverr api key…", defaultBaseUrl: "https://api.coverr.co", docsUrl: "https://coverr.co/",
+  },
 ];
 
 export function getProviderSpec(id: string): ProviderSpec | undefined {
