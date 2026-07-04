@@ -3,6 +3,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { postToGHL, resolveAccountIds, resolveGHLUserId, getGHLAccounts } from "@/lib/ghl-social";
 import { getGhlConn, listGhlProjectsSafe, type GhlConn } from "@/lib/ghl-projects";
 import { resolveOwner } from "@/lib/planner-admins";
+import { listTemplates, addTemplate, removeTemplate } from "@/lib/caption-templates";
 
 export const maxDuration = 60;
 
@@ -46,7 +47,8 @@ export async function GET(req: NextRequest) {
       .order("created_at", { ascending: false })
       .limit(500);
     const projects = await listGhlProjectsSafe(owner.ownerId);
-    return NextResponse.json({ posts: error ? [] : data ?? [], projects, ghlEnabled: projects.length > 0, role: owner.role, name: owner.name, error: error?.message });
+    const templates = await listTemplates(owner.ownerId);
+    return NextResponse.json({ posts: error ? [] : data ?? [], projects, templates, ghlEnabled: projects.length > 0, role: owner.role, name: owner.name, error: error?.message });
   } catch {
     return NextResponse.json({ posts: [], projects: [], ghlEnabled: false });
   }
@@ -83,6 +85,16 @@ export async function POST(req: NextRequest) {
     if (action === "delete") {
       const { error } = await admin.from("content_posts").delete().eq("id", body.id).eq("owner_id", owner.ownerId);
       return NextResponse.json({ ok: !error });
+    }
+
+    if (action === "template-add") {
+      const r = await addTemplate(owner.ownerId, { label: body.label, text: body.text });
+      return NextResponse.json(r, { status: r.ok ? 200 : 400 });
+    }
+
+    if (action === "template-delete") {
+      const r = await removeTemplate(owner.ownerId, String(body.id ?? ""));
+      return NextResponse.json(r, { status: r.ok ? 200 : 400 });
     }
 
     // Diagnóstico: ver qué cuentas sociales están conectadas en el proyecto GHL

@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState, Fragment } from "react";
 import Link from "next/link";
-import { CalendarClock, Lock, Plus, Trash2, RefreshCw, Send, Film, Wand2, UploadCloud, Loader2, Repeat2, RotateCcw, Sparkles, Building2, Plug, Crown, Check, KeyRound } from "lucide-react";
+import { CalendarClock, Lock, Plus, Trash2, RefreshCw, Send, Film, Wand2, UploadCloud, Loader2, Repeat2, RotateCcw, Sparkles, Building2, Plug, Crown, Check, KeyRound, Save } from "lucide-react";
 import { AdminShell, KPIGrid } from "@/components/admin/AdminShell";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -60,6 +60,10 @@ export default function ContentPlannerPage() {
   const [caption, setCaption] = useState(CAPTION_TEMPLATES[0].text);
   const [activeTemplate, setActiveTemplate] = useState(0);
 
+  // plantillas guardadas por el usuario
+  interface SavedTpl { id: string; label: string; text: string }
+  const [savedTemplates, setSavedTemplates] = useState<SavedTpl[]>([]);
+
   // subida de archivos
   const [uploading, setUploading] = useState(false);
   const [upMsg, setUpMsg] = useState("");
@@ -98,7 +102,7 @@ export default function ContentPlannerPage() {
       const r = await call(sec, "GET");
       if (r.status === 401) { setAuthed(false); try { localStorage.removeItem(SECRET_STORE); } catch {} setError("Secreto incorrecto."); return; }
       const d = await r.json();
-      setPosts(d.posts ?? []); setGhlEnabled(!!d.ghlEnabled); setRole(d.role ?? null); setSecret(sec); setAuthed(true);
+      setPosts(d.posts ?? []); setGhlEnabled(!!d.ghlEnabled); setRole(d.role ?? null); setSavedTemplates(d.templates ?? []); setSecret(sec); setAuthed(true);
       const projs: GhlProj[] = d.projects ?? [];
       setProjects(projs);
       setActiveProject((cur) => (cur && projs.some((p) => p.id === cur)) ? cur : (projs[0]?.id ?? ""));
@@ -186,6 +190,22 @@ export default function ContentPlannerPage() {
       setLoading(true);
       await call(secret, "POST", { action: "batch", platforms: batchPlatforms, time: batchTime, startDate: batchStart || undefined, projectId: activeProject });
     }
+    load(secret);
+  };
+
+  const saveTemplate = async () => {
+    if (!caption.trim()) { alert("Escribe un caption antes de guardar."); return; }
+    const label = prompt("Nombre para esta plantilla (ej. Reels tienda):");
+    if (!label || !label.trim()) return;
+    const r = await call(secret, "POST", { action: "template-add", label: label.trim(), text: caption });
+    const d = await r.json().catch(() => ({}));
+    if (d && d.ok === false) { alert(`Error: ${d.error || "no se pudo guardar"}`); return; }
+    load(secret);
+  };
+
+  const deleteTemplate = async (id: string) => {
+    if (!confirm("¿Borrar esta plantilla guardada?")) return;
+    await call(secret, "POST", { action: "template-delete", id });
     load(secret);
   };
 
@@ -431,10 +451,22 @@ export default function ContentPlannerPage() {
                     {t.label}
                   </button>
                 ))}
+                {/* Plantillas guardadas por el usuario */}
+                {savedTemplates.map((t) => (
+                  <span key={t.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-violet-500/15 text-violet-200 border border-violet-500/30">
+                    <button type="button" onClick={() => { setActiveTemplate(-1); setCaption(t.text); }} className="hover:text-white">{t.label}</button>
+                    <button type="button" onClick={() => deleteTemplate(t.id)} title="Borrar plantilla" className="text-violet-300/60 hover:text-red-300 leading-none">×</button>
+                  </span>
+                ))}
                 <button type="button"
                   onClick={() => { setActiveTemplate(-1); setCaption(""); }}
                   className="px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors bg-white/5 text-white/30 border border-white/10 hover:text-white/60">
                   Limpiar
+                </button>
+                <button type="button"
+                  onClick={saveTemplate}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25">
+                  <Save className="w-3 h-3" /> Guardar
                 </button>
               </div>
               <textarea
@@ -444,7 +476,7 @@ export default function ContentPlannerPage() {
                 placeholder="Escribe o selecciona un template de marketing arriba..."
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-cyan-500/40 resize-y leading-relaxed"
               />
-              <p className="text-white/30 text-[10px] mt-1">💡 Los templates incluyen copy optimizado + hashtags + enlace de ventas de YF Sport Shop</p>
+              <p className="text-white/30 text-[10px] mt-1">💡 Usa las plantillas o escribe tu propio texto y pulsa <b className="text-emerald-300/80">Guardar</b> para reutilizarlo. Tus plantillas guardadas aparecen en morado.</p>
             </div>
             <button onClick={addVideos} className="mt-3 inline-flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-bold px-4 py-2 rounded-lg shadow shadow-cyan-500/30"><Plus className="w-3.5 h-3.5" /> Añadir a la cola</button>
           </div>
