@@ -39,21 +39,28 @@ function parseScenes(content: string): Scene[] | null {
   return scenes.length ? scenes : null;
 }
 
-async function callModel(baseUrl: string, key: string, sys: string, user: string, model = "meta/llama-3.1-8b-instruct"): Promise<string> {
-  const r = await fetch(`${baseUrl.replace(/\/+$/, "")}/chat/completions`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "system", content: sys }, { role: "user", content: user }],
-      temperature: 0.3,
-      max_tokens: 4096,
-    }),
-    cache: "no-store",
-  });
-  const d = await r.json().catch(() => ({} as Record<string, unknown>)) as Record<string, unknown>;
-  if (!r.ok) throw new Error((d.error as { message?: string })?.message || (d.detail as string) || `NVIDIA error ${r.status}`);
-  return (d.choices as Array<{ message?: { content?: string } }> | undefined)?.[0]?.message?.content ?? "";
+async function callModel(baseUrl: string, key: string, sys: string, user: string, maxTokens = 2000, timeoutMs = 35000): Promise<string> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const r = await fetch(`${baseUrl.replace(/\/+$/, "")}/chat/completions`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "meta/llama-3.1-8b-instruct", // rápido y fiable dentro del límite de 60s
+        messages: [{ role: "system", content: sys }, { role: "user", content: user }],
+        temperature: 0.3,
+        max_tokens: maxTokens,
+      }),
+      cache: "no-store",
+      signal: ctrl.signal,
+    });
+    const d = await r.json().catch(() => ({} as Record<string, unknown>)) as Record<string, unknown>;
+    if (!r.ok) throw new Error((d.error as { message?: string })?.message || (d.detail as string) || `NVIDIA error ${r.status}`);
+    return (d.choices as Array<{ message?: { content?: string } }> | undefined)?.[0]?.message?.content ?? "";
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 /**
@@ -90,19 +97,17 @@ Each item has EXACTLY these keys: {"narration": string, "query": string, "visual
 The ${target} scenes must form ONE coherent piece with a clear beginning, development and ending, all about the topic. Keep a consistent visual style across scenes. Produce EXACTLY ${target} scenes. Never repeat a query.`;
   const user = `Topic: ${prompt}\nTotal duration: ${durationSec} seconds. Exactly ${target} scenes, all strictly about this exact topic. Choose the best format (story / documentary / ad / biography / explainer) for it.`;
 
-  const BIG = "meta/llama-3.3-70b-instruct"; // mejor seguimiento del tema
-  const SMALL = "meta/llama-3.1-8b-instruct"; // fallback si el 70B no está
+  // Tokens ajustados al nº de escenas (evita agotar el límite de 60s de la función).
+  const maxTokens = Math.min(4096, target * 200 + 500);
 
   try {
     let scenes: Scene[] | null = null;
-    // 1º intento: modelo grande (más consistente con el tema)
-    try { scenes = parseScenes(await callModel(baseUrl, integ.apiKey, sys, user, BIG)); } catch { scenes = null; }
-    // 2º: mismo prompt con el modelo pequeño (por si el 70B no está disponible)
-    if (!scenes) { try { scenes = parseScenes(await callModel(baseUrl, integ.apiKey, sys, user, SMALL)); } catch { scenes = null; } }
+    // 1º intento con el prompt on-topic completo.
+    try { scenes = parseScenes(await callModel(baseUrl, integ.apiKey, sys, user, maxTokens)); } catch { scenes = null; }
     if (!scenes) {
-      // 3º: reintento más estricto de formato
+      // 2º: reintento más estricto de formato.
       const sys2 = `Output ONLY a valid JSON array of exactly ${target} objects, each {"narration","query","visual","seconds"}. ${lang} narration, all strictly about: ${prompt}. No markdown, no extra text.`;
-      try { scenes = parseScenes(await callModel(baseUrl, integ.apiKey, sys2, user, SMALL)); } catch { scenes = null; }
+      try { scenes = parseScenes(await callModel(baseUrl, integ.apiKey, sys2, user, maxTokens)); } catch { scenes = null; }
     }
     if (!scenes) return NextResponse.json({ error: "El modelo no devolvió un guión válido. Reintenta." }, { status: 502 });
 
