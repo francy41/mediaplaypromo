@@ -82,24 +82,33 @@ export async function POST(req: NextRequest) {
   }
   const baseUrl = integ.baseUrl || "https://integrate.api.nvidia.com/v1";
 
-  // Estilo documental: escenas largas (~25-50s) con narración de párrafo.
-  // Menos escenas y más largas → párrafos ricos y cabe en tokens.
-  const target = Math.min(Math.max(Math.round(durationSec / 25), 1), 12);
-  const per = Math.min(Math.max(Math.round(durationSec / target), 15), 60);
+  // Modo 1: nº de escenas fijo × segundos por escena (control fino, p.ej. 40×10s).
+  // Modo 2 (por defecto): documental por duración total (escenas largas de párrafo).
+  const reqCount = parseInt(body.sceneCount, 10) || 0;
+  const reqSec = parseInt(body.sceneSeconds, 10) || 0;
+  let target: number, per: number;
+  if (reqCount > 0) {
+    target = Math.min(Math.max(reqCount, 1), 40);
+    per = Math.min(Math.max(reqSec || 10, 3), 60);
+  } else {
+    target = Math.min(Math.max(Math.round(durationSec / 25), 1), 12);
+    per = Math.min(Math.max(Math.round(durationSec / target), 15), 60);
+  }
+  const wordsPerScene = Math.max(6, Math.round(per * 2.4)); // ~2.4 palabras/seg al narrar
 
   const sys = `You are an expert video scriptwriter. You write scripts for ANY kind of short video: narrative stories, documentaries, biographies of real people, historical or news pieces, explainers/educational, product ads, travel, etc. Automatically adopt the tone and format that best fits the user's TOPIC.
 The whole script MUST be entirely and specifically about the user's exact topic. NEVER drift into an unrelated or generic story — every scene must clearly belong to THIS topic. If the topic names a real person, place or event, keep the script about that person/place/event.
 Return ONLY a JSON array — no markdown, no code fences, no text before or after.
 Each item has EXACTLY these keys: {"narration": string, "query": string, "visual": string, "seconds": number}.
-- "narration": a RICH, flowing narrator paragraph of 3 to 6 full sentences in ${lang}, documentary/voiceover style. It must clearly continue from the previous scene and keep advancing the topic (setup → development → analysis → conclusion across the scenes). Deep and specific about the topic — no generic filler, no repetition.
+- "narration": narrator voiceover in ${lang} of about ${wordsPerScene} words (≈ ${per} seconds of speech). It MUST continue coherently from the previous scene and keep advancing the topic (setup → development → conclusion across the scenes). Specific about the topic — no generic filler, no repetition.
 - "query": 2-4 English keywords for real stock b-roll that LITERALLY depicts this scene's subject and setting (matching the topic). Concrete, filmable things. Never copyrighted character names.
 - "visual": a vivid English image/video-generation prompt of the scene (subject + setting + action + lighting), ending with ", cinematic, consistent style".
-- "seconds": integer between ${Math.max(12, per - 8)} and ${per + 8} (long documentary segment).
-The ${target} scenes must read as ONE continuous, coherent documentary narration about the topic — each paragraph flows naturally into the next, with a clear beginning, development and ending. Keep a consistent visual style. Produce EXACTLY ${target} scenes. Never repeat a query.`;
+- "seconds": integer between ${Math.max(3, per - 3)} and ${per + 3}.
+The ${target} scenes must read as ONE continuous, coherent narration about the topic — each flows naturally into the next, with a clear beginning, development and ending. Keep a consistent visual style. Produce EXACTLY ${target} scenes. Never repeat a query.`;
   const user = `Topic: ${prompt}\nTotal duration: ${durationSec} seconds. Exactly ${target} scenes, all strictly about this exact topic. Choose the best format (story / documentary / ad / biography / explainer) for it.`;
 
-  // Tokens ajustados a párrafos largos por escena (sin agotar el límite de 60s).
-  const maxTokens = Math.min(4096, target * 400 + 500);
+  // Tokens ajustados al tamaño de narración por escena (sin agotar el límite de 60s).
+  const maxTokens = Math.min(4096, target * (wordsPerScene * 2 + 70) + 300);
 
   try {
     let scenes: Scene[] | null = null;

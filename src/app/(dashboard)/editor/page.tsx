@@ -124,6 +124,8 @@ export default function EditorPage() {
   const [measuringVoices, setMeasuringVoices] = useState(false);
   const [voiceMsg, setVoiceMsg] = useState("");
   const voiceUrlsRef = useRef<Record<string, string>>({});
+  const [wavePeaks, setWavePeaks] = useState<number[] | null>(null); // onda del audio subido
+  const waveCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [aligning, setAligning] = useState(false);
   const audioFileRef = useRef<HTMLInputElement | null>(null);
   const [refImages, setRefImages] = useState<{ name: string; url: string; desc: string }[]>([]);
@@ -412,6 +414,19 @@ export default function EditorPage() {
     } finally { setMeasuringVoices(false); }
   };
 
+  // Dibuja la onda del audio en el canvas de la pista.
+  useEffect(() => {
+    const cv = waveCanvasRef.current;
+    if (!cv || !wavePeaks || wavePeaks.length === 0) return;
+    const w = Math.max(64, Math.round(customAudioDur * PX_PER_SEC)), h = 44;
+    cv.width = w; cv.height = h;
+    const ctx = cv.getContext("2d"); if (!ctx) return;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "rgba(16,185,129,0.75)";
+    const n = wavePeaks.length, bw = w / n;
+    for (let i = 0; i < n; i++) { const ph = Math.max(1, wavePeaks[i] * (h - 4)); ctx.fillRect(i * bw, (h - ph) / 2, Math.max(1, bw - 0.4), ph); }
+  }, [wavePeaks, customAudioDur]);
+
   const reSearch = async (id: string, query: string) => {
     updateClip(id, { loadingMedia: true });
     const c0 = clips.find((c) => c.id === id);
@@ -495,19 +510,33 @@ export default function EditorPage() {
     if (customAudio?.url) { try { URL.revokeObjectURL(customAudio.url); } catch { /* noop */ } }
     const url = URL.createObjectURL(file);
     setCustomAudio({ name: file.name, file, url });
-    const probe = new Audio();
-    probe.preload = "metadata";
-    probe.onloadedmetadata = () => {
-      const d = Math.round(probe.duration) || 0;
-      setCustomAudioDur(d);
-      if (d >= 2) fitToAudio(d); // ajusta los clips al audio automáticamente
-    };
-    probe.src = url;
+    // Duración + onda (para la pista visible en la timeline).
+    (async () => {
+      try {
+        const buf = await file.arrayBuffer();
+        const ctx = new AudioContext();
+        const dec = await ctx.decodeAudioData(buf.slice(0));
+        const d = Math.round(dec.duration) || 0;
+        setCustomAudioDur(d);
+        if (d >= 2) fitToAudio(d);
+        const data = dec.getChannelData(0);
+        const N = 800, block = Math.floor(data.length / N) || 1;
+        const peaks: number[] = [];
+        for (let i = 0; i < N; i++) { let mx = 0; for (let j = 0; j < block; j++) { const v = Math.abs(data[i * block + j] || 0); if (v > mx) mx = v; } peaks.push(mx); }
+        setWavePeaks(peaks);
+        ctx.close();
+      } catch {
+        const probe = new Audio(); probe.preload = "metadata";
+        probe.onloadedmetadata = () => { const d = Math.round(probe.duration) || 0; setCustomAudioDur(d); if (d >= 2) fitToAudio(d); };
+        probe.src = url;
+      }
+    })();
   };
   const clearCustomAudio = () => {
     if (customAudio?.url) { try { URL.revokeObjectURL(customAudio.url); } catch { /* noop */ } }
     setCustomAudio(null);
     setCustomAudioDur(0);
+    setWavePeaks(null);
     if (audioFileRef.current) audioFileRef.current.value = "";
   };
 
@@ -920,7 +949,8 @@ export default function EditorPage() {
                 </div>
               </div>
               {flash && <p className="text-emerald-300 text-[10px] mb-2 text-right">{flash}</p>}
-              <div className="flex gap-1 overflow-x-auto scrollbar-hide pb-2">
+              <div className="overflow-x-auto scrollbar-hide pb-2">
+                <div className="flex gap-1">
                 {clips.map((c, i) => (
                   <div key={c.id} onClick={() => setSelectedId(c.id)} style={{ width: Math.max(64, c.seconds * PX_PER_SEC) }}
                     className={`group relative h-16 rounded-lg overflow-hidden border flex-shrink-0 transition-all cursor-pointer ${selectedId === c.id ? "border-violet-400 ring-2 ring-violet-500/40" : "border-white/10 hover:border-white/30"}`}>
@@ -948,6 +978,13 @@ export default function EditorPage() {
                     </div>
                   </div>
                 ))}
+                </div>
+                {customAudio && wavePeaks && (
+                  <div className="mt-1.5">
+                    <div className="flex items-center gap-1 mb-0.5 text-emerald-300/80 text-[10px] font-semibold"><Volume2 className="w-3 h-3" /> Audio: {customAudio.name} · {customAudioDur}s{totalSec !== customAudioDur && <span className="text-amber-300/80"> · clips {totalSec}s {totalSec < customAudioDur ? `(faltan ${customAudioDur - totalSec}s de video)` : `(sobran ${totalSec - customAudioDur}s)`}</span>}</div>
+                    <canvas ref={waveCanvasRef} className="h-11 rounded bg-emerald-500/5 border border-emerald-500/20 block" style={{ width: Math.max(64, customAudioDur * PX_PER_SEC) }} />
+                  </div>
+                )}
               </div>
             </div>
           )}

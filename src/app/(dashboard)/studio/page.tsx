@@ -9,10 +9,9 @@ const SECRET_STORE = "mpp_license_admin_secret";
 const PRODUCTION_QUEUE = "mpp_production_queue";
 const STUDIO_META = "mpp_studio_meta";
 
-const DURATIONS = [
-  { label: "30s", sec: 30 }, { label: "1 min", sec: 60 }, { label: "2 min", sec: 120 },
-  { label: "5 min", sec: 300 }, { label: "10 min", sec: 600 },
-];
+const SCENE_SECONDS = 10; // cada escena dura ~10s
+const SCENE_COUNTS = [3, 6, 10, 15, 20, 30];
+const fmtTotal = (n: number) => { const s = n * SCENE_SECONDS; return s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")} min` : `${s}s`; };
 const ASPECTS = [
   { v: "9:16", label: "9:16 Vertical" }, { v: "16:9", label: "16:9 Horizontal" }, { v: "1:1", label: "1:1 Cuadrado" },
 ];
@@ -35,7 +34,7 @@ export default function StudioPage() {
   const router = useRouter();
   const [secret, setSecret] = useState("");
   const [prompt, setPrompt] = useState("");
-  const [durationSec, setDurationSec] = useState(60);
+  const [sceneCount, setSceneCount] = useState(6);
   const [model, setModel] = useState("wan2.2-5b-fast-t2v");
   const [voice, setVoice] = useState("mx:Spanish_SereneWoman");
   const [aspect, setAspect] = useState("9:16");
@@ -91,7 +90,7 @@ export default function StudioPage() {
     if (!secret) { setError("No estás autenticado. Entra primero en el Editor o Planificador (guarda tu sesión)."); return; }
     setBusy(true); setError(null); setJobs([]);
     try {
-      const r = await fetch("/api/admin/editor/plan", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-secret": secret }, body: JSON.stringify({ prompt, durationSec, lang }) });
+      const r = await fetch("/api/admin/editor/plan", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-secret": secret }, body: JSON.stringify({ prompt, sceneCount, sceneSeconds: SCENE_SECONDS, durationSec: sceneCount * SCENE_SECONDS, lang }) });
       if (r.status === 401) { setError("Secreto incorrecto. Vuelve a entrar en el Editor/Planificador."); return; }
       const d = await r.json();
       if (d.error) { setError(d.error); return; }
@@ -156,10 +155,10 @@ export default function StudioPage() {
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div>
-              <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Duración</label>
+              <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Nº de escenas (×{SCENE_SECONDS}s) · {fmtTotal(sceneCount)}</label>
               <div className="flex flex-wrap gap-1.5">
-                {DURATIONS.map((d) => (
-                  <button key={d.sec} onClick={() => setDurationSec(d.sec)} className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${durationSec === d.sec ? "bg-violet-500/25 text-violet-200 border border-violet-500/40" : "bg-white/5 text-white/50 border border-white/10"}`}>{d.label}</button>
+                {SCENE_COUNTS.map((n) => (
+                  <button key={n} onClick={() => setSceneCount(n)} className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${sceneCount === n ? "bg-violet-500/25 text-violet-200 border border-violet-500/40" : "bg-white/5 text-white/50 border border-white/10"}`} title={`${n} escenas ≈ ${fmtTotal(n)}`}>{n}</button>
                 ))}
               </div>
             </div>
