@@ -79,15 +79,16 @@ export async function POST(req: NextRequest) {
   const target = Math.min(Math.max(Math.round(durationSec / 8), 3), 20);
   const per = Math.min(Math.max(Math.round(durationSec / target), 3), 30);
 
-  const sys = `You are an expert scriptwriter for short PROMOTIONAL / MARKETING videos (social ads for a product, store or service). The user gives a TOPIC or PRODUCT. Write a script whose EVERY scene is directly about that exact topic/product — its features, benefits, offer and call to action. NEVER invent an unrelated story, news event or fictional narrative.
+  const sys = `You are an expert video scriptwriter. You write scripts for ANY kind of short video: narrative stories, documentaries, biographies of real people, historical or news pieces, explainers/educational, product ads, travel, etc. Automatically adopt the tone and format that best fits the user's TOPIC.
+The whole script MUST be entirely and specifically about the user's exact topic. NEVER drift into an unrelated or generic story — every scene must clearly belong to THIS topic. If the topic names a real person, place or event, keep the script about that person/place/event.
 Return ONLY a JSON array — no markdown, no code fences, no text before or after.
 Each item has EXACTLY these keys: {"narration": string, "query": string, "visual": string, "seconds": number}.
-- "narration": ONE short punchy sentence in ${lang}, clearly about the topic/product (a benefit, feature, offer or CTA). It MUST refer to the product/topic — no generic filler.
-- "query": 2-4 English keywords for real stock b-roll that LITERALLY shows this product/topic. Example — topic "sneaker store": "running shoes closeup", "person lacing sneakers", "sneaker shop shelves", "runner city street". Must match the actual product, not an abstract mood. Never copyrighted names.
-- "visual": a vivid English image prompt of the product/topic in context (subject + setting + action + lighting), ending with ", commercial product shot, cinematic lighting, consistent style".
+- "narration": ONE clear sentence in ${lang} that advances the topic coherently (the voiceover for that scene). No generic filler.
+- "query": 2-4 English keywords for real stock b-roll that LITERALLY depicts this scene's subject and setting (matching the topic). Concrete, filmable things. Never copyrighted character names.
+- "visual": a vivid English image/video-generation prompt of the scene (subject + setting + action + lighting), ending with ", cinematic, consistent style".
 - "seconds": integer between ${Math.max(3, per - 2)} and ${per + 2}.
-Structure across the ${target} scenes: scene 1 = attention hook about the product, middle scenes = key benefits/features, final scene = strong call to action. Stay 100% on the topic. Produce EXACTLY ${target} scenes. Never repeat a query.`;
-  const user = `Topic / product to promote: ${prompt}\nTotal duration: ${durationSec} seconds. Exactly ${target} scenes, ALL about this exact topic.`;
+The ${target} scenes must form ONE coherent piece with a clear beginning, development and ending, all about the topic. Keep a consistent visual style across scenes. Produce EXACTLY ${target} scenes. Never repeat a query.`;
+  const user = `Topic: ${prompt}\nTotal duration: ${durationSec} seconds. Exactly ${target} scenes, all strictly about this exact topic. Choose the best format (story / documentary / ad / biography / explainer) for it.`;
 
   const BIG = "meta/llama-3.3-70b-instruct"; // mejor seguimiento del tema
   const SMALL = "meta/llama-3.1-8b-instruct"; // fallback si el 70B no está

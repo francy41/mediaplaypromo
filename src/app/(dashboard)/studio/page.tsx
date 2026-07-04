@@ -142,7 +142,7 @@ export default function StudioPage() {
         <div className="glass-card rounded-2xl border border-violet-500/25 bg-violet-500/[0.03] p-5 space-y-4">
           <div>
             <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Tema / idea del video</label>
-            <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={2} placeholder="Ej: Zapatillas Nike originales para corredores, beneficios y oferta de YF Sport Shop" className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/40 resize-none" />
+            <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={2} placeholder="Cualquier tema: un documental sobre los océanos · la historia de Napoleón · anuncio de tu tienda · cómo funciona el ADN…" className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/40 resize-none" />
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
