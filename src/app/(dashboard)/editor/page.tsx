@@ -340,6 +340,16 @@ export default function EditorPage() {
     setQueueCount(0);
   };
 
+  // Auto-importa la producción del Estudio al abrir el editor.
+  useEffect(() => {
+    let flag = ""; try { flag = localStorage.getItem("mpp_studio_autoimport") || ""; } catch {}
+    if (flag !== "1") return;
+    try { localStorage.removeItem("mpp_studio_autoimport"); } catch {}
+    const t = setTimeout(() => importQueue(), 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /* ── Edición de clips ── */
   const updateClip = (id: string, patch: Partial<Clip>) => setClips((p) => p.map((c) => c.id === id ? { ...c, ...patch } : c));
   const applyToAll = () => {

@@ -39,14 +39,14 @@ function parseScenes(content: string): Scene[] | null {
   return scenes.length ? scenes : null;
 }
 
-async function callModel(baseUrl: string, key: string, sys: string, user: string): Promise<string> {
+async function callModel(baseUrl: string, key: string, sys: string, user: string, model = "meta/llama-3.1-8b-instruct"): Promise<string> {
   const r = await fetch(`${baseUrl.replace(/\/+$/, "")}/chat/completions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "meta/llama-3.1-8b-instruct",
+      model,
       messages: [{ role: "system", content: sys }, { role: "user", content: user }],
-      temperature: 0.4,
+      temperature: 0.3,
       max_tokens: 4096,
     }),
     cache: "no-store",
@@ -79,22 +79,29 @@ export async function POST(req: NextRequest) {
   const target = Math.min(Math.max(Math.round(durationSec / 8), 3), 20);
   const per = Math.min(Math.max(Math.round(durationSec / target), 3), 30);
 
-  const sys = `You are a professional video director. Return ONLY a JSON array — no markdown, no code fences, no text before or after.
-Each item is a scene with EXACTLY these keys: {"narration": string, "query": string, "visual": string, "seconds": number}.
-- "narration": ONE short sentence in ${lang}.
-- "query": 2-4 English keywords describing real ATMOSPHERIC stock b-roll that matches the scene's mood and setting (filmable things that truly exist in stock libraries, e.g. "foggy forest night", "river water dark", "candle flame closeup", "woman silhouette walking", "old town street rain"). No abstract words. Never use proper names of copyrighted characters.
-- "visual": a vivid English image-generation prompt of the scene (subject + setting + action + lighting), ending with ", cinematic, dramatic lighting, consistent style".
+  const sys = `You are an expert scriptwriter for short PROMOTIONAL / MARKETING videos (social ads for a product, store or service). The user gives a TOPIC or PRODUCT. Write a script whose EVERY scene is directly about that exact topic/product — its features, benefits, offer and call to action. NEVER invent an unrelated story, news event or fictional narrative.
+Return ONLY a JSON array — no markdown, no code fences, no text before or after.
+Each item has EXACTLY these keys: {"narration": string, "query": string, "visual": string, "seconds": number}.
+- "narration": ONE short punchy sentence in ${lang}, clearly about the topic/product (a benefit, feature, offer or CTA). It MUST refer to the product/topic — no generic filler.
+- "query": 2-4 English keywords for real stock b-roll that LITERALLY shows this product/topic. Example — topic "sneaker store": "running shoes closeup", "person lacing sneakers", "sneaker shop shelves", "runner city street". Must match the actual product, not an abstract mood. Never copyrighted names.
+- "visual": a vivid English image prompt of the product/topic in context (subject + setting + action + lighting), ending with ", commercial product shot, cinematic lighting, consistent style".
 - "seconds": integer between ${Math.max(3, per - 2)} and ${per + 2}.
-Produce EXACTLY ${target} scenes that tell the topic as ONE coherent, visually consistent story. Never repeat a query.`;
-  const user = `Topic: ${prompt}\nTotal duration: ${durationSec} seconds. Make exactly ${target} scenes.`;
+Structure across the ${target} scenes: scene 1 = attention hook about the product, middle scenes = key benefits/features, final scene = strong call to action. Stay 100% on the topic. Produce EXACTLY ${target} scenes. Never repeat a query.`;
+  const user = `Topic / product to promote: ${prompt}\nTotal duration: ${durationSec} seconds. Exactly ${target} scenes, ALL about this exact topic.`;
+
+  const BIG = "meta/llama-3.3-70b-instruct"; // mejor seguimiento del tema
+  const SMALL = "meta/llama-3.1-8b-instruct"; // fallback si el 70B no está
 
   try {
     let scenes: Scene[] | null = null;
-    try { scenes = parseScenes(await callModel(baseUrl, integ.apiKey, sys, user)); } catch { scenes = null; }
+    // 1º intento: modelo grande (más consistente con el tema)
+    try { scenes = parseScenes(await callModel(baseUrl, integ.apiKey, sys, user, BIG)); } catch { scenes = null; }
+    // 2º: mismo prompt con el modelo pequeño (por si el 70B no está disponible)
+    if (!scenes) { try { scenes = parseScenes(await callModel(baseUrl, integ.apiKey, sys, user, SMALL)); } catch { scenes = null; } }
     if (!scenes) {
-      // Reintento más estricto
-      const sys2 = `Output ONLY a valid JSON array of exactly ${target} objects, each {"narration","query","visual","seconds"}. ${lang} narration. No markdown, no extra text.`;
-      try { scenes = parseScenes(await callModel(baseUrl, integ.apiKey, sys2, user)); } catch { scenes = null; }
+      // 3º: reintento más estricto de formato
+      const sys2 = `Output ONLY a valid JSON array of exactly ${target} objects, each {"narration","query","visual","seconds"}. ${lang} narration, all strictly about: ${prompt}. No markdown, no extra text.`;
+      try { scenes = parseScenes(await callModel(baseUrl, integ.apiKey, sys2, user, SMALL)); } catch { scenes = null; }
     }
     if (!scenes) return NextResponse.json({ error: "El modelo no devolvió un guión válido. Reintenta." }, { status: 502 });
 

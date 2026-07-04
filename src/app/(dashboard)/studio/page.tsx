@@ -104,13 +104,13 @@ export default function StudioPage() {
   const pushToQueue = (items: { url: string; narration: string; seconds: number }[]) => {
     let q: unknown[] = []; try { q = JSON.parse(localStorage.getItem(PRODUCTION_QUEUE) || "[]"); } catch {}
     for (const it of items) q.push({ type: "video", thumb: it.url, url: it.url, narration: it.narration, seconds: it.seconds });
-    try { localStorage.setItem(PRODUCTION_QUEUE, JSON.stringify(q)); localStorage.setItem(STUDIO_META, JSON.stringify({ voice, aspect })); } catch {}
+    try { localStorage.setItem(PRODUCTION_QUEUE, JSON.stringify(q)); localStorage.setItem(STUDIO_META, JSON.stringify({ voice, aspect })); localStorage.setItem("mpp_studio_autoimport", "1"); } catch {}
   };
 
   const addOne = (job: Job) => {
     if (!job.clipUrl) return;
     pushToQueue([{ url: job.clipUrl, narration: job.scene.narration, seconds: job.scene.seconds }]);
-    flashMsg("✓ Añadido al editor (usa 'Importar producción' en el editor)");
+    flashMsg("✓ Añadido. Se cargará solo al abrir el editor (o pulsa 'Añadir todo al editor').");
   };
 
   const addAllAndGo = () => {
