@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, Fragment } from "react";
 import Link from "next/link";
 import { CalendarClock, Lock, Plus, Trash2, RefreshCw, Send, Film, Wand2, UploadCloud, Loader2, Repeat2, RotateCcw, Sparkles, Building2, Plug, Crown, Check, KeyRound } from "lucide-react";
 import { AdminShell, KPIGrid } from "@/components/admin/AdminShell";
@@ -70,6 +70,11 @@ export default function ContentPlannerPage() {
   const [batchStart, setBatchStart] = useState("");
   const [loopMode, setLoopMode] = useState(false);
   const [batchEnd, setBatchEnd] = useState("");
+
+  // programación individual (un video)
+  const [schedId, setSchedId] = useState<string | null>(null);
+  const [schedDate, setSchedDate] = useState("");
+  const [schedTime, setSchedTime] = useState("10:00");
 
   // proyectos / cuentas GHL (multi-cuenta)
   interface GhlProj { id: string; name: string; locationId: string; hasToken: boolean; isEnv?: boolean }
@@ -181,6 +186,22 @@ export default function ContentPlannerPage() {
       setLoading(true);
       await call(secret, "POST", { action: "batch", platforms: batchPlatforms, time: batchTime, startDate: batchStart || undefined, projectId: activeProject });
     }
+    load(secret);
+  };
+
+  const openSchedule = (id: string) => setSchedId(id);
+
+  const scheduleOne = async (id: string) => {
+    if (!schedDate) { alert("Elige una fecha."); return; }
+    if (batchPlatforms.length === 0) { alert("Selecciona al menos una red arriba (en 'Programar automático')."); return; }
+    const [hh, mm] = (schedTime || "10:00").split(":").map((n) => Number(n));
+    const d = new Date(schedDate);
+    d.setHours(hh || 10, mm || 0, 0, 0);
+    setLoading(true);
+    const r = await call(secret, "POST", { action: "schedule", id, scheduled_at: d.toISOString(), platforms: batchPlatforms, projectId: activeProject });
+    const dd = await r.json().catch(() => ({}));
+    setSchedId(null);
+    if (dd && dd.ok === false && dd.error) alert(`Error: ${dd.error}`);
     load(secret);
   };
 
@@ -523,7 +544,8 @@ export default function ContentPlannerPage() {
                 </thead>
                 <tbody>
                   {posts.map((p) => (
-                    <tr key={p.id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                    <Fragment key={p.id}>
+                    <tr className="border-b border-white/5 hover:bg-white/[0.02]">
                       <td className="px-4 py-3 max-w-[240px]">
                         <a href={p.video_url} target="_blank" rel="noopener noreferrer" className="text-cyan-300 hover:text-cyan-200 text-xs font-mono truncate block">{p.title || p.video_url}</a>
                         {p.caption && <span className="text-white/40 text-[11px] truncate block">{p.caption}</span>}
@@ -540,10 +562,37 @@ export default function ContentPlannerPage() {
                       </td>
                       <td className="px-4 py-3 text-white/55 text-xs">{p.scheduled_at ? new Date(p.scheduled_at).toLocaleString() : "—"}</td>
                       <td className="px-4 py-3 text-white/50 text-[11px] capitalize">{(p.platforms ?? []).join(", ") || "—"}</td>
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        {(p.status === "queued" || p.status === "failed") && (
+                          <button onClick={() => openSchedule(p.id)} className="inline-flex items-center gap-1 bg-violet-500/15 hover:bg-violet-500/25 border border-violet-500/30 text-violet-300 text-[11px] px-2.5 py-1.5 rounded-lg transition-colors mr-1.5" title="Programar este video">
+                            <CalendarClock className="w-3.5 h-3.5" /> Programar
+                          </button>
+                        )}
                         <button onClick={() => del(p.id)} className="inline-flex items-center gap-1 bg-white/5 hover:bg-red-500/15 border border-white/10 hover:border-red-500/30 text-white/60 hover:text-red-300 text-[11px] px-2.5 py-1.5 rounded-lg transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
                       </td>
                     </tr>
+                    {schedId === p.id && (
+                      <tr className="bg-violet-500/[0.05]">
+                        <td colSpan={5} className="px-4 py-3">
+                          <div className="flex flex-wrap items-end gap-3">
+                            <div>
+                              <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1">Fecha</label>
+                              <input type="date" value={schedDate} onChange={(e) => setSchedDate(e.target.value)} className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40" />
+                            </div>
+                            <div>
+                              <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1">Hora</label>
+                              <input type="time" value={schedTime} onChange={(e) => setSchedTime(e.target.value)} className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-violet-500/40" />
+                            </div>
+                            <div className="text-white/45 text-[10px] max-w-[220px]">Se publicará en las redes marcadas arriba: <b className="text-white/70 capitalize">{batchPlatforms.join(", ") || "ninguna"}</b></div>
+                            <button onClick={() => scheduleOne(p.id)} disabled={loading} className="shine-btn inline-flex items-center gap-1.5 bg-gradient-to-r from-pink-500 to-violet-600 text-white text-xs font-bold px-4 py-2 rounded-lg shadow shadow-violet-500/30 disabled:opacity-50">
+                              <Send className="w-3.5 h-3.5" /> Programar este
+                            </button>
+                            <button onClick={() => setSchedId(null)} className="text-white/45 hover:text-white/70 text-xs font-semibold px-2 py-2">Cancelar</button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   ))}
                   {posts.length === 0 && (
                     <tr><td colSpan={5} className="px-4 py-10 text-center text-white/40 text-sm">Tu carpeta está vacía. Añade URLs de video arriba para empezar.</td></tr>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
-import { createGHLSocialPost, postToGHL, resolveAccountIds, resolveGHLUserId, getGHLAccounts } from "@/lib/ghl-social";
+import { postToGHL, resolveAccountIds, resolveGHLUserId, getGHLAccounts } from "@/lib/ghl-social";
 import { getGhlConn, listGhlProjectsSafe, type GhlConn } from "@/lib/ghl-projects";
 import { resolveOwner } from "@/lib/planner-admins";
 
@@ -11,20 +11,6 @@ const THROTTLE_MS = 250;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 type GhlResult = { ok: boolean; postId?: string; error?: string };
-
-async function pushAndStatus(post: { caption: string | null; video_url: string }, scheduledAt: string, platforms: string[], conn: GhlConn | null) {
-  let ghl: GhlResult = { ok: false };
-  if (conn) {
-    ghl = await createGHLSocialPost({ caption: post.caption ?? "", mediaUrl: post.video_url, scheduleDate: scheduledAt, platforms }, conn);
-  }
-  return {
-    scheduled_at: scheduledAt,
-    platforms,
-    status: ghl.ok || !conn ? "scheduled" : "failed",
-    ghl_post_id: ghl.postId ?? null,
-    error: ghl.ok ? null : (conn ? ghl.error ?? null : null),
-  };
-}
 
 // Publica usando grupos de cuentas ya resueltos (TikTok va en su propio grupo).
 async function pushWithGroups(post: { caption: string | null; video_url: string }, scheduledAt: string, platforms: string[], groups: string[][], conn: GhlConn | null) {
@@ -116,7 +102,16 @@ export async function POST(req: NextRequest) {
     if (action === "schedule") {
       const { data: post } = await admin.from("content_posts").select("caption,video_url").eq("id", body.id).eq("owner_id", owner.ownerId).maybeSingle();
       if (!post) return NextResponse.json({ error: "Post no encontrado" }, { status: 404 });
-      const upd = await pushAndStatus(post, body.scheduled_at, body.platforms ?? [], conn);
+      const platforms: string[] = body.platforms ?? [];
+      let groups: string[][] = [];
+      if (conn) {
+        const r = await resolveAccountIds(platforms, conn);
+        if (!r.ok) return NextResponse.json({ error: r.error }, { status: 400 });
+        groups = r.groups;
+        const u = await resolveGHLUserId(conn);
+        if (!u.ok) return NextResponse.json({ error: u.error }, { status: 400 });
+      }
+      const upd = await pushWithGroups(post, body.scheduled_at, platforms, groups, conn);
       const { error } = await admin.from("content_posts").update(upd).eq("id", body.id).eq("owner_id", owner.ownerId);
       return NextResponse.json({ ok: !error, status: upd.status, error: upd.error });
     }
