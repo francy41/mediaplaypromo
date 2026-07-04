@@ -55,9 +55,18 @@ export default function StudioPage() {
 
   const genClip = useCallback(async (visual: string): Promise<{ url?: string; error?: string }> => {
     try {
-      const r = await fetch("/api/ai/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: "muapi", model, prompt: visual, aspect_ratio: aspect, duration: 5 }) });
+      const dur = /^veo/i.test(model) ? 8 : 5; // Veo exige 8s; el resto acepta 5
+      const r = await fetch("/api/ai/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: "muapi", model, prompt: visual, aspect_ratio: aspect, duration: dur }) });
       const job = await r.json();
-      if (job.error || !job.id) return { error: String(job?.details?.error?.code === "INSUFFICIENT_CREDITS" ? "Sin saldo MUAPI (recarga en muapi.ai/topup)" : job?.details?.detail || job?.error || "MUAPI no disponible") };
+      if (job.error || !job.id) {
+        const det = job?.details as { detail?: unknown; error?: { code?: string } } | undefined;
+        let msg = "MUAPI no disponible";
+        if (det?.error?.code === "INSUFFICIENT_CREDITS") msg = "Sin saldo MUAPI (recarga en muapi.ai/topup)";
+        else if (Array.isArray(det?.detail)) msg = (det.detail as Array<{ msg?: string }>).map((x) => x?.msg || "").filter(Boolean).join("; ") || "Parámetros inválidos para este modelo";
+        else if (typeof det?.detail === "string") msg = det.detail;
+        else if (typeof job?.error === "string") msg = job.error;
+        return { error: msg };
+      }
       const OK = ["completed", "succeeded"], FAIL = ["failed", "cancelled", "canceled"];
       if (OK.includes(job.status)) { const u = Array.isArray(job.output) ? job.output[0] : job.output; if (u) return { url: u }; }
       for (let i = 0; i < 120; i++) {

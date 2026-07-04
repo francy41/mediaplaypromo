@@ -209,7 +209,7 @@ export default function EditorPage() {
 
   const muapiVideo = useCallback(async (prompt: string): Promise<Media | undefined> => {
     try {
-      const r = await fetch("/api/ai/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: "muapi", model: muapiModel, prompt, aspect_ratio: aspect, duration: 5 }) });
+      const r = await fetch("/api/ai/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ provider: "muapi", model: muapiModel, prompt, aspect_ratio: aspect, duration: /^veo/i.test(muapiModel) ? 8 : 5 }) });
       const job = await r.json();
       if (job.error || !job.id) {
         const code = job?.details?.error?.code;
