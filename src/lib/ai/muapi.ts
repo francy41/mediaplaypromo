@@ -153,6 +153,19 @@ export async function createGeneration(req: MuapiGenerateRequest): Promise<Muapi
 }
 
 /**
+ * POST /api/v1/{model} con input plano (para modelos que no encajan en
+ * MuapiGenerateRequest, p.ej. TTS: { prompt, voice_id, sample_rate, ... }).
+ */
+export async function createRawJob(model: string, input: Record<string, unknown>): Promise<MuapiJob> {
+  if (!model) throw new MuapiError(400, "model requerido");
+  const raw = await muapiFetch<Record<string, unknown>>(
+    `/api/v1/${encodeURIComponent(model)}`,
+    { method: "POST", body: JSON.stringify(input) }
+  );
+  return normalizeJob(raw);
+}
+
+/**
  * GET /api/v1/predictions/{id}/result — polling.
  */
 export async function getJob(id: string): Promise<MuapiJob> {

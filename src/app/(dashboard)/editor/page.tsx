@@ -55,13 +55,20 @@ const EFFECTS: { v: Effect; label: string }[] = [
   { v: "warm", label: "Color cálido" }, { v: "cold", label: "Color frío" }, { v: "vintage", label: "Vintage" }, { v: "vivid", label: "Vívido" },
 ];
 
-// Voces (acentos de Google TTS, gratis). El idioma del guión se deriva del código.
+// Voces. "es/en…" = Google TTS gratis. "mx:<voiceId>" = voz natural MUAPI (usa créditos).
 const VOICE_OPTIONS = [
-  { v: "es", label: "Español (España) · Femenina" },
-  { v: "es-us", label: "Español (Latinoamérica)" },
-  { v: "en", label: "English (US)" },
-  { v: "en-gb", label: "English (UK)" },
-  { v: "en-au", label: "English (Australia)" },
+  { v: "es", label: "🆓 Español (España) · Google" },
+  { v: "es-us", label: "🆓 Español (Latam) · Google" },
+  { v: "en", label: "🆓 English (US) · Google" },
+  { v: "en-gb", label: "🆓 English (UK) · Google" },
+  { v: "en-au", label: "🆓 English (AU) · Google" },
+  { v: "mx:Spanish_SereneWoman", label: "⭐ Español · Serena (F) · MUAPI" },
+  { v: "mx:Spanish_ThoughtfulMan", label: "⭐ Español · Reflexivo (M) · MUAPI" },
+  { v: "mx:Spanish_Kind-heartedGirl", label: "⭐ Español · Amable (F) · MUAPI" },
+  { v: "mx:Spanish_ReservedYoungMan", label: "⭐ Español · Joven (M) · MUAPI" },
+  { v: "mx:Spanish_PassionateWarrior", label: "⭐ Español · Enérgico (M) · MUAPI" },
+  { v: "mx:English_Graceful_Lady", label: "⭐ English · Graceful (F) · MUAPI" },
+  { v: "mx:English_Trustworthy_Man", label: "⭐ English · Trustworthy (M) · MUAPI" },
 ];
 
 const cssFilter = (e: Effect) =>
@@ -161,7 +168,7 @@ export default function EditorPage() {
     return () => clearTimeout(t);
   }, []);
 
-  const lang: "es" | "en" = voiceCode.startsWith("es") ? "es" : "en";
+  const lang: "es" | "en" = (voiceCode.startsWith("es") || voiceCode.toLowerCase().includes("spanish")) ? "es" : "en";
   const aspectCls = ASPECTS.find((a) => a.v === aspect)?.cls ?? "aspect-video";
   const totalSec = clips.reduce((a, s) => a + s.seconds, 0);
   const orientationFor = (a: string) => (a === "9:16" ? "portrait" : a === "1:1" ? "square" : "landscape");
@@ -369,7 +376,8 @@ export default function EditorPage() {
   const speak = useCallback(async (text: string) => {
     if (!voice || !text?.trim()) return;
     try {
-      const r = await fetch("/api/admin/editor/tts", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-secret": secret }, body: JSON.stringify({ text, lang: voiceCode }) });
+      const ttsBody = voiceCode.startsWith("mx:") ? { text, voice: voiceCode } : { text, lang: voiceCode };
+      const r = await fetch("/api/admin/editor/tts", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-secret": secret }, body: JSON.stringify(ttsBody) });
       if (!r.ok) return;
       const blob = await r.blob();
       const a = audioRef.current; if (!a) return;
