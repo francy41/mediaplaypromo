@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIntegration } from "@/lib/integrations";
+import { resolveOwner } from "@/lib/planner-admins";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-function authed(req: NextRequest): boolean {
-  const secret = process.env.LICENSE_ADMIN_SECRET;
-  return !!secret && req.headers.get("x-admin-secret") === secret;
+async function authed(req: NextRequest): Promise<boolean> {
+  return !!(await resolveOwner(req.headers.get("x-admin-secret")));
 }
 
 /**
@@ -14,7 +14,7 @@ function authed(req: NextRequest): boolean {
  * Describe la imagen de referencia con NVIDIA Vision (gratis) → frase para guiar la generación.
  */
 export async function POST(req: NextRequest) {
-  if (!authed(req)) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!(await authed(req))) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const image = String(body.image ?? "");
   if (!image.startsWith("data:")) return NextResponse.json({ error: "Imagen inválida" }, { status: 400 });

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIntegration } from "@/lib/integrations";
+import { resolveOwner } from "@/lib/planner-admins";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-function authed(req: NextRequest): boolean {
-  const secret = process.env.LICENSE_ADMIN_SECRET;
-  return !!secret && req.headers.get("x-admin-secret") === secret;
+async function authed(req: NextRequest): Promise<boolean> {
+  return !!(await resolveOwner(req.headers.get("x-admin-secret")));
 }
 
 interface Char { text: string; start: number; end: number }
@@ -20,7 +20,7 @@ interface Char { text: string; start: number; end: number }
  * y devuelve la duración exacta que debe tener cada clip para coincidir con la voz.
  */
 export async function POST(req: NextRequest) {
-  if (!authed(req)) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!(await authed(req))) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   let form: FormData;
   try { form = await req.formData(); } catch { return NextResponse.json({ error: "Cuerpo inválido" }, { status: 400 }); }

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveOwner } from "@/lib/planner-admins";
 
 export const runtime = "nodejs";
 
-function authed(req: NextRequest): boolean {
-  const secret = process.env.LICENSE_ADMIN_SECRET;
-  return !!secret && req.headers.get("x-admin-secret") === secret;
+async function authed(req: NextRequest): Promise<boolean> {
+  return !!(await resolveOwner(req.headers.get("x-admin-secret")));
 }
 
 /** Parte el texto en trozos ≤200 chars (límite de Google TTS), respetando palabras. */
@@ -25,7 +25,7 @@ function chunk(text: string, max = 190): string[] {
  * Genera narración MP3 gratis vía Google Translate TTS (sin clave). Solo SuperAdmin.
  */
 export async function POST(req: NextRequest) {
-  if (!authed(req)) return new NextResponse("No autorizado", { status: 401 });
+  if (!(await authed(req))) return new NextResponse("No autorizado", { status: 401 });
 
   const body = await req.json().catch(() => ({}));
   const text = String(body.text ?? "").trim();

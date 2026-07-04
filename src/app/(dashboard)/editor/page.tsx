@@ -151,8 +151,12 @@ export default function EditorPage() {
 
   useEffect(() => {
     let s = ""; try { s = localStorage.getItem(SECRET_STORE) ?? ""; } catch {}
-    if (s) { setSecret(s); setAuthed(true); }
-    try { setQueueCount((JSON.parse(localStorage.getItem(PRODUCTION_QUEUE) || "[]") as Media[]).length); } catch {}
+    let qc = 0; try { qc = (JSON.parse(localStorage.getItem(PRODUCTION_QUEUE) || "[]") as Media[]).length; } catch {}
+    const t = setTimeout(() => {
+      if (s) { setSecret(s); setAuthed(true); }
+      setQueueCount(qc);
+    }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   const lang: "es" | "en" = voiceCode.startsWith("es") ? "es" : "en";
@@ -538,7 +542,7 @@ export default function EditorPage() {
 
   if (!authed) {
     return (
-      <AdminShell title="Mega Editor de Video IA" description="Crea videos largos con IA estilo CapCut. Solo SuperAdmin." icon={Clapperboard} iconGradient="from-violet-500 to-fuchsia-600" status="beta" breadcrumb={[{ label: "Mega Editor" }]}>
+      <AdminShell title="Mega Editor de Video IA" description="Crea videos largos con IA estilo CapCut." icon={Clapperboard} iconGradient="from-violet-500 to-fuchsia-600" status="beta" breadcrumb={[{ label: "Mega Editor" }]}>
         <div className="glass-card rounded-2xl border border-white/10 p-8 max-w-md mx-auto text-center">
           <div className="inline-flex w-14 h-14 rounded-2xl bg-violet-500/15 border border-violet-500/30 items-center justify-center mb-4"><Lock className="w-7 h-7 text-violet-400" /></div>
           <h2 className="text-white font-bold text-lg mb-1">Acceso SuperAdmin</h2>
@@ -556,7 +560,7 @@ export default function EditorPage() {
   const cur = previewIndex >= 0 ? clips[previewIndex] : null;
 
   return (
-    <AdminShell title="Mega Editor de Video IA" description="Estilo CapCut: IA + Banco de Medios → timeline editable → preview → render MP4. Solo SuperAdmin." icon={Clapperboard} iconGradient="from-violet-500 to-fuchsia-600" status="beta" breadcrumb={[{ label: "Mega Editor" }]}>
+    <AdminShell title="Mega Editor de Video IA" description="Estilo CapCut: IA + Banco de Medios → timeline editable → preview → render MP4." icon={Clapperboard} iconGradient="from-violet-500 to-fuchsia-600" status="beta" breadcrumb={[{ label: "Mega Editor" }]}>
       <div className="grid lg:grid-cols-[360px_1fr] gap-4">
         {/* ════ Panel izquierdo ════ */}
         <div className="space-y-3">

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIntegration } from "@/lib/integrations";
+import { resolveOwner } from "@/lib/planner-admins";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-function authed(req: NextRequest): boolean {
-  const secret = process.env.LICENSE_ADMIN_SECRET;
-  return !!secret && req.headers.get("x-admin-secret") === secret;
+async function authed(req: NextRequest): Promise<boolean> {
+  return !!(await resolveOwner(req.headers.get("x-admin-secret")));
 }
 
 interface Scene { narration: string; query: string; visual: string; seconds: number }
@@ -14,7 +14,7 @@ interface Scene { narration: string; query: string; visual: string; seconds: num
 /** Extrae el array de escenas de la salida del modelo, tolerando fences/objeto/prosa. */
 function parseScenes(content: string): Scene[] | null {
   if (!content) return null;
-  let t = content.trim().replace(/^```(?:json)?/i, "").replace(/```\s*$/i, "").trim();
+  const t = content.trim().replace(/^```(?:json)?/i, "").replace(/```\s*$/i, "").trim();
   const tryParse = (str: string): unknown => { try { return JSON.parse(str); } catch { return null; } };
 
   let data: unknown = tryParse(t);
@@ -61,7 +61,7 @@ async function callModel(baseUrl: string, key: string, sys: string, user: string
  * Genera el guión por escenas con NVIDIA (gratis). Robusto: parseo tolerante + reintento.
  */
 export async function POST(req: NextRequest) {
-  if (!authed(req)) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  if (!(await authed(req))) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
   const prompt = String(body.prompt ?? "").trim();

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveOwner } from "@/lib/planner-admins";
 
 export const runtime = "nodejs";
 
-function authed(req: NextRequest): boolean {
-  const secret = process.env.LICENSE_ADMIN_SECRET;
-  return !!secret && req.headers.get("x-admin-secret") === secret;
+async function authed(req: NextRequest): Promise<boolean> {
+  return !!(await resolveOwner(req.headers.get("x-admin-secret")));
 }
 
 // Allowlist de hosts (evita SSRF / proxy abierto).
@@ -21,7 +21,7 @@ const ALLOWED = [
  * client-side (ffmpeg.wasm) los lea sin bloqueos de CORS. Solo SuperAdmin.
  */
 export async function GET(req: NextRequest) {
-  if (!authed(req)) return new NextResponse("No autorizado", { status: 401 });
+  if (!(await authed(req))) return new NextResponse("No autorizado", { status: 401 });
 
   const u = new URL(req.url).searchParams.get("url");
   if (!u) return new NextResponse("url requerida", { status: 400 });

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIntegration } from "@/lib/integrations";
 import { searchWikimediaCommons } from "@/lib/media-sources";
+import { resolveOwner } from "@/lib/planner-admins";
 
 export const runtime = "nodejs";
 
-/** Solo SuperAdmin: requiere el secreto de administrador. */
-function authed(req: NextRequest): boolean {
-  const secret = process.env.LICENSE_ADMIN_SECRET;
-  return !!secret && req.headers.get("x-admin-secret") === secret;
+/** SuperAdmin o admin del Planificador (token válido). */
+async function authed(req: NextRequest): Promise<boolean> {
+  return !!(await resolveOwner(req.headers.get("x-admin-secret")));
 }
 
 interface StockItem {
@@ -33,7 +33,7 @@ const first = <T,>(v: T | T[]): T => (Array.isArray(v) ? v[0] : v);
  *  - source=archive → películas/documentales de Internet Archive (dominio público, sin clave)
  */
 export async function GET(req: NextRequest) {
-  if (!authed(req)) return NextResponse.json({ error: "No autorizado", results: [] }, { status: 401 });
+  if (!(await authed(req))) return NextResponse.json({ error: "No autorizado", results: [] }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get("q") || "").trim();
