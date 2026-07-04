@@ -523,7 +523,8 @@ export default function EditorPage() {
         const N = 800, block = Math.floor(data.length / N) || 1;
         const peaks: number[] = [];
         for (let i = 0; i < N; i++) { let mx = 0; for (let j = 0; j < block; j++) { const v = Math.abs(data[i * block + j] || 0); if (v > mx) mx = v; } peaks.push(mx); }
-        setWavePeaks(peaks);
+        const maxP = Math.max(0.01, ...peaks); // normaliza para que se vea aunque el audio sea bajo
+        setWavePeaks(peaks.map((p) => Math.min(1, p / maxP)));
         ctx.close();
       } catch {
         const probe = new Audio(); probe.preload = "metadata";
@@ -911,7 +912,7 @@ export default function EditorPage() {
         <div className="space-y-4">
           {/* Preview */}
           <div className="glass-card rounded-2xl border border-white/10 p-3">
-            <div className={`relative ${aspectCls} w-full max-w-[460px] max-h-[40vh] sm:max-h-[46vh] mx-auto rounded-xl overflow-hidden bg-black border border-white/10`}>
+            <div className={`relative ${aspectCls} w-full ${aspect === "9:16" ? "max-w-[300px]" : "max-w-[560px]"} max-h-[56vh] mx-auto rounded-xl overflow-hidden bg-black border border-white/10`}>
               {cur ? (
                 <div key={cur.id} className="absolute inset-0 animate-in fade-in duration-500">
                   {cur.media ? (cur.media.type === "video" ? (
@@ -979,12 +980,19 @@ export default function EditorPage() {
                   </div>
                 ))}
                 </div>
-                {customAudio && wavePeaks && (
-                  <div className="mt-1.5">
-                    <div className="flex items-center gap-1 mb-0.5 text-emerald-300/80 text-[10px] font-semibold"><Volume2 className="w-3 h-3" /> Audio: {customAudio.name} · {customAudioDur}s{totalSec !== customAudioDur && <span className="text-amber-300/80"> · clips {totalSec}s {totalSec < customAudioDur ? `(faltan ${customAudioDur - totalSec}s de video)` : `(sobran ${totalSec - customAudioDur}s)`}</span>}</div>
-                    <canvas ref={waveCanvasRef} className="h-11 rounded bg-emerald-500/5 border border-emerald-500/20 block" style={{ width: Math.max(64, customAudioDur * PX_PER_SEC) }} />
+                <div className="mt-1.5">
+                  <div className="flex items-center gap-1 mb-0.5 text-emerald-300/80 text-[10px] font-semibold">
+                    <Volume2 className="w-3 h-3" /> Pista de audio{customAudio ? ` · ${customAudio.name} · ${customAudioDur}s` : ""}
+                    {customAudio && totalSec !== customAudioDur && <span className="text-amber-300/80"> · clips {totalSec}s {totalSec < customAudioDur ? `(faltan ${customAudioDur - totalSec}s de video)` : `(sobran ${totalSec - customAudioDur}s)`}</span>}
                   </div>
-                )}
+                  {customAudio && wavePeaks ? (
+                    <canvas ref={waveCanvasRef} className="h-11 rounded bg-emerald-500/[0.06] border border-emerald-500/25 block" style={{ width: Math.max(64, customAudioDur * PX_PER_SEC) }} />
+                  ) : (
+                    <button type="button" onClick={() => audioFileRef.current?.click()} className="h-11 rounded border border-dashed border-emerald-500/30 bg-emerald-500/[0.03] text-emerald-300/70 text-[11px] font-semibold hover:bg-emerald-500/10 flex items-center justify-center gap-1.5" style={{ width: Math.max(220, totalSec * PX_PER_SEC) }}>
+                      <Upload className="w-3.5 h-3.5" /> Sube tu audio para ver la onda y cuadrar el video al segundo
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
