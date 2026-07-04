@@ -11,7 +11,7 @@ import {
   ShoppingBag, Zap, Scale, Bell, Settings, ChevronLeft,
   ChevronRight, Globe, MessageSquare, Star, Shield,
   Video, Film, Mic, Image, BookOpen, Layout, ChevronDown, GalleryHorizontal,
-  Bot, Filter, Mail, CalendarClock, Briefcase, Sparkles, Palette, Radio, Layers, Package, Plug, Clapperboard
+  Bot, Filter, Mail, CalendarClock, Briefcase, Sparkles, Palette, Radio, Layers, Package, Plug, Clapperboard, KeyRound
 } from "lucide-react";
 
 const mainNav = [
@@ -198,6 +198,7 @@ export function Sidebar() {
               { label: "Categorías",         href: "/admin/categories", icon: Settings, iconBg: "bg-orange-500/20", iconColor: "text-orange-400" },
               { label: "Banners",            href: "/admin/banners",    icon: GalleryHorizontal, iconBg: "bg-cyan-500/20", iconColor: "text-cyan-400" },
               { label: "Usuarios",           href: "/admin/users",      icon: Users,    iconBg: "bg-blue-500/20",   iconColor: "text-blue-400" },
+              ...(isSuper ? [{ label: "Admins del Planificador", href: "/admin/planner-admins", icon: KeyRound, iconBg: "bg-pink-500/20", iconColor: "text-pink-400" }] : []),
               { label: "Afiliados",          href: "/admin/affiliates", icon: UserCheck, iconBg: "bg-green-500/20", iconColor: "text-green-400" },
               { label: "White Label",        href: "/admin/whitelabel", icon: Globe,    iconBg: "bg-purple-500/20", iconColor: "text-purple-400" },
               ...(isSuper ? [{ label: "Pagos", href: "/admin/payments", icon: Receipt, iconBg: "bg-emerald-500/20", iconColor: "text-emerald-400" }] : []),
