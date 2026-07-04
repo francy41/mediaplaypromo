@@ -853,7 +853,7 @@ export default function EditorPage() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={cur.media.url} alt="" className="w-full h-full object-cover" style={{ filter: cssFilter(cur.effect), animation: cur.effect === "zoom" || cur.media.type === "photo" ? "kenburns 6s ease-out forwards" : undefined }} />
                   )) : <div className="w-full h-full bg-gradient-to-br from-violet-700 to-fuchsia-900" />}
-                  {cur.narration && <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4"><p className="text-white text-sm sm:text-base font-semibold text-center drop-shadow">{cur.narration}</p></div>}
+                  {cur.narration && <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 py-2"><p className="text-white/90 text-[11px] sm:text-xs font-medium text-center drop-shadow line-clamp-2" title={cur.narration}>{cur.narration}</p></div>}
                   <div className="absolute top-2 right-2 text-[10px] font-bold bg-black/50 text-white px-2 py-0.5 rounded backdrop-blur">{previewIndex + 1}/{clips.length}</div>
                 </div>
               ) : (

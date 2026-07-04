@@ -94,6 +94,16 @@ function captionPng(text: string, W: number, H: number): Uint8Array {
   return arr;
 }
 
+/** Trocea la narración en líneas cortas (para subtítulos sincronizados). */
+function chunkCaption(text: string, maxWords = 9, maxChunks = 8): string[] {
+  const words = text.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  if (words.length === 0) return [];
+  const per = Math.max(maxWords, Math.ceil(words.length / maxChunks));
+  const chunks: string[] = [];
+  for (let i = 0; i < words.length; i += per) chunks.push(words.slice(i, i + per).join(" "));
+  return chunks;
+}
+
 let ffPromise: Promise<FFmpeg> | null = null;
 async function getFF(): Promise<FFmpeg> {
   if (!ffPromise) {
@@ -202,17 +212,32 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
       try { await f.deleteFile(fn); } catch { /* noop */ }
     }
 
-    // Subtítulo quemado (overlay PNG; -loop 1 + shortest → en todos los fotogramas)
+    // Subtítulos quemados: la narración se trocea en líneas cortas y se muestran
+    // SINCRONIZADAS a lo largo de la escena (no un muro de texto estático).
     let finalSeg = seg;
     if (opts.subtitles && (s.narration || "").trim()) {
       try {
-        const png = captionPng(s.narration!.trim(), W, H);
-        if (png.length > 0) {
-          const cap = `cap${i}.png`;
+        const chunks = chunkCaption(s.narration!.trim());
+        const inputs: string[] = [];
+        let fc = ""; let last = "[0:v]"; let n = 0;
+        for (let k = 0; k < chunks.length; k++) {
+          const png = captionPng(chunks[k], W, H);
+          if (png.length === 0) continue;
+          const capf = `cap${i}_${k}.png`;
+          await f.writeFile(capf, png);
+          inputs.push("-loop", "1", "-i", capf);
+          n++;
+          const a = ((k * dur) / chunks.length).toFixed(2);
+          const b = (((k + 1) * dur) / chunks.length).toFixed(2);
+          const out = `[o${k}]`;
+          fc += `${last}[${n}:v]overlay=0:0:enable='between(t,${a},${b})'${out};`;
+          last = out;
+        }
+        if (fc) {
+          fc = fc.slice(0, -1);
           const segc = `segc${i}.mp4`;
-          await f.writeFile(cap, png);
-          await f.exec(["-i", seg, "-loop", "1", "-i", cap, "-filter_complex", "[0:v][1:v]overlay=0:0:format=auto:shortest=1[o]", "-map", "[o]", "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", segc]);
-          try { await f.deleteFile(cap); } catch { /* noop */ }
+          await f.exec(["-i", seg, ...inputs, "-filter_complex", fc, "-map", last, "-t", t, "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", segc]);
+          for (let k = 0; k < chunks.length; k++) { try { await f.deleteFile(`cap${i}_${k}.png`); } catch { /* noop */ } }
           try { await f.deleteFile(seg); } catch { /* noop */ }
           finalSeg = segc;
         }
