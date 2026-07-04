@@ -5,6 +5,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { CATEGORIES } from "@/lib/categories";
 import { BrandLogo } from "@/components/BrandLogo";
+import { useAuth } from "@/lib/auth-context";
 import {
   LayoutDashboard, BarChart2, Users, UserCheck, Receipt,
   ShoppingBag, Zap, Scale, Bell, Settings, ChevronLeft,
@@ -41,6 +42,8 @@ const categoryIconMap: Record<string, React.ElementType> = {
 
 export function Sidebar() {
   const pathname  = usePathname();
+  const { user } = useAuth();
+  const isSuper = !user || user.role === "superadmin"; // los admins no ven la pasarela de pago
   const [collapsed, setCollapsed]     = useState(false);
   const [aiExpanded, setAiExpanded]   = useState(true);
 
@@ -197,7 +200,7 @@ export function Sidebar() {
               { label: "Usuarios",           href: "/admin/users",      icon: Users,    iconBg: "bg-blue-500/20",   iconColor: "text-blue-400" },
               { label: "Afiliados",          href: "/admin/affiliates", icon: UserCheck, iconBg: "bg-green-500/20", iconColor: "text-green-400" },
               { label: "White Label",        href: "/admin/whitelabel", icon: Globe,    iconBg: "bg-purple-500/20", iconColor: "text-purple-400" },
-              { label: "Pagos",              href: "/admin/payments",   icon: Receipt,  iconBg: "bg-emerald-500/20", iconColor: "text-emerald-400" },
+              ...(isSuper ? [{ label: "Pagos", href: "/admin/payments", icon: Receipt, iconBg: "bg-emerald-500/20", iconColor: "text-emerald-400" }] : []),
               { label: "Analytics",          href: "/admin/analytics",  icon: BarChart2, iconBg: "bg-indigo-500/20", iconColor: "text-indigo-400" },
               { label: "Seguridad",          href: "/settings/security", icon: Shield,  iconBg: "bg-red-500/20",    iconColor: "text-red-400" },
             ].map((item) => {

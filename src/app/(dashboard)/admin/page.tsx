@@ -68,13 +68,16 @@ export default function SuperAdminHub() {
   const [selectedEntry, setSelectedEntry] = useState<number | null>(1);
   const [search, setSearch] = useState("");
 
-  if (user && user.role !== "superadmin") {
+  if (user && user.role !== "superadmin" && user.role !== "admin") {
     return (
       <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-8 text-center max-w-md mx-auto">
-        <p className="text-red-400 font-bold">Acceso restringido a SuperAdmin.</p>
+        <p className="text-red-400 font-bold">Acceso restringido.</p>
       </div>
     );
   }
+
+  // Los admins ven todo el panel MENOS la pasarela de pago.
+  const isSuper = !user || user.role === "superadmin";
 
   const filtered = auditEntries.filter((e) =>
     !search || e.actor.toLowerCase().includes(search.toLowerCase()) || e.action.toLowerCase().includes(search.toLowerCase())
@@ -372,7 +375,8 @@ export default function SuperAdminHub() {
 
       {/* ── Modules Catalog (grouped) ── */}
       {MODULE_GROUPS.map((group) => {
-        const items = grouped[group];
+        // Los admins no ven la pasarela de pago (módulo "payments").
+        const items = (grouped[group] ?? []).filter((m) => isSuper || m.id !== "payments");
         if (!items || items.length === 0) return null;
         return (
           <section key={group}>

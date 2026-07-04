@@ -179,17 +179,17 @@ function LoginContent() {
               {/* Email */}
               <div>
                 <label htmlFor="email" className="block text-white/65 text-xs font-bold mb-1.5">
-                  Email
+                  Email o usuario
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/35" />
                   <input
                     id="email"
-                    type="email"
+                    type="text"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="tu@email.com"
-                    autoComplete="email"
+                    placeholder="tu@email.com o tu usuario"
+                    autoComplete="username"
                     required
                     className="w-full bg-white/[0.04] border border-white/10 rounded-xl pl-10 pr-3 py-3 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-cyan-500/50 focus:bg-white/[0.07] transition-all"
                   />

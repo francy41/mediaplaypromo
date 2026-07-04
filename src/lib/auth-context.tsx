@@ -143,6 +143,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { ok: true };
     }
 
+    // ── Admins del Planificador: usuario + contraseña ──
+    // Entran al panel completo salvo la pasarela de pago. El token se guarda
+    // también para que el Planificador (/content) funcione sin re-login.
+    try {
+      const r = await fetch("/api/planner-auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: email.trim(), password }),
+      });
+      if (r.ok) {
+        const d = await r.json();
+        if (d.ok && d.role === "admin" && d.token) {
+          const nm: string = d.name || email.trim();
+          const authUser: AuthUser = {
+            email: email.trim(),
+            name: nm,
+            role: "admin",
+            avatar: nm.slice(0, 2).toUpperCase(),
+            plan: "admin",
+          };
+          setUser(authUser);
+          try {
+            localStorage.setItem(SESSION_KEY, JSON.stringify(authUser));
+            localStorage.setItem("mpp_license_admin_secret", d.token);
+          } catch {}
+          return { ok: true };
+        }
+      }
+    } catch {}
+
     if (SUPABASE_ENABLED) {
       try {
         const supabase = createSupabaseBrowserClient();

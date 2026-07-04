@@ -13,20 +13,23 @@ interface Props {
   breadcrumb?: { label: string; href?: string }[];
   actions?: React.ReactNode;
   children: React.ReactNode;
+  /** Si es true, solo el SuperAdmin puede entrar (los admins ven "restringido"). */
+  superadminOnly?: boolean;
 }
 
 export function AdminShell({
   title, description, icon: Icon, iconGradient = "from-cyan-500 to-blue-600",
-  status, breadcrumb, actions, children,
+  status, breadcrumb, actions, children, superadminOnly = false,
 }: Props) {
   const { user } = useAuth();
 
-  if (user && user.role !== "superadmin") {
+  const allowed = superadminOnly ? ["superadmin"] : ["superadmin", "admin"];
+  if (user && !allowed.includes(user.role)) {
     return (
       <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-8 text-center max-w-md mx-auto">
         <Shield className="w-10 h-10 text-red-400 mx-auto mb-3" />
         <h2 className="text-white font-bold text-lg">Acceso restringido</h2>
-        <p className="text-white/55 text-sm mt-1">Solo SuperAdmin puede ver esta página.</p>
+        <p className="text-white/55 text-sm mt-1">{superadminOnly ? "Esta sección es solo para el SuperAdmin." : "No tienes permiso para ver esta página."}</p>
       </div>
     );
   }

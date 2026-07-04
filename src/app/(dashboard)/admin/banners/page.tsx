@@ -36,11 +36,11 @@ export default function BannersAdminPage() {
   const [draft, setDraft] = useState<Banner | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
-  // Lock to SuperAdmin
-  if (user && user.role !== "superadmin") {
+  // Admin y SuperAdmin pueden gestionar banners
+  if (user && user.role !== "superadmin" && user.role !== "admin") {
     return (
       <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-8 text-center">
-        <p className="text-red-400 font-bold">Acceso restringido a SuperAdmin.</p>
+        <p className="text-red-400 font-bold">Acceso restringido.</p>
       </div>
     );
   }

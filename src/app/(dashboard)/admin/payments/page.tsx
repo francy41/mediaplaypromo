@@ -10,6 +10,7 @@ export default function PaymentsAdminPage() {
       icon={CreditCard}
       iconGradient="from-green-500 to-emerald-600"
       status="beta"
+      superadminOnly
       breadcrumb={[{ label: "Pagos" }]}
       actions={
         <button className="inline-flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors">
