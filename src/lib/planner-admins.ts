@@ -84,6 +84,7 @@ export async function createAdmin(input: { name?: string; username: string; pass
   if (password.length < 4) return { ok: false, error: "La contraseña debe tener al menos 4 caracteres." };
   const list = await readRaw();
   if (list.some((a) => (a.username || "").toLowerCase() === username.toLowerCase())) return { ok: false, error: "Ese usuario ya existe." };
+  if (email && list.some((a) => (a.email || "").toLowerCase() === email)) return { ok: false, error: "Ese email ya existe." };
   let code = generateCode();
   while (list.some((a) => a.code === code)) code = generateCode();
   const admin: PlannerAdmin = {
@@ -130,7 +131,9 @@ export async function verifyCredentials(username: string, password: string): Pro
   const pw = password || "";
   if (!u || !pw) return { ok: false, error: "Faltan usuario y contraseña." };
 
-  const a = (await readRaw()).find((x) => x.active && (x.username || "").toLowerCase() === u);
+  const a = (await readRaw()).find((x) => x.active && (
+    (x.username || "").toLowerCase() === u || (x.email || "").toLowerCase() === u
+  ));
   if (a && a.passwordHash && await bcrypt.compare(pw, a.passwordHash)) {
     return { ok: true, token: a.code, role: "admin", name: a.name };
   }

@@ -24,6 +24,7 @@ export default function PlannerAdminsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -59,10 +60,10 @@ export default function PlannerAdminsPage() {
   const create = async () => {
     if (!username.trim() || !password.trim()) { setMsg("Escribe usuario y contraseña."); return; }
     setMsg("Creando…");
-    const r = await call(secret, "POST", { action: "create", name, username, password });
+    const r = await call(secret, "POST", { action: "create", name, email, username, password });
     const d = await r.json();
     if (d.ok && d.admin) {
-      setMsg("✅ Administrador creado"); setName(""); setUsername(""); setPassword("");
+      setMsg("✅ Administrador creado"); setName(""); setEmail(""); setUsername(""); setPassword("");
       setJustCreated(d.admin.id);
       load(secret);
     } else setMsg(`⚠️ ${d.error || "No se pudo crear"}`);
@@ -125,8 +126,9 @@ export default function PlannerAdminsPage() {
           {/* Crear admin */}
           <div className="glass-card rounded-2xl border border-violet-500/25 bg-violet-500/[0.03] p-5">
             <h3 className="flex items-center gap-2 text-white font-bold text-sm mb-3"><UserPlus className="w-4 h-4 text-violet-400" /> Crear administrador</h3>
-            <div className="grid sm:grid-cols-3 gap-2 mb-2">
+            <div className="grid sm:grid-cols-2 gap-2 mb-2">
               <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre (opcional)" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/40" />
+              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email (opcional)" autoComplete="off" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/40" />
               <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Usuario *" autoComplete="off" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/40" />
               <div className="relative">
                 <input value={password} onChange={(e) => setPassword(e.target.value)} type={showPw ? "text" : "password"} placeholder="Contraseña *" autoComplete="new-password" className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 pr-9 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/40" />
