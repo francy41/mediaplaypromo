@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Clapperboard, Lock, Wand2, Loader2, Play, Square, Download, Trash2, RefreshCw,
-  Video as VideoIcon, Volume2, VolumeX, Film, Search, Plus,
+  Volume2, VolumeX, Film, Plus,
   ChevronLeft, ChevronRight, FolderInput, Upload, X, Music, Subtitles, Mic,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
@@ -153,10 +153,6 @@ export default function EditorPage() {
   const [flash, setFlash] = useState("");
 
   // media browser
-  const [mSource, setMSource] = useState<"video" | "photo" | "archive" | "wikimedia" | "pixabay-video" | "pixabay-photo" | "coverr">("video");
-  const [mQuery, setMQuery] = useState("");
-  const [mResults, setMResults] = useState<Media[]>([]);
-  const [mLoading, setMLoading] = useState(false);
 
   // preview / render
   const [previewIndex, setPreviewIndex] = useState(-1);
@@ -310,31 +306,7 @@ export default function EditorPage() {
     finally { setGenerating(false); }
   };
 
-  /* ── Media browser ── */
-  const searchMedia = async () => {
-    if (!mQuery.trim()) return;
-    setMLoading(true);
-    try {
-      if (mSource === "archive") {
-        const r = await fetch(`/api/admin/stock?q=${encodeURIComponent(mQuery)}&source=archive&media=video`, { headers: { "x-admin-secret": secret } });
-        const d = await r.json();
-        setMResults((d.results ?? []).map((m: { thumb: string }) => ({ type: "photo" as const, thumb: m.thumb, url: m.thumb })));
-      } else if (mSource === "wikimedia") {
-        const r = await fetch(`/api/admin/stock?q=${encodeURIComponent(mQuery)}&source=wikimedia`, { headers: { "x-admin-secret": secret } });
-        const d = await r.json();
-        setMResults((d.results ?? []).filter((m: { url?: string }) => m.url).map((m: { thumb: string; url: string }) => ({ type: "video" as const, thumb: m.thumb, url: m.url })));
-      } else if (mSource === "pixabay-video" || mSource === "pixabay-photo") {
-        setMResults(await pixabay(mQuery, mSource === "pixabay-photo" ? "photo" : "video", orientationFor(aspect)));
-      } else if (mSource === "coverr") {
-        setMResults(await coverr(mQuery));
-      } else {
-        setMResults(await pexels(mQuery, mSource, orientationFor(aspect)));
-      }
-    } catch { /* noop */ }
-    finally { setMLoading(false); }
-  };
-
-  const addClip = (media: Media, narration = "", query = mQuery) => {
+  const addClip = (media: Media, narration = "", query = "") => {
     const c: Clip = { id: uid(), media, narration, query, visual: query, seconds: 5, startSec: 0, transition: "fade", effect: media.type === "photo" ? "zoom" : "none" };
     setClips((p) => [...p, c]);
     setSelectedId(c.id);
@@ -911,40 +883,12 @@ export default function EditorPage() {
               {error && <p className="text-red-400 text-xs">{error}</p>}
           </div>
 
-          {/* Panel: Banco de Medios — siempre visible */}
-          <div className="glass-card rounded-2xl border border-emerald-500/25 p-4 space-y-3">
-              <h3 className="flex items-center gap-1.5 text-white font-bold text-sm"><Film className="w-4 h-4 text-emerald-400" /> Banco de Medios — busca y añade clips</h3>
-              <div className="flex gap-1.5">
-                {([["video", "Pexels"], ["pixabay-video", "Pixabay"], ["coverr", "Coverr"], ["photo", "Fotos"], ["wikimedia", "Wiki"], ["archive", "Archive"]] as const).map(([v, l]) => (
-                  <button key={v} onClick={() => setMSource(v)} className={`flex-1 text-[11px] font-bold py-1.5 rounded-lg transition-all ${mSource === v ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-300" : "bg-white/5 border border-white/10 text-white/60 hover:text-white"}`}>{l}</button>
-                ))}
-              </div>
-              <form onSubmit={(e) => { e.preventDefault(); searchMedia(); }} className="flex gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-                  <input value={mQuery} onChange={(e) => setMQuery(e.target.value)} placeholder="Buscar clips…" className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-500/40" />
-                </div>
-                <button type="submit" disabled={mLoading} className="inline-flex items-center bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-3 rounded-xl disabled:opacity-50">{mLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}</button>
-              </form>
-              {queueCount > 0 && (
-                <button onClick={importQueue} className="w-full inline-flex items-center justify-center gap-1.5 bg-white/5 border border-white/10 hover:bg-white/10 text-white text-xs font-bold px-3 py-2 rounded-xl">
-                  <FolderInput className="w-3.5 h-3.5 text-violet-400" /> Importar producción ({queueCount})
-                </button>
-              )}
-              <div className="grid grid-cols-3 gap-1.5 max-h-[360px] overflow-y-auto scrollbar-hide">
-                {mResults.map((m, i) => (
-                  <button key={i} onClick={() => addClip(m)} className="group relative aspect-square rounded-lg overflow-hidden border border-white/10 bg-black">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={m.thumb} alt="" className="w-full h-full object-cover" loading="lazy" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <Plus className="w-5 h-5 text-white" />
-                    </div>
-                    {m.type === "video" && <VideoIcon className="absolute bottom-1 left-1 w-3 h-3 text-white/80" />}
-                  </button>
-                ))}
-                {mResults.length === 0 && <p className="col-span-3 text-white/35 text-[11px] text-center py-6">Busca y pulsa un clip para añadirlo al timeline.</p>}
-              </div>
-          </div>
+          {/* Importar producción del Estudio (respaldo del auto-import) */}
+          {queueCount > 0 && (
+            <button onClick={importQueue} className="w-full inline-flex items-center justify-center gap-1.5 glass-card border border-violet-500/25 hover:bg-white/5 text-white text-xs font-bold px-3 py-2.5 rounded-2xl">
+              <FolderInput className="w-3.5 h-3.5 text-violet-400" /> Importar producción del Estudio ({queueCount})
+            </button>
+          )}
 
           {/* Acciones de proyecto */}
           {clips.length > 0 && (
