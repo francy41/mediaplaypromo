@@ -468,28 +468,38 @@ export default function EditorPage() {
     setFlash("✓ Clips vacíos rellenados"); setTimeout(() => setFlash(""), 2500);
   };
 
-  // Trocea las escenas largas en varios clips cortos, cada uno con b-roll distinto → más dinámico.
+  // Trocea las narraciones largas en clips cortos con b-roll distinto y cuadra la duración con la voz.
   const [splitting, setSplitting] = useState(false);
+  const estVoiceSec = (text: string) => Math.max(3, Math.min(15, Math.round(text.trim().split(/\s+/).filter(Boolean).length * 0.42)));
+  const chunkNarration = (text: string): string[] => {
+    const sents = text.split(/(?<=[.!?…,;:])\s+/).map((s) => s.trim()).filter((s) => s.length > 1);
+    const base = sents.length ? sents : (text.trim() ? [text.trim()] : []);
+    const chunks: string[] = [];
+    for (const s of base) {
+      const words = s.split(/\s+/);
+      if (words.length <= 14) { chunks.push(s); continue; }
+      for (let i = 0; i < words.length; i += 12) chunks.push(words.slice(i, i + 12).join(" "));
+    }
+    return chunks;
+  };
   const splitLongClips = async () => {
     if (clips.length === 0) return;
     setSplitting(true);
-    setFlash("Troceando escenas largas…");
+    setFlash("Troceando y cuadrando con la voz…");
     const ori = orientationFor(aspect);
     const out: Clip[] = [];
     for (const c of clips) {
-      const sentences = (c.narration || "").split(/(?<=[.!?…])\s+/).map((s) => s.trim()).filter((s) => s.length > 2);
-      const parts = sentences.length > 1 ? sentences : (c.narration ? [c.narration] : [""]);
-      if (parts.length <= 1) { out.push(c); continue; } // nada que trocear
+      const parts = chunkNarration(c.narration || "");
+      if (parts.length <= 1) { out.push({ ...c, seconds: c.narration ? estVoiceSec(c.narration) : c.seconds }); continue; }
       let cands = await sceneMedia(c.query || c.visual, c.visual || c.query, ori);
       if (cands.length === 0 && c.media) cands = [c.media];
-      const per = Math.max(3, Math.round(c.seconds / parts.length));
       parts.forEach((sent, k) => {
-        out.push({ ...c, id: uid(), narration: sent, media: cands.length ? cands[k % cands.length] : c.media, seconds: per });
+        out.push({ ...c, id: uid(), narration: sent, media: cands.length ? cands[k % cands.length] : c.media, seconds: estVoiceSec(sent) });
       });
     }
     setClips(out);
     setSplitting(false);
-    setFlash(`✓ ${out.length} clips (más dinámico)`); setTimeout(() => setFlash(""), 2800);
+    setFlash(`✓ ${out.length} clips, cuadrados con la voz`); setTimeout(() => setFlash(""), 2800);
   };
 
   /* ── Voz / preview (Google TTS gratis) ── */
@@ -954,9 +964,9 @@ export default function EditorPage() {
                 </button>
               )}
 
-              {clips.some((c) => (c.narration || "").split(/(?<=[.!?…])\s+/).filter((s) => s.trim().length > 2).length > 1) && (
+              {clips.length > 0 && (
                 <button onClick={splitLongClips} disabled={splitting} className="w-full inline-flex items-center justify-center gap-1.5 bg-cyan-500/15 border border-cyan-500/30 text-cyan-200 text-[11px] font-bold px-3 py-2 rounded-lg hover:bg-cyan-500/25 disabled:opacity-60">
-                  {splitting ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Troceando…</> : <>✂️ Trocear escenas largas (más dinámico)</>}
+                  {splitting ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Troceando…</> : <>✂️ Cortes rápidos + cuadrar con la voz</>}
                 </button>
               )}
 
@@ -1003,7 +1013,7 @@ export default function EditorPage() {
 
           {/* Timeline (estilo CapCut) */}
           {clips.length > 0 && (
-            <div className="glass-card rounded-2xl border border-white/10 p-3">
+            <div className="glass-card rounded-2xl border border-white/10 p-3 min-w-0 overflow-hidden">
               <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                 <p className="text-white/55 text-[10px] font-bold uppercase tracking-wider">Línea de producción</p>
                 <div className="flex items-center gap-1.5">
