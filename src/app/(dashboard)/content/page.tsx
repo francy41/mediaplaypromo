@@ -74,6 +74,7 @@ export default function ContentPlannerPage() {
   const [batchStart, setBatchStart] = useState("");
   const [loopMode, setLoopMode] = useState(false);
   const [batchEnd, setBatchEnd] = useState("");
+  const [freqDays, setFreqDays] = useState(1); // frecuencia: cada N días (1=diario, 7=semanal)
 
   // programación individual (un video)
   const [schedId, setSchedId] = useState<string | null>(null);
@@ -178,17 +179,16 @@ export default function ContentPlannerPage() {
   const runBatch = async () => {
     if (loopMode) {
       if (!batchEnd) return alert("Selecciona una fecha de fin para el bucle.");
-      const cycles = batchEnd ? Math.ceil((new Date(batchEnd).getTime() - new Date(batchStart || Date.now() + 86400000).getTime()) / (86400000 * queued)) + 1 : 1;
-      if (!confirm(`¿Programar ${queued} video(s) en bucle hasta el ${batchEnd}? (~${Math.max(1, cycles)} ciclos)`)) return;
+      if (!confirm(`¿Programar ${queued} video(s) en bucle (${freqLabel}) hasta el ${batchEnd}?`)) return;
       setLoading(true);
-      const r = await call(secret, "POST", { action: "batch-loop", platforms: batchPlatforms, time: batchTime, startDate: batchStart || undefined, endDate: batchEnd, projectId: activeProject });
+      const r = await call(secret, "POST", { action: "batch-loop", platforms: batchPlatforms, time: batchTime, startDate: batchStart || undefined, endDate: batchEnd, intervalDays: freqDays, projectId: activeProject });
       const d = await r.json();
       if (d.ok) alert(`✅ ${d.scheduled} publicaciones programadas en ${d.cycles} ciclo(s)`);
       else alert(`Error: ${d.error}`);
     } else {
-      if (!confirm("¿Programar todos los videos en cola, 1 por día?")) return;
+      if (!confirm(`¿Programar todos los videos en cola, ${freqLabel}?`)) return;
       setLoading(true);
-      await call(secret, "POST", { action: "batch", platforms: batchPlatforms, time: batchTime, startDate: batchStart || undefined, projectId: activeProject });
+      await call(secret, "POST", { action: "batch", platforms: batchPlatforms, time: batchTime, startDate: batchStart || undefined, intervalDays: freqDays, projectId: activeProject });
     }
     load(secret);
   };
@@ -279,6 +279,7 @@ export default function ContentPlannerPage() {
   const togglePlat = (p: string) =>
     setBatchPlatforms((cur) => (cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p]));
 
+  const freqLabel = freqDays === 1 ? "1 por día" : freqDays === 7 ? "1 por semana" : freqDays === 14 ? "1 cada 2 semanas" : freqDays === 30 ? "1 por mes" : `1 cada ${freqDays} días`;
   const queued = posts.filter((p) => p.status === "queued").length;
   const scheduled = posts.filter((p) => p.status === "scheduled").length;
   const published = posts.filter((p) => p.status === "published").length;
@@ -504,11 +505,11 @@ export default function ContentPlannerPage() {
             {loopMode && (
               <div className="mb-3 rounded-xl border border-violet-500/30 bg-violet-500/[0.06] p-3 text-xs text-violet-200/80">
                 <Repeat2 className="w-3.5 h-3.5 inline mr-1.5 text-violet-400" />
-                Los <b>{queued} videos en cola</b> se repetirán cíclicamente 1 por día hasta la fecha de fin. El ciclo se reinicia automáticamente cuando termina la lista.
+                Los <b>{queued} videos en cola</b> se publicarán <b>{freqLabel}</b> hasta la fecha de fin, repitiéndose cíclicamente. El ciclo se reinicia automáticamente cuando termina la lista.
               </div>
             )}
 
-            <div className={`grid gap-3 mb-3 ${loopMode ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+            <div className={`grid gap-3 mb-3 sm:grid-cols-2 ${loopMode ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
               <div>
                 <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Empezar el</label>
                 <input type="date" value={batchStart} onChange={(e) => setBatchStart(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/40" />
@@ -519,6 +520,17 @@ export default function ContentPlannerPage() {
                   <input type="date" value={batchEnd} onChange={(e) => setBatchEnd(e.target.value)} className="w-full bg-white/5 border border-violet-400/30 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/40" />
                 </div>
               )}
+              <div>
+                <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Frecuencia</label>
+                <select value={freqDays} onChange={(e) => setFreqDays(Number(e.target.value))} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/40">
+                  <option value={1} className="bg-[#0f1219]">Cada día</option>
+                  <option value={2} className="bg-[#0f1219]">Cada 2 días</option>
+                  <option value={3} className="bg-[#0f1219]">Cada 3 días</option>
+                  <option value={7} className="bg-[#0f1219]">Cada semana</option>
+                  <option value={14} className="bg-[#0f1219]">Cada 2 semanas</option>
+                  <option value={30} className="bg-[#0f1219]">Cada mes</option>
+                </select>
+              </div>
               <div>
                 <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Hora</label>
                 <input type="time" value={batchTime} onChange={(e) => setBatchTime(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500/40" />
@@ -539,7 +551,7 @@ export default function ContentPlannerPage() {
                 className="shine-btn inline-flex items-center gap-1.5 bg-gradient-to-r from-pink-500 to-violet-600 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-lg shadow-violet-500/30 disabled:opacity-50"
               >
                 {loopMode ? <Repeat2 className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
-                {loopMode ? `Programar bucle (${queued} videos en ciclo)` : `Programar los ${queued} en cola, 1 por día`}
+                {loopMode ? `Programar bucle (${freqLabel})` : `Programar los ${queued} en cola (${freqLabel})`}
               </button>
 
               {published > 0 && (

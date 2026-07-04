@@ -140,6 +140,7 @@ export async function POST(req: NextRequest) {
       const time: string = body.time || "10:00";
       const [hh, mm] = time.split(":").map((n: string) => Number(n));
       const start = body.startDate ? new Date(body.startDate) : new Date(Date.now() + 86400000);
+      const interval = Math.max(1, Math.floor(Number(body.intervalDays) || 1));
 
       let groups: string[][] = [];
       if (conn) {
@@ -153,7 +154,7 @@ export async function POST(req: NextRequest) {
       let scheduled = 0;
       for (let i = 0; i < list.length; i++) {
         const d = new Date(start);
-        d.setDate(d.getDate() + i);
+        d.setDate(d.getDate() + i * interval);
         d.setHours(hh || 10, mm || 0, 0, 0);
         const upd = await pushWithGroups(list[i], d.toISOString(), platforms, groups, conn);
         await admin.from("content_posts").update(upd).eq("id", list[i].id).eq("owner_id", owner.ownerId);
@@ -178,9 +179,11 @@ export async function POST(req: NextRequest) {
       const [hh, mm] = time.split(":").map((n: string) => Number(n));
       const start = body.startDate ? new Date(body.startDate) : new Date(Date.now() + 86400000);
       const end = body.endDate ? new Date(body.endDate) : new Date(Date.now() + 30 * 86400000);
+      const interval = Math.max(1, Math.floor(Number(body.intervalDays) || 1));
 
       const msPerDay = 86400000;
-      const rawDays = Math.max(1, Math.floor((end.getTime() - start.getTime()) / msPerDay) + 1);
+      const daysBetween = Math.max(0, Math.floor((end.getTime() - start.getTime()) / msPerDay));
+      const rawDays = Math.floor(daysBetween / interval) + 1; // nº de publicaciones según la frecuencia
       const totalDays = Math.min(rawDays, MAX_BATCH);
       const capped = rawDays > MAX_BATCH;
 
@@ -199,7 +202,7 @@ export async function POST(req: NextRequest) {
       for (let i = 0; i < totalDays; i++) {
         const template = list[i % list.length];
         const d = new Date(start);
-        d.setDate(d.getDate() + i);
+        d.setDate(d.getDate() + i * interval);
         d.setHours(hh || 10, mm || 0, 0, 0);
         const isoDate = d.toISOString();
         const upd = await pushWithGroups(template, isoDate, platforms, groups, conn);
