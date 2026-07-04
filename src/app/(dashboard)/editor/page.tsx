@@ -914,7 +914,7 @@ export default function EditorPage() {
           <div className="glass-card rounded-2xl border border-white/10 p-3">
             <div className={`relative ${aspectCls} w-full ${aspect === "9:16" ? "max-w-[300px]" : "max-w-[560px]"} max-h-[56vh] mx-auto rounded-xl overflow-hidden bg-black border border-white/10`}>
               {cur ? (
-                <div key={cur.id} className="absolute inset-0 animate-in fade-in duration-500">
+                <div key={cur.id} className="absolute inset-0 animate-in fade-in duration-200">
                   {cur.media ? (cur.media.type === "video" ? (
                     <video src={cur.media.url} autoPlay muted loop playsInline className="w-full h-full object-cover" style={{ filter: cssFilter(cur.effect) }} />
                   ) : (
@@ -922,7 +922,8 @@ export default function EditorPage() {
                     <img src={cur.media.url} alt="" className="w-full h-full object-cover" style={{ filter: cssFilter(cur.effect), animation: cur.effect === "zoom" || cur.media.type === "photo" ? "kenburns 6s ease-out forwards" : undefined }} />
                   )) : <div className="w-full h-full bg-gradient-to-br from-violet-700 to-fuchsia-900" />}
                   {cur.narration && <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-3 py-2"><p className="text-white/90 text-[11px] sm:text-xs font-medium text-center drop-shadow line-clamp-2" title={cur.narration}>{cur.narration}</p></div>}
-                  <div className="absolute top-2 right-2 text-[10px] font-bold bg-black/50 text-white px-2 py-0.5 rounded backdrop-blur">{previewIndex + 1}/{clips.length}</div>
+                  <div className="absolute top-2 right-2 text-[10px] font-bold bg-black/50 text-white px-2 py-0.5 rounded backdrop-blur">Escena {previewIndex + 1}/{clips.length} · {(() => { const s = clips.slice(0, previewIndex).reduce((a, c) => a + c.seconds, 0); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; })()}</div>
+                  <span className="absolute top-2 left-2 text-[9px] font-bold bg-emerald-500/80 text-white px-1.5 py-0.5 rounded">▶ {cur.seconds}s</span>
                 </div>
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
@@ -954,7 +955,7 @@ export default function EditorPage() {
                 <div className="flex gap-1">
                 {clips.map((c, i) => (
                   <div key={c.id} onClick={() => setSelectedId(c.id)} style={{ width: Math.max(64, c.seconds * PX_PER_SEC) }}
-                    className={`group relative h-16 rounded-lg overflow-hidden border flex-shrink-0 transition-all cursor-pointer ${selectedId === c.id ? "border-violet-400 ring-2 ring-violet-500/40" : "border-white/10 hover:border-white/30"}`}>
+                    className={`group relative h-16 rounded-lg overflow-hidden border flex-shrink-0 transition-all cursor-pointer ${previewIndex === i ? "border-emerald-400 ring-2 ring-emerald-400/70" : selectedId === c.id ? "border-violet-400 ring-2 ring-violet-500/40" : "border-white/10 hover:border-white/30"}`}>
                     {c.media ? (
                       c.media.type === "video" && c.media.thumb === c.media.url ? (
                         <video src={c.media.url} muted playsInline preload="metadata" className="w-full h-full object-cover pointer-events-none" style={{ filter: cssFilter(c.effect) }} />

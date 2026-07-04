@@ -25,7 +25,7 @@ interface RenderOpts {
 }
 
 const DIMS: Record<string, [number, number]> = { "16:9": [1280, 720], "9:16": [720, 1280], "1:1": [720, 720] };
-const FD = 0.3; // duración del fundido (s)
+const FD = 0.15; // duración del fundido (s) — corto para transiciones rápidas
 
 function effectFilter(effect?: string): string {
   switch (effect) {
@@ -181,7 +181,7 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
   const minEff = effDur.length ? Math.min(...effDur) : 0;
   const xfadeMode = opts.transitionStyle === "xfade" && !opts.customAudio
     && usable.length >= 2 && usable.length <= 12 && totalEff <= 35 && minEff >= 1.2;
-  const XT = 0.5; // duración del crossfade (s)
+  const XT = 0.3; // duración del crossfade (s) — rápido
   const segFade = fadeOn && !xfadeMode; // si hay xfade, él gestiona la transición
 
   // ── Segmentos de video (duración = effDur, con efecto/Ken Burns/fundidos) ──
