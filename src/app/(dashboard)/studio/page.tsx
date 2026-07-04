@@ -156,10 +156,12 @@ export default function StudioPage() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div>
               <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider mb-1.5">Nº de escenas (×{SCENE_SECONDS}s) · {fmtTotal(sceneCount)}</label>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {SCENE_COUNTS.map((n) => (
                   <button key={n} onClick={() => setSceneCount(n)} className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${sceneCount === n ? "bg-violet-500/25 text-violet-200 border border-violet-500/40" : "bg-white/5 text-white/50 border border-white/10"}`} title={`${n} escenas ≈ ${fmtTotal(n)}`}>{n}</button>
                 ))}
+                <span className="text-white/30 text-[10px] ml-1">o exacto:</span>
+                <input type="number" min={1} max={40} value={sceneCount} onChange={(e) => setSceneCount(Math.min(40, Math.max(1, parseInt(e.target.value, 10) || 1)))} className="w-14 bg-white/5 border border-violet-500/40 rounded-lg px-2 py-1.5 text-[11px] text-white text-center focus:outline-none focus:border-violet-500" title="Nº exacto de escenas" />
               </div>
             </div>
             <div>
