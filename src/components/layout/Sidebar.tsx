@@ -191,6 +191,7 @@ export function Sidebar() {
             </Link>
             {[
               { label: "Control Hub",        href: "/admin",            icon: Star,    iconBg: "bg-fuchsia-500/20", iconColor: "text-fuchsia-400" },
+              { label: "Estudio Guión IA",   href: "/studio",           icon: Sparkles, iconBg: "bg-violet-500/20", iconColor: "text-violet-300" },
               { label: "Integraciones API",  href: "/integrations",     icon: Plug,    iconBg: "bg-indigo-500/20",  iconColor: "text-indigo-400" },
               { label: "Banco de Medios",    href: "/stock",            icon: Film,    iconBg: "bg-emerald-500/20", iconColor: "text-emerald-400" },
               { label: "Batch Generator",    href: "/admin/batch",      icon: Layers,  iconBg: "bg-fuchsia-500/20", iconColor: "text-fuchsia-300" },

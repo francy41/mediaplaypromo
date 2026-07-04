@@ -323,11 +323,19 @@ export default function EditorPage() {
   };
 
   const importQueue = () => {
-    let q: Media[] = [];
+    type QItem = Media & { narration?: string; seconds?: number };
+    let q: QItem[] = [];
     try { q = JSON.parse(localStorage.getItem(PRODUCTION_QUEUE) || "[]"); } catch {}
     if (q.length === 0) return;
-    const add: Clip[] = q.filter((m) => m?.url).map((m) => ({ id: uid(), media: { type: m.type, thumb: m.thumb, url: m.url }, narration: "", query: "", visual: "", seconds: 5, startSec: 0, transition: "fade", effect: m.type === "photo" ? "zoom" : "none" }));
+    const add: Clip[] = q.filter((m) => m?.url).map((m) => ({ id: uid(), media: { type: m.type, thumb: m.thumb, url: m.url }, narration: m.narration || "", query: "", visual: "", seconds: m.seconds || 5, startSec: 0, transition: "fade", effect: m.type === "photo" ? "zoom" : "none" }));
     setClips((p) => [...p, ...add]);
+    // Meta del Estudio: aplica la voz y el formato elegidos allí.
+    try {
+      const meta = JSON.parse(localStorage.getItem("mpp_studio_meta") || "null") as { voice?: string; aspect?: string } | null;
+      if (meta?.voice) setVoiceCode(meta.voice);
+      if (meta?.aspect) setAspect(meta.aspect);
+      localStorage.removeItem("mpp_studio_meta");
+    } catch {}
     try { localStorage.setItem(PRODUCTION_QUEUE, "[]"); } catch {}
     setQueueCount(0);
   };
