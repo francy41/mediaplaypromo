@@ -976,7 +976,7 @@ export default function EditorPage() {
         </div>
 
         {/* ════ Centro: preview + timeline + inspector ════ */}
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           {/* Preview */}
           <div className="glass-card rounded-2xl border border-white/10 p-3">
             <div className={`relative ${aspectCls} w-full ${aspect === "9:16" ? "max-w-[300px]" : "max-w-[560px]"} max-h-[56vh] mx-auto rounded-xl overflow-hidden bg-black border border-white/10`}>
