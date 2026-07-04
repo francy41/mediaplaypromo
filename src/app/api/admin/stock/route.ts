@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get("q") || "").trim();
   const srcParam = searchParams.get("source") || "";
-  const source = srcParam === "archive" || srcParam === "wikimedia" ? srcParam : "pexels";
+  const source = ["archive", "wikimedia", "pixabay"].includes(srcParam) ? srcParam : "pexels";
   const type = searchParams.get("type") === "video" ? "video" : "photo";
   const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
   if (!q) return NextResponse.json({ results: [], page });
@@ -81,6 +81,43 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ results, page });
     } catch (e) {
       return NextResponse.json({ results: [], error: e instanceof Error ? e.message : "Error Wikimedia" });
+    }
+  }
+
+  /* ── Pixabay — fotos / videos gratis (licencia libre, sin atribución) ── */
+  if (source === "pixabay") {
+    const px = await getIntegration("pixabay");
+    if (!px?.apiKey) return NextResponse.json({ results: [], error: "Conecta tu clave de Pixabay en Integraciones / APIs (proveedor: pixabay)." });
+    const pbase = (px.baseUrl || "https://pixabay.com/api").replace(/\/+$/, "");
+    const ori = searchParams.get("orientation");
+    try {
+      if (type === "video") {
+        const url = `${pbase}/videos/?key=${px.apiKey}&q=${encodeURIComponent(q)}&per_page=24&page=${page}`;
+        const r = await fetch(url, { cache: "no-store" });
+        const d = await r.json().catch(() => ({} as Record<string, unknown>)) as { hits?: unknown[]; total?: number };
+        if (!r.ok) return NextResponse.json({ results: [], error: `Pixabay error ${r.status}` });
+        type Sz = { url?: string; width?: number; height?: number; thumbnail?: string };
+        type PV = { id: number; duration?: number; user?: string; videos?: Record<string, Sz> };
+        const results: StockItem[] = ((d.hits as PV[]) || []).map((v) => {
+          const f = v.videos || {};
+          const pick = f.large || f.medium || f.small || f.tiny || {};
+          const thumb = f.large?.thumbnail || f.medium?.thumbnail || f.small?.thumbnail || f.tiny?.thumbnail || "";
+          return { id: v.id, type: "video", thumb, url: pick.url || "", author: v.user, duration: v.duration, width: pick.width, height: pick.height };
+        });
+        return NextResponse.json({ results, page, total: d.total ?? null });
+      }
+      const oriParam = ori === "portrait" ? "&orientation=vertical" : ori === "landscape" ? "&orientation=horizontal" : "";
+      const url = `${pbase}/?key=${px.apiKey}&q=${encodeURIComponent(q)}&image_type=photo&per_page=24&page=${page}${oriParam}`;
+      const r = await fetch(url, { cache: "no-store" });
+      const d = await r.json().catch(() => ({} as Record<string, unknown>)) as { hits?: unknown[]; total?: number };
+      if (!r.ok) return NextResponse.json({ results: [], error: `Pixabay error ${r.status}` });
+      type PP = { id: number; webformatURL?: string; largeImageURL?: string; previewURL?: string; imageWidth?: number; imageHeight?: number; user?: string };
+      const results: StockItem[] = ((d.hits as PP[]) || []).map((p) => ({
+        id: p.id, type: "photo", thumb: p.webformatURL || p.previewURL || "", url: p.largeImageURL || p.webformatURL || "", author: p.user, width: p.imageWidth, height: p.imageHeight,
+      }));
+      return NextResponse.json({ results, page, total: d.total ?? null });
+    } catch (e) {
+      return NextResponse.json({ results: [], error: e instanceof Error ? e.message : "Error de red" });
     }
   }
 

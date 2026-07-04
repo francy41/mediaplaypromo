@@ -241,6 +241,12 @@ export const PROVIDER_CATALOG: ProviderSpec[] = [
     icon: Camera, accent: "from-emerald-500 to-teal-600",
     keyPlaceholder: "pexels key…", defaultBaseUrl: "https://api.pexels.com", docsUrl: "https://www.pexels.com/api/",
   },
+  {
+    id: "pixabay", label: "Pixabay", category: "Stock / Medios",
+    description: "Fotos y videos gratis (licencia libre, sin atribución). Más B-roll para el Banco de Medios.",
+    icon: Camera, accent: "from-lime-500 to-green-600",
+    keyPlaceholder: "pixabay key…", defaultBaseUrl: "https://pixabay.com/api", docsUrl: "https://pixabay.com/api/docs/",
+  },
 ];
 
 export function getProviderSpec(id: string): ProviderSpec | undefined {

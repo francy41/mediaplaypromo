@@ -41,12 +41,14 @@ const ASPECTS = [
 const SOURCE_DEFS = [
   { id: "muapi", label: "MUAPI (video IA)" },
   { id: "pexels-video", label: "Pexels Video" },
+  { id: "pixabay-video", label: "Pixabay Video" },
   { id: "pexels-photo", label: "Pexels Fotos" },
+  { id: "pixabay-photo", label: "Pixabay Fotos" },
   { id: "wikimedia", label: "Wikimedia" },
   { id: "archive", label: "Archive" },
   { id: "nvidia", label: "NVIDIA IA" },
 ];
-const SOURCE_ORDER = ["muapi", "pexels-video", "wikimedia", "archive", "pexels-photo", "nvidia"]; // prioridad de la cadena por escena
+const SOURCE_ORDER = ["muapi", "pexels-video", "pixabay-video", "wikimedia", "archive", "pexels-photo", "pixabay-photo", "nvidia"]; // prioridad de la cadena por escena
 const EFFECTS: { v: Effect; label: string }[] = [
   { v: "none", label: "Sin efecto" }, { v: "zoom", label: "Zoom (Ken Burns)" },
   { v: "bw", label: "Blanco y negro" }, { v: "blur", label: "Desenfoque" }, { v: "bright", label: "Brillo+" },
@@ -103,7 +105,7 @@ export default function EditorPage() {
   const [prompt, setPrompt] = useState("");
   const [duration, setDuration] = useState(60);
   const [aspect, setAspect] = useState("16:9");
-  const [sources, setSources] = useState<Record<string, boolean>>({ "muapi": false, "pexels-video": true, "pexels-photo": false, "wikimedia": true, "archive": false, "nvidia": true });
+  const [sources, setSources] = useState<Record<string, boolean>>({ "muapi": false, "pexels-video": true, "pixabay-video": false, "pexels-photo": false, "pixabay-photo": false, "wikimedia": true, "archive": false, "nvidia": true });
   const toggleSource = (id: string) => setSources((s) => ({ ...s, [id]: !s[id] }));
   const [muapiModel, setMuapiModel] = useState("wan2.2-5b-fast-t2v");
   const [voice, setVoice] = useState(true);
@@ -137,7 +139,7 @@ export default function EditorPage() {
   const [flash, setFlash] = useState("");
 
   // media browser
-  const [mSource, setMSource] = useState<"video" | "photo" | "archive" | "wikimedia">("video");
+  const [mSource, setMSource] = useState<"video" | "photo" | "archive" | "wikimedia" | "pixabay-video" | "pixabay-photo">("video");
   const [mQuery, setMQuery] = useState("");
   const [mResults, setMResults] = useState<Media[]>([]);
   const [mLoading, setMLoading] = useState(false);
@@ -171,6 +173,14 @@ export default function EditorPage() {
       const r = await fetch(`/api/admin/stock?q=${encodeURIComponent(query)}&source=pexels&type=${type}&orientation=${orientation}`, { headers: { "x-admin-secret": secret } });
       const d = await r.json();
       return (d.results ?? []).filter((m: Media) => m?.url).map((m: { type: "video" | "photo"; thumb: string; url: string }) => ({ type, thumb: m.thumb, url: m.url }));
+    } catch { return []; }
+  }, [secret]);
+
+  const pixabay = useCallback(async (query: string, type: "video" | "photo", orientation: string): Promise<Media[]> => {
+    try {
+      const r = await fetch(`/api/admin/stock?q=${encodeURIComponent(query)}&source=pixabay&type=${type}&orientation=${orientation}`, { headers: { "x-admin-secret": secret } });
+      const d = await r.json();
+      return (d.results ?? []).filter((m: Media) => m?.url).map((m: { thumb: string; url: string }) => ({ type, thumb: m.thumb, url: m.url }));
     } catch { return []; }
   }, [secret]);
 
@@ -238,12 +248,16 @@ export default function EditorPage() {
       if (sid === "nvidia") { const m = await nvidiaImage(visual || query, refDesc); if (m) return [m]; continue; }
       if (sid === "wikimedia") { const w = await wikimedia(query); if (w.length) return w; continue; }
       if (sid === "archive") { const a = await archive(query); if (a.length) return a; continue; }
+      if (sid === "pixabay-video" || sid === "pixabay-photo") {
+        const px = await pixabay(query, sid === "pixabay-photo" ? "photo" : "video", orientation);
+        if (px.length) return px; continue;
+      }
       const type = sid === "pexels-photo" ? "photo" : "video";
       const p = await pexels(query, type, orientation);
       if (p.length) return p;
     }
     return [];
-  }, [sources, pexels, wikimedia, archive, nvidiaImage, muapiVideo, refDesc]);
+  }, [sources, pexels, pixabay, wikimedia, archive, nvidiaImage, muapiVideo, refDesc]);
 
   /* ── Generar storyboard (IA) ── */
   const generate = async () => {
@@ -286,6 +300,8 @@ export default function EditorPage() {
         const r = await fetch(`/api/admin/stock?q=${encodeURIComponent(mQuery)}&source=wikimedia`, { headers: { "x-admin-secret": secret } });
         const d = await r.json();
         setMResults((d.results ?? []).filter((m: { url?: string }) => m.url).map((m: { thumb: string; url: string }) => ({ type: "video" as const, thumb: m.thumb, url: m.url })));
+      } else if (mSource === "pixabay-video" || mSource === "pixabay-photo") {
+        setMResults(await pixabay(mQuery, mSource === "pixabay-photo" ? "photo" : "video", orientationFor(aspect)));
       } else {
         setMResults(await pexels(mQuery, mSource, orientationFor(aspect)));
       }
@@ -740,7 +756,7 @@ export default function EditorPage() {
           <div className="glass-card rounded-2xl border border-emerald-500/25 p-4 space-y-3">
               <h3 className="flex items-center gap-1.5 text-white font-bold text-sm"><Film className="w-4 h-4 text-emerald-400" /> Banco de Medios — busca y añade clips</h3>
               <div className="flex gap-1.5">
-                {([["video", "Video"], ["photo", "Fotos"], ["wikimedia", "Wiki"], ["archive", "Archive"]] as const).map(([v, l]) => (
+                {([["video", "Pexels"], ["pixabay-video", "Pixabay"], ["photo", "Fotos"], ["wikimedia", "Wiki"], ["archive", "Archive"]] as const).map(([v, l]) => (
                   <button key={v} onClick={() => setMSource(v)} className={`flex-1 text-[11px] font-bold py-1.5 rounded-lg transition-all ${mSource === v ? "bg-emerald-500/20 border border-emerald-500/30 text-emerald-300" : "bg-white/5 border border-white/10 text-white/60 hover:text-white"}`}>{l}</button>
                 ))}
               </div>
