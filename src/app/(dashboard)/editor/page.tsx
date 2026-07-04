@@ -468,6 +468,30 @@ export default function EditorPage() {
     setFlash("✓ Clips vacíos rellenados"); setTimeout(() => setFlash(""), 2500);
   };
 
+  // Trocea las escenas largas en varios clips cortos, cada uno con b-roll distinto → más dinámico.
+  const [splitting, setSplitting] = useState(false);
+  const splitLongClips = async () => {
+    if (clips.length === 0) return;
+    setSplitting(true);
+    setFlash("Troceando escenas largas…");
+    const ori = orientationFor(aspect);
+    const out: Clip[] = [];
+    for (const c of clips) {
+      const sentences = (c.narration || "").split(/(?<=[.!?…])\s+/).map((s) => s.trim()).filter((s) => s.length > 2);
+      const parts = sentences.length > 1 ? sentences : (c.narration ? [c.narration] : [""]);
+      if (parts.length <= 1) { out.push(c); continue; } // nada que trocear
+      let cands = await sceneMedia(c.query || c.visual, c.visual || c.query, ori);
+      if (cands.length === 0 && c.media) cands = [c.media];
+      const per = Math.max(3, Math.round(c.seconds / parts.length));
+      parts.forEach((sent, k) => {
+        out.push({ ...c, id: uid(), narration: sent, media: cands.length ? cands[k % cands.length] : c.media, seconds: per });
+      });
+    }
+    setClips(out);
+    setSplitting(false);
+    setFlash(`✓ ${out.length} clips (más dinámico)`); setTimeout(() => setFlash(""), 2800);
+  };
+
   /* ── Voz / preview (Google TTS gratis) ── */
   const speak = useCallback(async (text: string) => {
     if (!voice || !text?.trim()) return;
@@ -927,6 +951,12 @@ export default function EditorPage() {
               {clips.some((c) => !c.media && !c.loadingMedia) && (
                 <button onClick={fillMissing} className="w-full inline-flex items-center justify-center gap-1.5 bg-amber-500/15 border border-amber-500/30 text-amber-200 text-[11px] font-bold px-3 py-2 rounded-lg hover:bg-amber-500/25">
                   <RefreshCw className="w-3.5 h-3.5" /> Rellenar {clips.filter((c) => !c.media && !c.loadingMedia).length} clip(s) vacío(s)
+                </button>
+              )}
+
+              {clips.some((c) => (c.narration || "").split(/(?<=[.!?…])\s+/).filter((s) => s.trim().length > 2).length > 1) && (
+                <button onClick={splitLongClips} disabled={splitting} className="w-full inline-flex items-center justify-center gap-1.5 bg-cyan-500/15 border border-cyan-500/30 text-cyan-200 text-[11px] font-bold px-3 py-2 rounded-lg hover:bg-cyan-500/25 disabled:opacity-60">
+                  {splitting ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Troceando…</> : <>✂️ Trocear escenas largas (más dinámico)</>}
                 </button>
               )}
 
