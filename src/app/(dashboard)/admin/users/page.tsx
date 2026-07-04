@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { Users, Plus, Search, MoreVertical, Crown, Shield, Ban } from "lucide-react";
+import Link from "next/link";
+import { Users, Plus, Search, MoreVertical, Crown, Shield, KeyRound, ArrowRight } from "lucide-react";
 import { AdminShell, KPIGrid } from "@/components/admin/AdminShell";
 
 const mockUsers = [
@@ -20,9 +21,9 @@ export default function UsersAdminPage() {
       status="beta"
       breadcrumb={[{ label: "Usuarios" }]}
       actions={
-        <button className="shine-btn inline-flex items-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-lg shadow-cyan-500/30 hover:-translate-y-0.5 transition-all">
-          <Plus className="w-4 h-4" /> Nuevo Usuario
-        </button>
+        <Link href="/admin/planner-admins" className="shine-btn inline-flex items-center gap-1.5 bg-gradient-to-r from-pink-500 to-violet-600 text-white font-bold text-xs px-4 py-2 rounded-xl shadow-lg shadow-violet-500/30 hover:-translate-y-0.5 transition-all">
+          <Plus className="w-4 h-4" /> Nuevo admin del Planificador
+        </Link>
       }
     >
       <KPIGrid
@@ -33,6 +34,22 @@ export default function UsersAdminPage() {
           { label: "Suspendidos", value: 0, gradient: "from-red-500 to-rose-600" },
         ]}
       />
+
+      {/* Acceso directo al panel de admins del Planificador (el que sí funciona) */}
+      <Link href="/admin/planner-admins" className="glass-card group relative overflow-hidden rounded-2xl border border-violet-500/30 p-5 flex items-center gap-4 hover:-translate-y-0.5 transition-transform">
+        <div className="absolute -top-16 -right-10 w-64 h-64 bg-gradient-to-br from-pink-500 to-violet-600 opacity-20 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-pink-500 to-violet-600 flex items-center justify-center shadow-lg shadow-violet-500/40 flex-shrink-0">
+          <KeyRound className="w-6 h-6 text-white" />
+        </div>
+        <div className="relative flex-1 min-w-0">
+          <span className="inline-flex items-center gap-1.5 bg-green-500/15 text-green-400 border border-green-500/25 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider mb-1">Live · Funciona</span>
+          <h3 className="text-white font-bold text-sm leading-tight">¿Crear un administrador del Planificador?</h3>
+          <p className="text-white/55 text-xs">Dale usuario y contraseña a tu cliente para que acceda gratis y conecte sus cuentas GHL. → Panel «Admins del Planificador».</p>
+        </div>
+        <div className="relative inline-flex items-center gap-1.5 bg-gradient-to-r from-pink-500 to-violet-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg shadow-violet-500/30 group-hover:-translate-y-0.5 transition-transform flex-shrink-0">
+          Abrir <ArrowRight className="w-4 h-4" />
+        </div>
+      </Link>
 
       {/* Search bar */}
       <div className="glass-card rounded-2xl border border-white/10 p-4">
@@ -94,7 +111,7 @@ export default function UsersAdminPage() {
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-5 py-10 text-center text-white/35 text-sm">
-                  No se encontraron usuarios con "{q}"
+                  No se encontraron usuarios con «{q}»
                 </td>
               </tr>
             )}
