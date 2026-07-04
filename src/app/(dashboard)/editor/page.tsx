@@ -646,8 +646,11 @@ export default function EditorPage() {
     const c = clips[previewIndex];
     if (customAudio) {
       if (previewIndex === 0 && audioRef.current) { audioRef.current.src = customAudio.url; audioRef.current.play().catch(() => {}); }
-    } else {
-      speak(c.narration);
+    } else if (voice) {
+      // Si la voz ya está generada (Medir voces), se reproduce al instante — clave para voces MUAPI (lentas).
+      const cached = voiceUrlsRef.current[c.id];
+      if (cached && audioRef.current) { audioRef.current.src = cached; audioRef.current.play().catch(() => {}); }
+      else speak(c.narration);
     }
     timerRef.current = setTimeout(() => setPreviewIndex((i) => i + 1), c.seconds * 1000);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
