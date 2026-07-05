@@ -258,10 +258,14 @@ export default function EditorPage() {
     } catch { return undefined; }
   }, []);
 
-  const sceneMedia = useCallback(async (query: string, visual: string, orientation: string): Promise<Media[]> => {
-    // Recorre las fuentes SELECCIONADAS en orden de prioridad y devuelve el primer clip encontrado.
-    for (const sid of SOURCE_ORDER) {
-      if (!sources[sid]) continue;
+  const sceneMedia = useCallback(async (query: string, visual: string, orientation: string, sceneIdx = 0): Promise<Media[]> => {
+    // Fuentes marcadas. Se ROTA el orden según la escena para MEZCLAR fuentes
+    // (escena 0 empieza por la 1ª, escena 1 por la 2ª…). Si una falla, cae a las demás.
+    const enabled = SOURCE_ORDER.filter((sid) => sources[sid]);
+    if (enabled.length === 0) return [];
+    const start = ((sceneIdx % enabled.length) + enabled.length) % enabled.length;
+    const rotated = [...enabled.slice(start), ...enabled.slice(0, start)];
+    for (const sid of rotated) {
       if (sid === "muapi") { const v = await muapiVideo(visual || query); if (v) return [v]; continue; }
       if (sid === "nvidia") { const m = await nvidiaImage(visual || query, refDesc); if (m) return [m]; continue; }
       if (sid === "coverr") { const cv = await coverr(query); if (cv.length) return cv; continue; }
@@ -293,7 +297,7 @@ export default function EditorPage() {
       }));
       setClips(base);
       const ori = orientationFor(aspect);
-      const lists = await Promise.all(base.map((c) => sceneMedia(c.query, c.visual, ori)));
+      const lists = await Promise.all(base.map((c, i) => sceneMedia(c.query, c.visual, ori, i)));
       const used = new Set<string>();
       setClips(base.map((c, i) => {
         const pick = lists[i].find((m) => !used.has(m.url)) ?? lists[i][0];
@@ -426,10 +430,11 @@ export default function EditorPage() {
     const missing = clips.filter((c) => !c.media);
     if (missing.length === 0) { setFlash("No hay clips vacíos."); setTimeout(() => setFlash(""), 1600); return; }
     const ori = orientationFor(aspect);
+    let mi = 0;
     for (const c of missing) {
       updateClip(c.id, { loadingMedia: true });
       const q = c.query || c.visual || "cinematic background";
-      let cands = await sceneMedia(q, c.visual || q, ori);
+      let cands = await sceneMedia(q, c.visual || q, ori, mi++);
       if (cands.length === 0) cands = await pexels(q, "video", ori);
       if (cands.length === 0) cands = await pixabay(q, "video", ori);
       if (cands.length === 0) cands = await coverr(q);
@@ -460,10 +465,11 @@ export default function EditorPage() {
     setFlash("Troceando y cuadrando con la voz…");
     const ori = orientationFor(aspect);
     const out: Clip[] = [];
+    let si = 0;
     for (const c of clips) {
       const parts = chunkNarration(c.narration || "");
-      if (parts.length <= 1) { out.push({ ...c, seconds: c.narration ? estVoiceSec(c.narration) : c.seconds }); continue; }
-      let cands = await sceneMedia(c.query || c.visual, c.visual || c.query, ori);
+      if (parts.length <= 1) { out.push({ ...c, seconds: c.narration ? estVoiceSec(c.narration) : c.seconds }); si++; continue; }
+      let cands = await sceneMedia(c.query || c.visual, c.visual || c.query, ori, si++);
       if (cands.length === 0 && c.media) cands = [c.media];
       parts.forEach((sent, k) => {
         out.push({ ...c, id: uid(), narration: sent, media: cands.length ? cands[k % cands.length] : c.media, seconds: estVoiceSec(sent) });
