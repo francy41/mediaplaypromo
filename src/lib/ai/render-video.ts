@@ -39,9 +39,13 @@ function effectFilter(effect?: string): string {
     default: return "";
   }
 }
-function fadeSuffix(dur: number, on: boolean): string {
-  if (!on || dur <= 1) return "";
-  return `,fade=t=in:st=0:d=${FD},fade=t=out:st=${(dur - FD).toFixed(2)}:d=${FD}`;
+/** Fundido SOLO al inicio (intro) y al final (outro) del video, no entre clips → sin negro entre escenas. */
+function fadeSuffix(dur: number, fadeIn: boolean, fadeOut: boolean): string {
+  if (dur <= 0.6) return "";
+  const parts: string[] = [];
+  if (fadeIn) parts.push(`fade=t=in:st=0:d=${FD}`);
+  if (fadeOut) parts.push(`fade=t=out:st=${(dur - FD).toFixed(2)}:d=${FD}`);
+  return parts.length ? "," + parts.join(",") : "";
 }
 
 /** Mide la duración real de un audio (mp3) con la Web Audio API. 0 si falla. */
@@ -193,7 +197,7 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
     onProgress(`Procesando escena ${i + 1}/${usable.length}…`, 18 + Math.round((i / usable.length) * 62));
     const bytes = await loadBytes(s.media!.url, secret);
     const seg = `seg${i}.mp4`;
-    const fade = fadeSuffix(dur, segFade);
+    const fade = fadeSuffix(dur, segFade && i === 0, segFade && i === usable.length - 1);
 
     if (s.media!.type === "photo") {
       const fn = `img${i}.jpg`;

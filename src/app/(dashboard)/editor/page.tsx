@@ -386,7 +386,14 @@ export default function EditorPage() {
         try {
           const ttsBody = voiceCode.startsWith("mx:") ? { text: c.narration, voice: voiceCode } : { text: c.narration, lang: voiceCode };
           const r = await fetch("/api/admin/editor/tts", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-secret": secret }, body: JSON.stringify(ttsBody) });
-          if (!r.ok) continue;
+          if (!r.ok) {
+            const errTxt = await r.text().catch(() => "");
+            if (/insufficient|saldo|credit/i.test(errTxt) && voiceCode.startsWith("mx:")) {
+              setError("Sin saldo en MUAPI para la voz. Recarga en muapi.ai/topup o elige una voz 🆓 Google (gratis).");
+              setMeasuringVoices(false); setVoiceMsg(""); return;
+            }
+            continue;
+          }
           const buf = await r.arrayBuffer();
           let dur = 0;
           try { const ctx = new AudioContext(); const dec = await ctx.decodeAudioData(buf.slice(0)); dur = dec.duration; ctx.close(); } catch {}
