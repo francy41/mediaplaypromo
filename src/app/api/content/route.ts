@@ -4,6 +4,7 @@ import { postToGHL, resolveAccountIds, resolveGHLUserId, getGHLAccounts } from "
 import { getGhlConn, listGhlProjectsSafe, type GhlConn } from "@/lib/ghl-projects";
 import { resolveOwner } from "@/lib/planner-admins";
 import { listTemplates, addTemplate, removeTemplate } from "@/lib/caption-templates";
+import { generateCaptionAI } from "@/lib/ai/caption";
 
 export const maxDuration = 60;
 
@@ -94,6 +95,18 @@ export async function POST(req: NextRequest) {
 
     if (action === "template-delete") {
       const r = await removeTemplate(owner.ownerId, String(body.id ?? ""));
+      return NextResponse.json(r, { status: r.ok ? 200 : 400 });
+    }
+
+    // Genera un caption + hashtags con IA a partir del brief del proyecto.
+    if (action === "caption-ai") {
+      const r = await generateCaptionAI({
+        brief: String(body.brief ?? ""),
+        brand: body.brand ? String(body.brand) : undefined,
+        link: body.link ? String(body.link) : undefined,
+        platform: body.platform ? String(body.platform) : undefined,
+        language: body.language ? String(body.language) : undefined,
+      });
       return NextResponse.json(r, { status: r.ok ? 200 : 400 });
     }
 

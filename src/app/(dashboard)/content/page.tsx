@@ -1,9 +1,10 @@
 "use client";
 import { useCallback, useEffect, useState, Fragment } from "react";
 import Link from "next/link";
-import { CalendarClock, Lock, Plus, Trash2, RefreshCw, Send, Film, Wand2, UploadCloud, Loader2, Repeat2, RotateCcw, Sparkles, Building2, Plug, Crown, Check, KeyRound, Save } from "lucide-react";
+import { CalendarClock, Lock, Plus, Trash2, RefreshCw, Send, Film, Wand2, UploadCloud, Loader2, Repeat2, RotateCcw, Sparkles, Building2, Plug, Crown, Check, KeyRound, Save, LogOut } from "lucide-react";
 import { AdminShell, KPIGrid } from "@/components/admin/AdminShell";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { generateCaptionTemplate, composeCaption } from "@/lib/caption-generator";
 
 const SALES_LINK = "https://yfsportshop.com/";
 // Contacto para activar la Marca Blanca del Planificador (cliente). Cambiable.
@@ -59,6 +60,12 @@ export default function ContentPlannerPage() {
   const [bulk, setBulk] = useState("");
   const [caption, setCaption] = useState(CAPTION_TEMPLATES[0].text);
   const [activeTemplate, setActiveTemplate] = useState(0);
+
+  // generador de caption (plantilla + IA)
+  const [brief, setBrief] = useState("");
+  const [genLink, setGenLink] = useState(SALES_LINK);
+  const [genBusy, setGenBusy] = useState(false);
+  const [genMsg, setGenMsg] = useState("");
 
   // plantillas guardadas por el usuario
   interface SavedTpl { id: string; label: string; text: string }
@@ -209,6 +216,35 @@ export default function ContentPlannerPage() {
     load(secret);
   };
 
+  // ── Generador de caption ──
+  const genPlatform = () => batchPlatforms[0] || undefined;
+  const projName = () => projects.find((p) => p.id === activeProject)?.name;
+
+  const genTemplate = () => {
+    if (!brief.trim()) { setGenMsg("Escribe un brief (nicho/producto) primero."); return; }
+    setGenMsg("");
+    const r = generateCaptionTemplate({ brief, brand: projName(), link: genLink, platform: genPlatform() });
+    setCaption(composeCaption(r));
+    setActiveTemplate(-1);
+  };
+
+  const genAI = async () => {
+    if (!brief.trim()) { setGenMsg("Escribe un brief (nicho/producto) primero."); return; }
+    setGenBusy(true); setGenMsg("Generando con IA…");
+    try {
+      const r = await call(secret, "POST", { action: "caption-ai", brief, brand: projName(), link: genLink, platform: genPlatform() });
+      const d = await r.json().catch(() => ({}));
+      if (d.ok && d.caption) {
+        setCaption(composeCaption({ caption: d.caption, hashtags: d.hashtags ?? [] }));
+        setActiveTemplate(-1);
+        setGenMsg("");
+      } else {
+        setGenMsg(`⚠️ ${d.error || "No se pudo generar"}`);
+      }
+    } catch { setGenMsg("Error de conexión."); }
+    finally { setGenBusy(false); }
+  };
+
   const openSchedule = (id: string) => setSchedId(id);
 
   const scheduleOne = async (id: string) => {
@@ -302,6 +338,9 @@ export default function ContentPlannerPage() {
           )}
           <button onClick={() => load(secret)} className="inline-flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Actualizar
+          </button>
+          <button onClick={() => { try { localStorage.removeItem(SECRET_STORE); } catch {} setAuthed(false); setPosts([]); setProjects([]); setRole(null); setSecret(""); setShowAdminLogin(true); setError(null); }} className="inline-flex items-center gap-1.5 bg-white/5 hover:bg-red-500/15 border border-white/10 hover:border-red-500/30 text-white/70 hover:text-red-300 text-xs font-semibold px-3 py-2 rounded-xl transition-colors" title="Cerrar esta sesión y entrar con otra cuenta">
+            <LogOut className="w-3.5 h-3.5" /> Cambiar cuenta
           </button>
         </>
       )}
@@ -443,6 +482,40 @@ export default function ContentPlannerPage() {
                 <label className="block text-white/55 text-[10px] font-bold uppercase tracking-wider">Texto / caption (para todos los videos)</label>
                 <span className="text-white/30 text-[10px]">{caption.length} chars</span>
               </div>
+
+              {/* Generador de caption (plantilla instantánea + IA) */}
+              <div className="mb-2 rounded-xl border border-violet-500/20 bg-violet-500/[0.04] p-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Wand2 className="w-3.5 h-3.5 text-violet-400" />
+                  <span className="text-white/80 text-[11px] font-bold">Generar caption automáticamente</span>
+                </div>
+                <textarea
+                  value={brief}
+                  onChange={(e) => setBrief(e.target.value)}
+                  rows={2}
+                  placeholder="Describe el nicho/producto: ej. zapatillas Nike originales, envíos a todo el país, programa de afiliados"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/40 resize-none mb-2"
+                />
+                <input
+                  value={genLink}
+                  onChange={(e) => setGenLink(e.target.value)}
+                  placeholder="Enlace CTA (opcional)"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/40 font-mono mb-2"
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={genTemplate} disabled={genBusy}
+                    className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/15 border border-white/10 text-white/85 text-[11px] font-bold px-3 py-1.5 rounded-lg disabled:opacity-50">
+                    <Sparkles className="w-3.5 h-3.5 text-cyan-300" /> Plantilla
+                  </button>
+                  <button type="button" onClick={genAI} disabled={genBusy}
+                    className="inline-flex items-center gap-1.5 bg-gradient-to-r from-pink-500 to-violet-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg disabled:opacity-50">
+                    {genBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />} Con IA
+                  </button>
+                  {genMsg && <span className="text-[11px] text-white/70">{genMsg}</span>}
+                </div>
+                <p className="text-white/30 text-[10px] mt-2">💡 <b>Plantilla</b> = instantáneo y gratis. <b>Con IA</b> = caption único (usa NVIDIA de /integrations). El resultado rellena el texto de abajo; puedes editarlo y <b className="text-emerald-300/80">Guardar</b>.</p>
+              </div>
+
               <div className="flex items-center gap-1.5 mb-2 flex-wrap">
                 <Sparkles className="w-3 h-3 text-pink-400 flex-shrink-0" />
                 {CAPTION_TEMPLATES.map((t, i) => (

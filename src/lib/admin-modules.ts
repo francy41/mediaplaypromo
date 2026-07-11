@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   LayoutGrid, Image as ImageIcon, Users, ShoppingBag, UserCheck, Globe,
   CreditCard, Sparkles, Film, FolderTree, BarChart3, Settings, Shield, Bell,
-  Database, Mail, Bot, FileText, Palette, Activity, Server, Lock, Layers, Package, Plug, Clapperboard
+  Database, Mail, Bot, FileText, Palette, Activity, Server, Lock, Layers, Package, Plug, Clapperboard, Radio
 } from "lucide-react";
 
 export interface AdminModule {
@@ -41,6 +41,9 @@ export const ADMIN_MODULES: AdminModule[] = [
   { id: "homepage", title: "Page Builder", description: "Edita secciones del homepage", href: "/admin/homepage",
     icon: LayoutGrid, group: "Contenido", iconBg: "bg-violet-500/15", iconText: "text-violet-400",
     status: "beta", kpi: { label: "Secciones", value: 7 } },
+  { id: "live", title: "Canal en Directo", description: "Sube vídeos y emítelos como un canal 24/7 sincronizado por reloj. La lista se reinicia cada media hora", href: "/admin/live",
+    icon: Radio, group: "Contenido", iconBg: "bg-red-500/15", iconText: "text-red-400",
+    status: "beta", kpi: { label: "Emisión", value: "24/7" } },
   { id: "media", title: "Media Library", description: "Imágenes, videos, reels, AI media", href: "/admin/media",
     icon: Film, group: "Contenido", iconBg: "bg-pink-500/15", iconText: "text-pink-400",
     status: "soon", kpi: { label: "Assets", value: "0" } },
