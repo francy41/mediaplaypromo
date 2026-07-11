@@ -37,6 +37,9 @@ export default function ThumbnailsPage() {
   const [uppercase, setUppercase] = useState(true);
   const [pos, setPos] = useState<Pos>("bottom");
   const [align, setAlign] = useState<Align>("left");
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [scale, setScale] = useState(1);
+  const dragRef = useRef<{ sx: number; sy: number; ox: number; oy: number } | null>(null);
 
   const [loadingText, setLoadingText] = useState(false);
   const [loadingBg, setLoadingBg] = useState(false);
@@ -82,8 +85,8 @@ export default function ThumbnailsPage() {
     const head = (uppercase ? headline.toUpperCase() : headline).trim();
     const sub = subtitle.trim();
 
-    // Ajusta el tamaño de fuente para que quepa en 1-3 líneas
-    let fontSize = 132;
+    // Ajusta el tamaño para que quepa en 1-3 líneas y luego aplica la escala manual
+    let baseSize = 132;
     let lines: string[] = [];
     const wrap = (size: number) => {
       ctx.font = `900 ${size}px 'Arial Black', Impact, system-ui, sans-serif`;
@@ -96,19 +99,20 @@ export default function ThumbnailsPage() {
       if (cur) ls.push(cur);
       return ls;
     };
-    for (; fontSize >= 60; fontSize -= 6) { lines = wrap(fontSize); if (lines.length <= 3) break; }
-    ctx.font = `900 ${fontSize}px 'Arial Black', Impact, system-ui, sans-serif`;
+    for (; baseSize >= 60; baseSize -= 6) { lines = wrap(baseSize); if (lines.length <= 3) break; }
+    const fontSize = Math.round(baseSize * scale);
+    lines = wrap(fontSize);
 
     const lineH = fontSize * 1.06;
     const subSize = Math.round(fontSize * 0.42);
     const blockH = lines.length * lineH + (sub ? subSize * 1.5 + 16 : 0);
-    let y = pos === "bottom" ? H - M - blockH + lineH * 0.8
+    let y = (pos === "bottom" ? H - M - blockH + lineH * 0.8
       : pos === "top" ? M + lineH * 0.8
-      : (H - blockH) / 2 + lineH * 0.8;
+      : (H - blockH) / 2 + lineH * 0.8) + offset.y;
 
     ctx.textAlign = align === "center" ? "center" : "left";
     ctx.lineJoin = "round";
-    const x = align === "center" ? W / 2 : M;
+    const x = (align === "center" ? W / 2 : M) + offset.x;
 
     for (const ln of lines) {
       ctx.lineWidth = Math.max(8, fontSize * 0.14);
@@ -126,7 +130,7 @@ export default function ThumbnailsPage() {
       ctx.font = `800 ${subSize}px system-ui, 'Arial Black', sans-serif`;
       const subW = ctx.measureText(sub.toUpperCase()).width;
       const padX = 22, padY = 12;
-      const bx = align === "center" ? W / 2 - subW / 2 - padX : M;
+      const bx = (align === "center" ? W / 2 - subW / 2 - padX : M) + offset.x;
       const by = y - subSize * 0.15;
       ctx.fillStyle = p.accent;
       ctx.fillRect(bx, by, subW + padX * 2, subSize + padY * 2);
@@ -134,9 +138,22 @@ export default function ThumbnailsPage() {
       ctx.textAlign = "left";
       ctx.fillText(sub.toUpperCase(), bx + padX, by + subSize + padY - subSize * 0.18);
     }
-  }, [bgImg, headline, subtitle, presetIdx, uppercase, pos, align]);
+  }, [bgImg, headline, subtitle, presetIdx, uppercase, pos, align, offset, scale]);
 
   useEffect(() => { draw(); }, [draw]);
+
+  // ── Arrastrar el texto con el ratón para colocarlo donde quieras ──
+  const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const cv = canvasRef.current; if (!cv) return;
+    cv.setPointerCapture(e.pointerId);
+    dragRef.current = { sx: e.clientX, sy: e.clientY, ox: offset.x, oy: offset.y };
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const d = dragRef.current, cv = canvasRef.current; if (!d || !cv) return;
+    const rect = cv.getBoundingClientRect(); const f = W / rect.width;
+    setOffset({ x: d.ox + (e.clientX - d.sx) * f, y: d.oy + (e.clientY - d.sy) * f });
+  };
+  const onPointerUp = () => { dragRef.current = null; };
 
   // ── Carga un fondo (vía proxy same-origin para poder exportar el PNG) ──
   const selectBg = useCallback(async (url: string) => {
@@ -248,18 +265,32 @@ export default function ThumbnailsPage() {
               <label className="text-white/70 text-xs font-bold uppercase tracking-wider">Subtítulo (opcional)</label>
               <input value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="texto pequeño de acento" className="w-full mt-1.5 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-rose-500/40" />
             </div>
-            <div className="flex flex-wrap gap-2">
-              <label className="inline-flex items-center gap-1.5 text-white/60 text-xs"><input type="checkbox" checked={uppercase} onChange={(e) => setUppercase(e.target.checked)} /> MAYÚSCULAS</label>
-              <select value={pos} onChange={(e) => setPos(e.target.value as Pos)} className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white">
-                <option value="bottom" className="bg-[#0f1219]">Abajo</option>
-                <option value="center" className="bg-[#0f1219]">Centro</option>
-                <option value="top" className="bg-[#0f1219]">Arriba</option>
-              </select>
-              <select value={align} onChange={(e) => setAlign(e.target.value as Align)} className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white">
-                <option value="left" className="bg-[#0f1219]">Izquierda</option>
-                <option value="center" className="bg-[#0f1219]">Centrado</option>
-              </select>
+            <label className="inline-flex items-center gap-1.5 text-white/60 text-xs"><input type="checkbox" checked={uppercase} onChange={(e) => setUppercase(e.target.checked)} /> MAYÚSCULAS</label>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-white/45 text-[10px] font-bold uppercase tracking-wider mb-1">Posición</label>
+                <select value={pos} onChange={(e) => setPos(e.target.value as Pos)} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white">
+                  <option value="top" className="bg-[#0f1219]">Arriba</option>
+                  <option value="center" className="bg-[#0f1219]">Centro</option>
+                  <option value="bottom" className="bg-[#0f1219]">Abajo</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-white/45 text-[10px] font-bold uppercase tracking-wider mb-1">Alineación</label>
+                <select value={align} onChange={(e) => setAlign(e.target.value as Align)} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white">
+                  <option value="left" className="bg-[#0f1219]">Izquierda</option>
+                  <option value="center" className="bg-[#0f1219]">Centrado</option>
+                </select>
+              </div>
             </div>
+            <div>
+              <label className="block text-white/45 text-[10px] font-bold uppercase tracking-wider mb-1">Tamaño del texto</label>
+              <input type="range" min={0.6} max={1.8} step={0.05} value={scale} onChange={(e) => setScale(Number(e.target.value))} className="w-full accent-rose-500" />
+            </div>
+            <button onClick={() => { setOffset({ x: 0, y: 0 }); setScale(1); }} className="w-full inline-flex items-center justify-center gap-1.5 bg-white/5 border border-white/10 text-white/60 hover:text-white text-[11px] font-bold px-3 py-1.5 rounded-lg">
+              <RefreshCw className="w-3 h-3" /> Reiniciar posición y tamaño
+            </button>
+            <p className="text-white/30 text-[10px]">💡 Arrastra el texto directamente sobre la miniatura para colocarlo donde quieras.</p>
           </div>
 
           <div className="glass-card rounded-2xl border border-white/10 p-4">
@@ -302,7 +333,7 @@ export default function ThumbnailsPage() {
         <div className="space-y-3 min-w-0">
           <div className="glass-card rounded-2xl border border-white/10 p-3">
             <div className="relative rounded-xl overflow-hidden bg-black">
-              <canvas ref={canvasRef} width={W} height={H} className="w-full h-auto block" />
+              <canvas ref={canvasRef} width={W} height={H} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} className="w-full h-auto block cursor-move touch-none" />
               {loadingBg && <div className="absolute inset-0 flex items-center justify-center bg-black/40"><Loader2 className="w-8 h-8 text-white animate-spin" /></div>}
             </div>
           </div>
