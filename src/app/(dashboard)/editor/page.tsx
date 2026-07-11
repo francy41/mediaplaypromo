@@ -57,8 +57,19 @@ const EFFECTS: { v: Effect; label: string }[] = [
   { v: "warm", label: "Color cálido" }, { v: "cold", label: "Color frío" }, { v: "vintage", label: "Vintage" }, { v: "vivid", label: "Vívido" },
 ];
 
-// Voces. "es/en…" = Google TTS gratis. "mx:<voiceId>" = voz natural MUAPI (usa créditos).
+// Voces. "ms:<voz>" = Microsoft Edge (gratis, calidad alta). "es/en…" = Google TTS gratis.
+// "mx:<voiceId>" = voz natural MUAPI (usa créditos).
 const VOICE_OPTIONS = [
+  { v: "ms:es-MX-DaliaNeural", label: "🆓⭐ Español (MX) · Dalia (F) · Edge" },
+  { v: "ms:es-MX-JorgeNeural", label: "🆓⭐ Español (MX) · Jorge (M) · Edge" },
+  { v: "ms:es-ES-ElviraNeural", label: "🆓⭐ Español (ES) · Elvira (F) · Edge" },
+  { v: "ms:es-ES-AlvaroNeural", label: "🆓⭐ Español (ES) · Álvaro (M) · Edge" },
+  { v: "ms:es-CO-SalomeNeural", label: "🆓⭐ Español (CO) · Salomé (F) · Edge" },
+  { v: "ms:es-CO-GonzaloNeural", label: "🆓⭐ Español (CO) · Gonzalo (M) · Edge" },
+  { v: "ms:es-AR-ElenaNeural", label: "🆓⭐ Español (AR) · Elena (F) · Edge" },
+  { v: "ms:es-US-PalomaNeural", label: "🆓⭐ Español (US) · Paloma (F) · Edge" },
+  { v: "ms:en-US-AriaNeural", label: "🆓⭐ English (US) · Aria (F) · Edge" },
+  { v: "ms:en-GB-SoniaNeural", label: "🆓⭐ English (UK) · Sonia (F) · Edge" },
   { v: "es", label: "🆓 Español (España) · Google" },
   { v: "es-us", label: "🆓 Español (Latam) · Google" },
   { v: "en", label: "🆓 English (US) · Google" },
@@ -118,7 +129,7 @@ export default function EditorPage() {
   const toggleSource = (id: string) => setSources((s) => ({ ...s, [id]: !s[id] }));
   const [muapiModel, setMuapiModel] = useState("wan2.2-5b-fast-t2v");
   const [voice, setVoice] = useState(true);
-  const [voiceCode, setVoiceCode] = useState("es");
+  const [voiceCode, setVoiceCode] = useState("ms:es-MX-DaliaNeural");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [customAudio, setCustomAudio] = useState<{ name: string; file: File; url: string } | null>(null);
   const [customAudioDur, setCustomAudioDur] = useState(0);
@@ -171,7 +182,8 @@ export default function EditorPage() {
     return () => clearTimeout(t);
   }, []);
 
-  const lang: "es" | "en" = (voiceCode.startsWith("es") || voiceCode.toLowerCase().includes("spanish")) ? "es" : "en";
+  const voiceBase = voiceCode.replace(/^(ms:|mx:)/, "");
+  const lang: "es" | "en" = (/^es/i.test(voiceBase) || voiceBase.toLowerCase().includes("spanish")) ? "es" : "en";
   const aspectCls = ASPECTS.find((a) => a.v === aspect)?.cls ?? "aspect-video";
   const totalSec = clips.reduce((a, s) => a + s.seconds, 0);
   const orientationFor = (a: string) => (a === "9:16" ? "portrait" : a === "1:1" ? "square" : "landscape");
@@ -384,7 +396,7 @@ export default function EditorPage() {
         const c = list[idx];
         setVoiceMsg(`Midiendo voz ${idx + 1}/${list.length}…`);
         try {
-          const ttsBody = voiceCode.startsWith("mx:") ? { text: c.narration, voice: voiceCode } : { text: c.narration, lang: voiceCode };
+          const ttsBody = /^(mx:|ms:)/.test(voiceCode) ? { text: c.narration, voice: voiceCode } : { text: c.narration, lang: voiceCode };
           const r = await fetch("/api/admin/editor/tts", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-secret": secret }, body: JSON.stringify(ttsBody) });
           if (!r.ok) {
             const errTxt = await r.text().catch(() => "");
@@ -491,7 +503,7 @@ export default function EditorPage() {
   const speak = useCallback(async (text: string) => {
     if (!voice || !text?.trim()) return;
     try {
-      const ttsBody = voiceCode.startsWith("mx:") ? { text, voice: voiceCode } : { text, lang: voiceCode };
+      const ttsBody = /^(mx:|ms:)/.test(voiceCode) ? { text, voice: voiceCode } : { text, lang: voiceCode };
       const r = await fetch("/api/admin/editor/tts", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-secret": secret }, body: JSON.stringify(ttsBody) });
       if (!r.ok) return;
       const blob = await r.blob();

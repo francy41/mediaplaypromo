@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveOwner } from "@/lib/planner-admins";
 import { createRawJob, waitForJob } from "@/lib/ai/muapi";
+import { edgeTTS } from "@/lib/ai/edge-tts";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -8,6 +9,19 @@ export const maxDuration = 60;
 async function authed(req: NextRequest): Promise<boolean> {
   return !!(await resolveOwner(req.headers.get("x-admin-secret")));
 }
+
+/** Voces neuronales gratis de Microsoft Edge (sin key). La UI manda voice = "ms:<voz>". */
+const EDGE_VOICES = new Set([
+  "es-MX-DaliaNeural", "es-MX-JorgeNeural", "es-ES-ElviraNeural", "es-ES-AlvaroNeural",
+  "es-CO-SalomeNeural", "es-CO-GonzaloNeural", "es-AR-ElenaNeural", "es-AR-TomasNeural",
+  "es-US-PalomaNeural", "es-US-AlonsoNeural",
+  "en-US-AriaNeural", "en-US-GuyNeural", "en-GB-SoniaNeural",
+]);
+const EDGE_BY_LANG: Record<string, string> = {
+  es: "es-MX-DaliaNeural", "es-us": "es-US-PalomaNeural", en: "en-US-AriaNeural",
+  "en-gb": "en-GB-SoniaNeural",
+};
+
 
 /** Parte el texto en trozos ≤200 chars (límite de Google TTS), respetando palabras. */
 function chunk(text: string, max = 190): string[] {
@@ -59,7 +73,24 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ── Voz gratis: Google Translate TTS (por defecto) ──
+  // ── Voz gratis PREMIUM: Microsoft Edge TTS (por defecto, sin key) ──
+  // La UI manda "ms:<voz>". Si no se pide Google explícitamente, usamos Edge.
+  const wantsGoogle = voiceParam === "google" || voiceParam.startsWith("g:");
+  if (!wantsGoogle) {
+    const asked = voiceParam.startsWith("ms:") ? voiceParam.slice(3) : "";
+    const voice = EDGE_VOICES.has(asked) ? asked : (EDGE_BY_LANG[tl] || "es-MX-DaliaNeural");
+    try {
+      const mp3 = await edgeTTS(voice, text, {}, 50000);
+      if (mp3.length > 0) {
+        return new NextResponse(new Uint8Array(mp3), { headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store", "X-TTS-Engine": "edge" } });
+      }
+      // si Edge devolvió vacío, caemos a Google abajo
+    } catch {
+      // Edge falló (red/upstream) → fallback automático a Google abajo
+    }
+  }
+
+  // ── Voz gratis (fallback / opt-in): Google Translate TTS ──
   try {
     const parts = chunk(text);
     const buffers: Buffer[] = [];

@@ -136,8 +136,8 @@ async function loadBytes(mediaUrl: string, secret: string): Promise<Uint8Array> 
 
 async function ttsBytes(text: string, lang: string, secret: string): Promise<Uint8Array | null> {
   try {
-    // "mx:<voiceId>" → voz natural MUAPI; si no, código de idioma de Google TTS.
-    const payload = lang.startsWith("mx:") ? { text, voice: lang } : { text, lang };
+    // "ms:<voz>" → Microsoft Edge (gratis); "mx:<voiceId>" → MUAPI; si no, idioma Google TTS.
+    const payload = /^(mx:|ms:)/.test(lang) ? { text, voice: lang } : { text, lang };
     const r = await fetch("/api/admin/editor/tts", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-secret": secret }, body: JSON.stringify(payload) });
     if (!r.ok) return null;
     return new Uint8Array(await r.arrayBuffer());
