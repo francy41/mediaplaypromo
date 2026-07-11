@@ -46,8 +46,9 @@ export default function ThumbnailsPage() {
 
   useEffect(() => {
     let s = ""; try { s = localStorage.getItem(SECRET_STORE) ?? ""; } catch {}
-    if (!s) return;
-    const t = setTimeout(() => { setSecret(s); setAuthed(true); }, 0);
+    let t0 = ""; try { t0 = new URLSearchParams(window.location.search).get("topic") ?? ""; } catch {}
+    if (!s && !t0) return;
+    const t = setTimeout(() => { if (s) { setSecret(s); setAuthed(true); } if (t0) setTopic(t0); }, 0);
     return () => clearTimeout(t);
   }, []);
 

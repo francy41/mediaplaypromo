@@ -1,9 +1,11 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   Clapperboard, Lock, Wand2, Loader2, Play, Square, Download, Trash2, RefreshCw,
   Volume2, VolumeX, Film, Plus,
   ChevronLeft, ChevronRight, FolderInput, Upload, X, Music, Subtitles, Mic,
+  Image as ImageIcon,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { MUAPI_MODELS } from "@/lib/ai/muapi-models";
@@ -746,10 +748,19 @@ export default function EditorPage() {
   const cur = previewIndex >= 0 ? clips[previewIndex] : null;
 
   return (
-    <AdminShell title="Mega Editor de Video IA" description="Estilo CapCut: IA + Banco de Medios → timeline editable → preview → render MP4." icon={Clapperboard} iconGradient="from-violet-500 to-fuchsia-600" status="beta" breadcrumb={[{ label: "Mega Editor" }]}>
+    <AdminShell title="Mega Editor de Video IA" description="Estilo CapCut: IA + Banco de Medios → timeline editable → preview → render MP4." icon={Clapperboard} iconGradient="from-violet-500 to-fuchsia-600" status="beta" breadcrumb={[{ label: "Mega Editor" }]}
+      actions={
+        <Link href={`/thumbnails${prompt.trim() ? `?topic=${encodeURIComponent(prompt.trim())}` : ""}`} className="inline-flex items-center gap-1.5 bg-gradient-to-r from-rose-500 to-orange-600 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-lg shadow-rose-500/30">
+          <ImageIcon className="w-3.5 h-3.5" /> Crear miniatura
+        </Link>
+      }>
       <div className="grid lg:grid-cols-[360px_1fr] gap-4">
         {/* ════ Panel izquierdo ════ */}
         <div className="space-y-3">
+          {/* Acceso directo al generador de miniaturas de YouTube (usa el mismo tema) */}
+          <Link href={`/thumbnails${prompt.trim() ? `?topic=${encodeURIComponent(prompt.trim())}` : ""}`} className="flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-orange-600 text-white text-sm font-bold px-4 py-2.5 rounded-xl shadow-lg shadow-rose-500/25 hover:brightness-110 transition">
+            <ImageIcon className="w-4 h-4" /> Crear miniatura de YouTube
+          </Link>
           {/* Panel: Crear con IA (prompt) — siempre visible */}
           <div className="glass-card rounded-2xl border border-violet-500/25 p-4 space-y-3">
             <h3 className="flex items-center gap-1.5 text-white font-bold text-sm"><Wand2 className="w-4 h-4 text-violet-400" /> Crear con IA — escribe tu idea</h3>
