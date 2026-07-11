@@ -154,6 +154,7 @@ export default function ThumbnailsPage() {
     setOffset({ x: d.ox + (e.clientX - d.sx) * f, y: d.oy + (e.clientY - d.sy) * f });
   };
   const onPointerUp = () => { dragRef.current = null; };
+  const nudge = (dx: number, dy: number) => setOffset((o) => ({ x: o.x + dx, y: o.y + dy }));
 
   // ── Carga un fondo (vía proxy same-origin para poder exportar el PNG) ──
   const selectBg = useCallback(async (url: string) => {
@@ -287,10 +288,24 @@ export default function ThumbnailsPage() {
               <label className="block text-white/45 text-[10px] font-bold uppercase tracking-wider mb-1">Tamaño del texto</label>
               <input type="range" min={0.6} max={1.8} step={0.05} value={scale} onChange={(e) => setScale(Number(e.target.value))} className="w-full accent-rose-500" />
             </div>
+            <div>
+              <label className="block text-white/45 text-[10px] font-bold uppercase tracking-wider mb-1">Mover texto</label>
+              <div className="grid grid-cols-3 gap-1 w-32">
+                <span />
+                <button onClick={() => nudge(0, -30)} className="py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 text-sm">↑</button>
+                <span />
+                <button onClick={() => nudge(-30, 0)} className="py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 text-sm">←</button>
+                <button onClick={() => { setOffset({ x: 0, y: 0 }); }} title="Centrar" className="py-1.5 rounded-lg bg-rose-500/20 border border-rose-500/30 text-rose-200 hover:bg-rose-500/30 text-xs font-bold">◎</button>
+                <button onClick={() => nudge(30, 0)} className="py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 text-sm">→</button>
+                <span />
+                <button onClick={() => nudge(0, 30)} className="py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 text-sm">↓</button>
+                <span />
+              </div>
+            </div>
             <button onClick={() => { setOffset({ x: 0, y: 0 }); setScale(1); }} className="w-full inline-flex items-center justify-center gap-1.5 bg-white/5 border border-white/10 text-white/60 hover:text-white text-[11px] font-bold px-3 py-1.5 rounded-lg">
               <RefreshCw className="w-3 h-3" /> Reiniciar posición y tamaño
             </button>
-            <p className="text-white/30 text-[10px]">💡 Arrastra el texto directamente sobre la miniatura para colocarlo donde quieras.</p>
+            <p className="text-white/30 text-[10px]">💡 O arrastra el texto directamente sobre la miniatura con el ratón.</p>
           </div>
 
           <div className="glass-card rounded-2xl border border-white/10 p-4">
