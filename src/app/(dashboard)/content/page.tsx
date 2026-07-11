@@ -6,28 +6,8 @@ import { AdminShell, KPIGrid } from "@/components/admin/AdminShell";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { generateCaptionTemplate, composeCaption } from "@/lib/caption-generator";
 
-const SALES_LINK = "https://yfsportshop.com/";
 // Contacto para activar la Marca Blanca del Planificador (cliente). Cambiable.
 const WHITELABEL_CONTACT = "mailto:ventas@mediaplaypromo.com?subject=Quiero%20la%20Marca%20Blanca%20de%20MediaPlayPromo%20(100%E2%82%AC%2Fmes)";
-
-const CAPTION_TEMPLATES = [
-  {
-    label: "🎬 Reels / TikTok",
-    text: `👟🔥 Zapatillas y ropa de marca 100% originales en YF Sport Shop\n\nLo último de Nike, Adidas y Jordan al mejor precio 💸\n\n✅ Originales garantizados\n✅ Envíos a todo el país 📦\n✅ Nuevos modelos cada semana\n✅ Pago seguro y fácil\n\n💰 ¿Quieres ganar dinero? Hazte afiliado y cobra comisión por cada venta que traigas 🤝\n\n🛒 Compra o únete como afiliado 👇\n${SALES_LINK}\n\n#zapatillas #sneakers #Nike #Adidas #Jordan #ropadedemarca #streetwear #moda #ofertas #afiliados #ganardinero #emprende`,
-  },
-  {
-    label: "📸 Instagram",
-    text: `El drip correcto lo cambia todo. 👟🔥\n\nEn YF Sport Shop tienes Nike, Adidas y Jordan originales, nuevos modelos cada semana y envíos a todo el país 📦\n\n✅ 100% originales\n✅ Mejor precio\n✅ Pago seguro\n\nY si te encanta la moda… conviértela en ingresos 💰 Únete a nuestro programa de afiliados y gana comisión revendiendo lo que ya amas.\n\n🛒 Compra o hazte afiliado 👇\n${SALES_LINK}\n\n#sneakers #ropadedemarca #Nike #Adidas #Jordan #outfit #streetwear #moda #afiliados #negocio #emprendimiento #reseller`,
-  },
-  {
-    label: "▶️ YouTube",
-    text: `👟 YF Sport Shop — Zapatillas y ropa de marca originales al mejor precio\n\nEncuentra Nike, Adidas, Jordan y las últimas tendencias con envíos a todo el país y pago 100% seguro.\n\n✅ Productos originales garantizados\n✅ Nuevos modelos cada semana\n✅ Envíos rápidos\n\n💼 PROGRAMA DE AFILIADOS: gana comisión por cada venta que refieras. Ideal si tienes redes, comunidad o simplemente quieres emprender. Únete gratis.\n\n🛒 Comprar / Hacerme afiliado:\n${SALES_LINK}\n\n#zapatillas #sneakers #Nike #Adidas #Jordan #moda #afiliados #emprender #negociodigital`,
-  },
-  {
-    label: "⏰ Urgencia / CTA",
-    text: `⏰ Se agotan rápido… ¿te vas a quedar sin tu talla? 👟\n\nYF Sport Shop — Nike, Adidas y Jordan originales al mejor precio. Nuevos modelos cada semana.\n\n🔥 Oferta por tiempo limitado\n✅ Originales garantizados\n✅ Envíos a todo el país\n\n💰 Gana dinero con nosotros: hazte afiliado y cobra comisión por cada venta.\n\n👉 Compra ya o únete como afiliado:\n${SALES_LINK}\n\n#ofertas #zapatillas #sneakers #Nike #Adidas #Jordan #afiliados #ganardinero #emprende`,
-  },
-];
 
 interface Post {
   id: string;
@@ -59,11 +39,11 @@ export default function ContentPlannerPage() {
   // formulario de alta
   const [bulk, setBulk] = useState("");
   const [caption, setCaption] = useState("");
-  const [activeTemplate, setActiveTemplate] = useState(-1);
+  const [, setActiveTemplate] = useState(-1);
 
   // generador de caption (plantilla + IA)
   const [brief, setBrief] = useState("");
-  const [genLink, setGenLink] = useState(SALES_LINK);
+  const [genLink, setGenLink] = useState("");
   const [genBusy, setGenBusy] = useState(false);
   const [genMsg, setGenMsg] = useState("");
 
@@ -527,14 +507,10 @@ export default function ContentPlannerPage() {
 
               <div className="flex items-center gap-1.5 mb-2 flex-wrap">
                 <Sparkles className="w-3 h-3 text-pink-400 flex-shrink-0" />
-                {CAPTION_TEMPLATES.map((t, i) => (
-                  <button key={i} type="button"
-                    onClick={() => { setActiveTemplate(i); setCaption(t.text); }}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors ${activeTemplate === i ? "bg-pink-500/25 text-pink-200 border border-pink-500/40" : "bg-white/5 text-white/45 border border-white/10 hover:text-white/80 hover:border-white/20"}`}>
-                    {t.label}
-                  </button>
-                ))}
-                {/* Plantillas guardadas por el usuario */}
+                {savedTemplates.length === 0 && (
+                  <span className="text-white/30 text-[10px]">Aún no tienes plantillas guardadas en esta cuenta. Escribe un caption y pulsa «Guardar» para reutilizarlo.</span>
+                )}
+                {/* Plantillas guardadas por el usuario (por cuenta) */}
                 {savedTemplates.map((t) => (
                   <span key={t.id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-violet-500/15 text-violet-200 border border-violet-500/30">
                     <button type="button" onClick={() => { setActiveTemplate(-1); setCaption(t.text); }} className="hover:text-white">{t.label}</button>
