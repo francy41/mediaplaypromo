@@ -391,34 +391,45 @@ export default function EditorPage() {
     const list = clips.filter((c) => (c.narration || "").trim());
     if (list.length === 0) { setFlash("No hay narración en las escenas."); setTimeout(() => setFlash(""), 2000); return; }
     setMeasuringVoices(true);
+    let ctx: AudioContext | null = null;
+    try { ctx = new AudioContext(); } catch {}
+    let done = 0, stop = false;
+    const CONCURRENCY = 4; // varias voces a la vez → mucho más rápido
+
+    const synth = async (c: Clip) => {
+      if (stop) return;
+      try {
+        const ttsBody = /^(mx:|ms:)/.test(voiceCode) ? { text: c.narration, voice: voiceCode } : { text: c.narration, lang: voiceCode };
+        const r = await fetch("/api/admin/editor/tts", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-secret": secret }, body: JSON.stringify(ttsBody) });
+        if (!r.ok) {
+          const errTxt = await r.text().catch(() => "");
+          if (/insufficient|saldo|credit/i.test(errTxt) && voiceCode.startsWith("mx:")) {
+            stop = true;
+            setError("Sin saldo en MUAPI para la voz. Recarga en muapi.ai/topup o elige una voz 🆓 Edge / Google (gratis).");
+          }
+          return;
+        }
+        const buf = await r.arrayBuffer();
+        let dur = 0;
+        try { if (ctx) { const dec = await ctx.decodeAudioData(buf.slice(0)); dur = dec.duration; } } catch {}
+        if (dur > 0.2) {
+          try { const old = voiceUrlsRef.current[c.id]; if (old) URL.revokeObjectURL(old); } catch {}
+          voiceUrlsRef.current[c.id] = URL.createObjectURL(new Blob([buf], { type: "audio/mpeg" }));
+          setClips((prev) => prev.map((x) => x.id === c.id ? { ...x, narrationDur: dur, seconds: Math.min(60, Math.max(x.seconds, Math.ceil(dur + 0.4))) } : x));
+        }
+      } catch { /* siguiente */ }
+      finally { done++; setVoiceMsg(`Midiendo voz ${done}/${list.length}…`); }
+    };
+
     try {
-      for (let idx = 0; idx < list.length; idx++) {
-        const c = list[idx];
-        setVoiceMsg(`Midiendo voz ${idx + 1}/${list.length}…`);
-        try {
-          const ttsBody = /^(mx:|ms:)/.test(voiceCode) ? { text: c.narration, voice: voiceCode } : { text: c.narration, lang: voiceCode };
-          const r = await fetch("/api/admin/editor/tts", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-secret": secret }, body: JSON.stringify(ttsBody) });
-          if (!r.ok) {
-            const errTxt = await r.text().catch(() => "");
-            if (/insufficient|saldo|credit/i.test(errTxt) && voiceCode.startsWith("mx:")) {
-              setError("Sin saldo en MUAPI para la voz. Recarga en muapi.ai/topup o elige una voz 🆓 Google (gratis).");
-              setMeasuringVoices(false); setVoiceMsg(""); return;
-            }
-            continue;
-          }
-          const buf = await r.arrayBuffer();
-          let dur = 0;
-          try { const ctx = new AudioContext(); const dec = await ctx.decodeAudioData(buf.slice(0)); dur = dec.duration; ctx.close(); } catch {}
-          if (dur > 0.2) {
-            try { const old = voiceUrlsRef.current[c.id]; if (old) URL.revokeObjectURL(old); } catch {}
-            voiceUrlsRef.current[c.id] = URL.createObjectURL(new Blob([buf], { type: "audio/mpeg" }));
-            setClips((prev) => prev.map((x) => x.id === c.id ? { ...x, narrationDur: dur, seconds: Math.min(60, Math.max(x.seconds, Math.ceil(dur + 0.4))) } : x));
-          }
-        } catch { /* siguiente */ }
-      }
-      setVoiceMsg("✓ Voces medidas · clips ajustados a la voz");
-      setTimeout(() => setVoiceMsg(""), 3000);
-    } finally { setMeasuringVoices(false); }
+      const queue = [...list];
+      const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
+        while (queue.length && !stop) { const c = queue.shift(); if (c) await synth(c); }
+      });
+      await Promise.all(workers);
+      if (!stop) { setVoiceMsg("✓ Voces medidas · clips ajustados a la voz"); setTimeout(() => setVoiceMsg(""), 3000); }
+      else setVoiceMsg("");
+    } finally { try { ctx?.close(); } catch {} setMeasuringVoices(false); }
   };
 
   // Dibuja la onda del audio en el canvas de la pista.
@@ -483,17 +494,23 @@ export default function EditorPage() {
     setSplitting(true);
     setFlash("Troceando y cuadrando con la voz…");
     const ori = orientationFor(aspect);
-    const out: Clip[] = [];
+    // Solo los clips que se parten necesitan buscar b-roll extra. Se hacen TODAS
+    // las búsquedas de medios EN PARALELO (antes eran secuenciales → muy lento).
+    const plans = clips.map((c) => ({ c, parts: chunkNarration(c.narration || "") }));
     let si = 0;
-    for (const c of clips) {
-      const parts = chunkNarration(c.narration || "");
-      if (parts.length <= 1) { out.push({ ...c, seconds: c.narration ? estVoiceSec(c.narration) : c.seconds }); si++; continue; }
-      let cands = await sceneMedia(c.query || c.visual, c.visual || c.query, ori, si++);
-      if (cands.length === 0 && c.media) cands = [c.media];
+    const mediaJobs = plans.map((p) =>
+      p.parts.length <= 1 ? Promise.resolve<Media[]>([]) : sceneMedia(p.c.query || p.c.visual, p.c.visual || p.c.query, ori, si++)
+    );
+    const mediaResults = await Promise.all(mediaJobs);
+    const out: Clip[] = [];
+    plans.forEach((p, i) => {
+      const { c, parts } = p;
+      if (parts.length <= 1) { out.push({ ...c, seconds: c.narration ? estVoiceSec(c.narration) : c.seconds }); return; }
+      const cands = mediaResults[i].length ? mediaResults[i] : (c.media ? [c.media] : []);
       parts.forEach((sent, k) => {
         out.push({ ...c, id: uid(), narration: sent, media: cands.length ? cands[k % cands.length] : c.media, seconds: estVoiceSec(sent) });
       });
-    }
+    });
     setClips(out);
     setSplitting(false);
     setFlash(`✓ ${out.length} clips, cuadrados con la voz`); setTimeout(() => setFlash(""), 2800);

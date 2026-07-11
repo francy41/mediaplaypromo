@@ -159,24 +159,30 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
 
   // ── Pre-pass: si hay TTS, genera la voz y MIDE su duración real → cada escena
   //    durará lo mismo que su locución (sincronía texto↔audio↔video perfecta).
-  const ttsCache: (Uint8Array | null)[] = [];
-  const effDur: number[] = [];
-  for (let i = 0; i < usable.length; i++) {
-    const s = usable[i];
-    let dur = Math.min(Math.max(Math.round(s.seconds) || 4, 2), 60);
-    if (ttsMode) {
-      const nar = (s.narration || "").trim();
-      if (nar) {
-        onProgress(`Generando narración ${i + 1}/${usable.length}…`, 4 + Math.round((i / usable.length) * 12));
+  const ttsCache: (Uint8Array | null)[] = new Array(usable.length).fill(null);
+  const effDur: number[] = usable.map((s) => Math.min(Math.max(Math.round(s.seconds) || 4, 2), 60));
+  if (ttsMode) {
+    // Genera las narraciones EN PARALELO (varias a la vez) → mucho más rápido que 1x1.
+    const idxs = usable.map((_, i) => i).filter((i) => (usable[i].narration || "").trim());
+    const queue = [...idxs];
+    let done = 0;
+    const CONCURRENCY = 4;
+    const work = async () => {
+      while (queue.length) {
+        const i = queue.shift();
+        if (i === undefined) break;
+        const nar = (usable[i].narration || "").trim();
         const mp3 = await ttsBytes(nar, opts.ttsLang!, secret);
         ttsCache[i] = mp3 && mp3.length > 200 ? mp3 : null;
         if (ttsCache[i]) {
           const d = await audioDurationOf(ttsCache[i]!);
-          if (d && isFinite(d) && d > 0.3) dur = Math.min(Math.max(d + 0.4, 1.5), 60);
+          if (d && isFinite(d) && d > 0.3) effDur[i] = Math.min(Math.max(d + 0.4, 1.5), 60);
         }
-      } else ttsCache[i] = null;
-    }
-    effDur[i] = dur;
+        done++;
+        onProgress(`Generando narración ${done}/${idxs.length}…`, 4 + Math.round((done / idxs.length) * 12));
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, work));
   }
 
   // Crossfade real (xfade) solo si: lo piden, no hay audio propio, pocas escenas y video corto
