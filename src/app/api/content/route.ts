@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { postToGHL, resolveAccountIds, resolveGHLUserId, getGHLAccounts } from "@/lib/ghl-social";
-import { getGhlConn, listGhlProjectsSafe, type GhlConn } from "@/lib/ghl-projects";
-import { resolveOwner } from "@/lib/planner-admins";
+import { getGhlConn, listGhlProjectsSafe, getProjectOwner, type GhlConn } from "@/lib/ghl-projects";
+import { resolveOwner, type OwnerCtx } from "@/lib/planner-admins";
 import { listTemplates, addTemplate, removeTemplate } from "@/lib/caption-templates";
 import { generateCaptionAI } from "@/lib/ai/caption";
 
@@ -13,6 +13,19 @@ const THROTTLE_MS = 250;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 type GhlResult = { ok: boolean; postId?: string; error?: string };
+
+/**
+ * Propietario cuyos datos se ven/gestionan.
+ *  - admin: siempre él mismo (aislado).
+ *  - super: si elige la cuenta de un admin, gestiona los datos de ESE admin
+ *    ("super manda"); si no, su propia cola.
+ */
+async function resolveViewOwner(owner: OwnerCtx, projectId: string | null | undefined): Promise<string> {
+  if (owner.role !== "super") return owner.ownerId;
+  if (!projectId || projectId === "env") return "super";
+  const projOwner = await getProjectOwner(projectId);
+  return projOwner ?? "super";
+}
 
 // Publica usando grupos de cuentas ya resueltos (TikTok va en su propio grupo).
 async function pushWithGroups(post: { caption: string | null; video_url: string }, scheduledAt: string, platforms: string[], groups: string[][], conn: GhlConn | null) {
@@ -40,16 +53,19 @@ export async function GET(req: NextRequest) {
   if (!owner) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   try {
     const admin = createSupabaseAdminClient();
+    // El super puede ver la cola de la cuenta seleccionada (?project=<id>).
+    const projectId = req.nextUrl.searchParams.get("project");
+    const viewOwner = await resolveViewOwner(owner, projectId);
     const { data, error } = await admin
       .from("content_posts")
       .select("*")
-      .eq("owner_id", owner.ownerId)
+      .eq("owner_id", viewOwner)
       .order("scheduled_at", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false })
       .limit(500);
     const projects = await listGhlProjectsSafe(owner.ownerId);
-    const templates = await listTemplates(owner.ownerId);
-    return NextResponse.json({ posts: error ? [] : data ?? [], projects, templates, ghlEnabled: projects.length > 0, role: owner.role, name: owner.name, error: error?.message });
+    const templates = await listTemplates(viewOwner);
+    return NextResponse.json({ posts: error ? [] : data ?? [], projects, templates, ghlEnabled: projects.length > 0, role: owner.role, name: owner.name, viewOwner, error: error?.message });
   } catch {
     return NextResponse.json({ posts: [], projects: [], ghlEnabled: false });
   }
@@ -61,8 +77,10 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const action = body?.action;
   const admin = createSupabaseAdminClient();
-  // Conexión GHL del proyecto seleccionado (aislada por owner; env solo para super)
+  // Conexión GHL del proyecto seleccionado (aislada por owner; el super accede a cualquiera)
   const conn = await getGhlConn(body?.projectId, owner.ownerId);
+  // Datos que se gestionan: el super opera sobre la cuenta elegida; el admin, la suya.
+  const viewOwner = await resolveViewOwner(owner, body?.projectId);
 
   try {
     if (action === "add") {
@@ -76,7 +94,7 @@ export async function POST(req: NextRequest) {
           title: v.title?.trim() || null,
           caption: v.caption?.trim() || null,
           status: "queued",
-          owner_id: owner.ownerId,
+          owner_id: viewOwner,
         }));
       if (rows.length === 0) return NextResponse.json({ error: "Falta la URL del video" }, { status: 400 });
       const { error } = await admin.from("content_posts").insert(rows);
@@ -84,17 +102,17 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "delete") {
-      const { error } = await admin.from("content_posts").delete().eq("id", body.id).eq("owner_id", owner.ownerId);
+      const { error } = await admin.from("content_posts").delete().eq("id", body.id).eq("owner_id", viewOwner);
       return NextResponse.json({ ok: !error });
     }
 
     if (action === "template-add") {
-      const r = await addTemplate(owner.ownerId, { label: body.label, text: body.text });
+      const r = await addTemplate(viewOwner, { label: body.label, text: body.text });
       return NextResponse.json(r, { status: r.ok ? 200 : 400 });
     }
 
     if (action === "template-delete") {
-      const r = await removeTemplate(owner.ownerId, String(body.id ?? ""));
+      const r = await removeTemplate(viewOwner, String(body.id ?? ""));
       return NextResponse.json(r, { status: r.ok ? 200 : 400 });
     }
 
@@ -119,13 +137,13 @@ export async function POST(req: NextRequest) {
 
     if (action === "clear") {
       const scope = body.scope === "all" ? null : "failed";
-      const q = admin.from("content_posts").delete().eq("owner_id", owner.ownerId);
+      const q = admin.from("content_posts").delete().eq("owner_id", viewOwner);
       const { error } = scope ? await q.eq("status", scope) : await q;
       return NextResponse.json({ ok: !error, error: error?.message });
     }
 
     if (action === "schedule") {
-      const { data: post } = await admin.from("content_posts").select("caption,video_url").eq("id", body.id).eq("owner_id", owner.ownerId).maybeSingle();
+      const { data: post } = await admin.from("content_posts").select("caption,video_url").eq("id", body.id).eq("owner_id", viewOwner).maybeSingle();
       if (!post) return NextResponse.json({ error: "Post no encontrado" }, { status: 404 });
       const platforms: string[] = body.platforms ?? [];
       let groups: string[][] = [];
@@ -137,7 +155,7 @@ export async function POST(req: NextRequest) {
         if (!u.ok) return NextResponse.json({ error: u.error }, { status: 400 });
       }
       const upd = await pushWithGroups(post, body.scheduled_at, platforms, groups, conn);
-      const { error } = await admin.from("content_posts").update(upd).eq("id", body.id).eq("owner_id", owner.ownerId);
+      const { error } = await admin.from("content_posts").update(upd).eq("id", body.id).eq("owner_id", viewOwner);
       return NextResponse.json({ ok: !error, status: upd.status, error: upd.error });
     }
 
@@ -145,7 +163,7 @@ export async function POST(req: NextRequest) {
       const { data: queued } = await admin
         .from("content_posts")
         .select("id,caption,video_url")
-        .eq("owner_id", owner.ownerId)
+        .eq("owner_id", viewOwner)
         .eq("status", "queued")
         .order("created_at", { ascending: true });
       const list = queued ?? [];
@@ -170,7 +188,7 @@ export async function POST(req: NextRequest) {
         d.setDate(d.getDate() + i * interval);
         d.setHours(hh || 10, mm || 0, 0, 0);
         const upd = await pushWithGroups(list[i], d.toISOString(), platforms, groups, conn);
-        await admin.from("content_posts").update(upd).eq("id", list[i].id).eq("owner_id", owner.ownerId);
+        await admin.from("content_posts").update(upd).eq("id", list[i].id).eq("owner_id", viewOwner);
         scheduled++;
         if (conn && i < list.length - 1) await sleep(THROTTLE_MS);
       }
@@ -181,7 +199,7 @@ export async function POST(req: NextRequest) {
       const { data: queued } = await admin
         .from("content_posts")
         .select("id,caption,video_url,title")
-        .eq("owner_id", owner.ownerId)
+        .eq("owner_id", viewOwner)
         .eq("status", "queued")
         .order("created_at", { ascending: true });
       const list = queued ?? [];
@@ -220,9 +238,9 @@ export async function POST(req: NextRequest) {
         const isoDate = d.toISOString();
         const upd = await pushWithGroups(template, isoDate, platforms, groups, conn);
         if (i < list.length) {
-          await admin.from("content_posts").update(upd).eq("id", template.id).eq("owner_id", owner.ownerId);
+          await admin.from("content_posts").update(upd).eq("id", template.id).eq("owner_id", viewOwner);
         } else {
-          toInsert.push({ video_url: template.video_url, caption: template.caption, title: template.title, owner_id: owner.ownerId, ...upd });
+          toInsert.push({ video_url: template.video_url, caption: template.caption, title: template.title, owner_id: viewOwner, ...upd });
         }
         scheduled++;
         if (conn && i < totalDays - 1) await sleep(THROTTLE_MS);
@@ -242,7 +260,7 @@ export async function POST(req: NextRequest) {
     if (action === "recycle") {
       const { error } = await admin.from("content_posts").update({
         status: "queued", scheduled_at: null, platforms: [], ghl_post_id: null, error: null,
-      }).eq("status", "published").eq("owner_id", owner.ownerId);
+      }).eq("status", "published").eq("owner_id", viewOwner);
       return NextResponse.json({ ok: !error, error: error?.message });
     }
 

@@ -104,10 +104,11 @@ export default function ContentPlannerPage() {
       ...(body ? { body: JSON.stringify(body) } : {}),
     }), []);
 
-  const load = useCallback(async (sec: string) => {
+  const load = useCallback(async (sec: string, proj?: string) => {
     setLoading(true); setError(null);
     try {
-      const r = await call(sec, "GET");
+      const qs = proj ? `?project=${encodeURIComponent(proj)}` : "";
+      const r = await fetch(`/api/content${qs}`, { headers: { "x-admin-secret": sec } });
       if (r.status === 401) { setAuthed(false); try { localStorage.removeItem(SECRET_STORE); } catch {} setError("Secreto incorrecto."); return; }
       const d = await r.json();
       setPosts(d.posts ?? []); setGhlEnabled(!!d.ghlEnabled); setRole(d.role ?? null); setSavedTemplates(d.templates ?? []); setSecret(sec); setAuthed(true);
@@ -117,7 +118,7 @@ export default function ContentPlannerPage() {
       try { localStorage.setItem(SECRET_STORE, sec); } catch {}
     } catch { setError("Error de conexión."); }
     finally { setLoading(false); }
-  }, [call]);
+  }, []);
 
   useEffect(() => {
     let s = ""; try { s = localStorage.getItem(SECRET_STORE) ?? ""; } catch {}
@@ -125,6 +126,14 @@ export default function ContentPlannerPage() {
     const t = setTimeout(() => load(s), 0);
     return () => clearTimeout(t);
   }, [load]);
+
+  // El SuperAdmin puede elegir cualquier cuenta en el selector: recarga la cola
+  // (posts/plantillas) de la cuenta seleccionada. Los admins solo ven la suya.
+  useEffect(() => {
+    if (!authed || role !== "super" || !secret || !activeProject) return;
+    const t = setTimeout(() => load(secret, activeProject), 0);
+    return () => clearTimeout(t);
+  }, [activeProject, authed, role, secret, load]);
 
   const doLogin = async () => {
     if (!loginUser.trim() || !loginPass.trim()) { setError("Escribe usuario y contraseña."); return; }
@@ -146,9 +155,9 @@ export default function ContentPlannerPage() {
     const urls = bulk.split("\n").map((l) => l.trim()).filter(Boolean);
     if (urls.length === 0) return;
     const videos = urls.map((u) => ({ video_url: u, caption: caption || null }));
-    await call(secret, "POST", { action: "add", videos });
+    await call(secret, "POST", { action: "add", videos, projectId: activeProject });
     setBulk(""); setCaption(CAPTION_TEMPLATES[0].text); setActiveTemplate(0);
-    load(secret);
+    load(secret, activeProject);
   };
 
   const onFiles = async (files: FileList | null) => {
@@ -170,7 +179,7 @@ export default function ContentPlannerPage() {
         if (!sr.ok) { setUpMsg(`Error: ${sd.error ?? "subida"}`); continue; }
         const up = await supabase.storage.from("content-videos").uploadToSignedUrl(sd.path, sd.token, file);
         if (up.error) { setUpMsg(`Error subiendo ${file.name}: ${up.error.message}`); continue; }
-        await call(secret, "POST", { action: "add", videos: [{ video_url: sd.publicUrl, title: file.name, caption: caption || null }] });
+        await call(secret, "POST", { action: "add", videos: [{ video_url: sd.publicUrl, title: file.name, caption: caption || null }], projectId: activeProject });
         done++;
       } catch (e) {
         setUpMsg(`Error: ${e instanceof Error ? e.message : ""}`);
@@ -178,10 +187,10 @@ export default function ContentPlannerPage() {
     }
     setUpMsg(`✅ ${done} video(s) subidos a la carpeta`);
     setUploading(false);
-    load(secret);
+    load(secret, activeProject);
   };
 
-  const del = async (id: string) => { await call(secret, "POST", { action: "delete", id }); load(secret); };
+  const del = async (id: string) => { await call(secret, "POST", { action: "delete", id, projectId: activeProject }); load(secret, activeProject); };
 
   const runBatch = async () => {
     if (loopMode) {
@@ -197,23 +206,23 @@ export default function ContentPlannerPage() {
       setLoading(true);
       await call(secret, "POST", { action: "batch", platforms: batchPlatforms, time: batchTime, startDate: batchStart || undefined, intervalDays: freqDays, projectId: activeProject });
     }
-    load(secret);
+    load(secret, activeProject);
   };
 
   const saveTemplate = async () => {
     if (!caption.trim()) { alert("Escribe un caption antes de guardar."); return; }
     const label = prompt("Nombre para esta plantilla (ej. Reels tienda):");
     if (!label || !label.trim()) return;
-    const r = await call(secret, "POST", { action: "template-add", label: label.trim(), text: caption });
+    const r = await call(secret, "POST", { action: "template-add", label: label.trim(), text: caption, projectId: activeProject });
     const d = await r.json().catch(() => ({}));
     if (d && d.ok === false) { alert(`Error: ${d.error || "no se pudo guardar"}`); return; }
-    load(secret);
+    load(secret, activeProject);
   };
 
   const deleteTemplate = async (id: string) => {
     if (!confirm("¿Borrar esta plantilla guardada?")) return;
-    await call(secret, "POST", { action: "template-delete", id });
-    load(secret);
+    await call(secret, "POST", { action: "template-delete", id, projectId: activeProject });
+    load(secret, activeProject);
   };
 
   // ── Generador de caption ──
@@ -258,21 +267,21 @@ export default function ContentPlannerPage() {
     const dd = await r.json().catch(() => ({}));
     setSchedId(null);
     if (dd && dd.ok === false && dd.error) alert(`Error: ${dd.error}`);
-    load(secret);
+    load(secret, activeProject);
   };
 
   const recycle = async () => {
     if (!confirm(`¿Volver a encolar los ${published} videos publicados para repetir el ciclo?`)) return;
     setLoading(true);
-    await call(secret, "POST", { action: "recycle" });
-    load(secret);
+    await call(secret, "POST", { action: "recycle", projectId: activeProject });
+    load(secret, activeProject);
   };
 
   const clearFailed = async () => {
     if (!confirm("¿Eliminar todas las publicaciones con ERROR?")) return;
     setLoading(true);
-    await call(secret, "POST", { action: "clear", scope: "failed" });
-    load(secret);
+    await call(secret, "POST", { action: "clear", scope: "failed", projectId: activeProject });
+    load(secret, activeProject);
   };
 
   const [diag, setDiag] = useState<string>("");
@@ -296,13 +305,13 @@ export default function ContentPlannerPage() {
     setPMsg("Guardando…");
     const r = await callProjects("POST", { action: "add", name: pName, locationId: pLoc, token: pToken, userId: pUser });
     const d = await r.json();
-    if (d.ok) { setPMsg("✅ Proyecto conectado"); setPName(""); setPLoc(""); setPToken(""); setPUser(""); setShowAddProject(false); load(secret); }
+    if (d.ok) { setPMsg("✅ Proyecto conectado"); setPName(""); setPLoc(""); setPToken(""); setPUser(""); setShowAddProject(false); load(secret, activeProject); }
     else setPMsg(`⚠️ ${d.error || "error"}`);
   };
   const removeProject = async (id: string) => {
     if (!confirm("¿Quitar este proyecto GHL?")) return;
     await callProjects("POST", { action: "remove", id });
-    load(secret);
+    load(secret, activeProject);
   };
   const verifyProject = async (id: string) => {
     setDiag("Consultando GHL…");
@@ -336,7 +345,7 @@ export default function ContentPlannerPage() {
               <KeyRound className="w-3.5 h-3.5 text-pink-400" /> Administradores
             </Link>
           )}
-          <button onClick={() => load(secret)} className="inline-flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors">
+          <button onClick={() => load(secret, activeProject)} className="inline-flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Actualizar
           </button>
           <button onClick={() => { try { localStorage.removeItem(SECRET_STORE); } catch {} setAuthed(false); setPosts([]); setProjects([]); setRole(null); setSecret(""); setShowAdminLogin(true); setError(null); }} className="inline-flex items-center gap-1.5 bg-white/5 hover:bg-red-500/15 border border-white/10 hover:border-red-500/30 text-white/70 hover:text-red-300 text-xs font-semibold px-3 py-2 rounded-xl transition-colors" title="Cerrar esta sesión y entrar con otra cuenta">

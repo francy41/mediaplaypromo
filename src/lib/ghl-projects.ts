@@ -1,5 +1,6 @@
 import "server-only";
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
+import { listAdmins } from "@/lib/planner-admins";
 
 /**
  * Conexiones GHL multi-proyecto. Cada proyecto = una cuenta/sub-cuenta GHL
@@ -17,7 +18,7 @@ const BUCKET = "app-config";
 const FILE = "ghl-projects.json";
 
 export interface GhlProject { id: string; name: string; locationId: string; token: string; userId?: string | null; ownerId?: string }
-export interface GhlProjectSafe { id: string; name: string; locationId: string; hasToken: boolean; isEnv?: boolean }
+export interface GhlProjectSafe { id: string; name: string; locationId: string; hasToken: boolean; isEnv?: boolean; ownerId?: string }
 export interface GhlConn { token: string; locationId: string; userId?: string | null }
 
 /** El propietario efectivo de un proyecto (legacy sin ownerId → "super"). */
@@ -50,24 +51,55 @@ async function writeRaw(list: GhlProject[]): Promise<{ ok: boolean; error?: stri
   } catch (e) { return { ok: false, error: e instanceof Error ? e.message : "error" }; }
 }
 
-/** Lista para el cliente (sin tokens), solo los proyectos del propietario. */
+/**
+ * Lista para el cliente (sin tokens).
+ *  - admin: solo SUS proyectos.
+ *  - super: TODAS las cuentas (env + las suyas + las de cada admin), cada una
+ *    etiquetada con el nombre del admin dueño para poder distinguirlas.
+ */
 export async function listGhlProjectsSafe(ownerId: string): Promise<GhlProjectSafe[]> {
-  const out: GhlProjectSafe[] = [];
-  // La conexión env es exclusiva del SuperAdmin.
+  const list = await readRaw();
+
   if (ownerId === "super") {
+    const out: GhlProjectSafe[] = [];
     const env = envConn();
-    if (env) out.push({ id: "env", name: "Principal (env)", locationId: env.locationId, hasToken: true, isEnv: true });
+    if (env) out.push({ id: "env", name: "Principal · Mediaplaypromo", locationId: env.locationId, hasToken: true, isEnv: true });
+    // owner → nombre del admin, para etiquetar las cuentas ajenas
+    const admins = await listAdmins().catch(() => []);
+    const nameOf = new Map(admins.map((a) => [a.id, a.name || a.username || "admin"]));
+    for (const p of list) {
+      const owner = ownerOf(p);
+      const label = owner === "super" ? p.name : `${p.name} · ${nameOf.get(owner) ?? "admin"}`;
+      out.push({ id: p.id, name: label, locationId: p.locationId, hasToken: !!p.token, ownerId: owner });
+    }
+    return out;
   }
-  for (const p of await readRaw()) {
+
+  const out: GhlProjectSafe[] = [];
+  for (const p of list) {
     if (ownerOf(p) === ownerId) out.push({ id: p.id, name: p.name, locationId: p.locationId, hasToken: !!p.token });
   }
   return out;
 }
 
-/** Devuelve la conexión (con token) de un proyecto del propietario. */
+/** Dueño (ownerId) de un proyecto por su id. `env` es del super. */
+export async function getProjectOwner(id: string | null | undefined): Promise<string | null> {
+  if (!id || id === "env") return "super";
+  const p = (await readRaw()).find((x) => x.id === id);
+  return p ? ownerOf(p) : null;
+}
+
+/**
+ * Devuelve la conexión (con token) de un proyecto.
+ *  - admin: solo sus proyectos.
+ *  - super: puede usar CUALQUIER proyecto (el suyo o el de un admin), o env.
+ */
 export async function getGhlConn(id: string | null | undefined, ownerId: string): Promise<GhlConn | null> {
   if (!id || id === "env") return ownerId === "super" ? envConn() : null;
-  const p = (await readRaw()).find((x) => x.id === id && ownerOf(x) === ownerId);
+  const list = await readRaw();
+  const p = ownerId === "super"
+    ? list.find((x) => x.id === id)                          // super accede a todo
+    : list.find((x) => x.id === id && ownerOf(x) === ownerId);
   if (p?.token && p.locationId) return { token: p.token, locationId: p.locationId, userId: p.userId ?? null };
   // Solo el SuperAdmin cae a la conexión env por defecto.
   return ownerId === "super" ? envConn() : null;
