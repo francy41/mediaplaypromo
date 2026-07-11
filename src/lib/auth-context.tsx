@@ -139,7 +139,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         plan: ADMIN_CREDENTIALS.plan,
       };
       setUser(authUser);
-      localStorage.setItem(SESSION_KEY, JSON.stringify(authUser));
+      try { localStorage.setItem(SESSION_KEY, JSON.stringify(authUser)); } catch {}
+      // Guarda el secreto maestro para que las herramientas SuperAdmin (editor,
+      // miniaturas, planificador, stock…) NO vuelvan a pedir la clave secreta.
+      try {
+        const r = await fetch("/api/planner-auth", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: email.trim(), password }),
+        });
+        if (r.ok) { const d = await r.json(); if (d.ok && d.token) localStorage.setItem("mpp_license_admin_secret", d.token); }
+      } catch {}
       return { ok: true };
     }
 
