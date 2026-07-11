@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { MUAPI_MODELS } from "@/lib/ai/muapi-models";
+import { ensureAdminSecret } from "@/lib/admin-secret";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -175,11 +176,11 @@ export default function EditorPage() {
   const [renderMsg, setRenderMsg] = useState("");
 
   useEffect(() => {
-    let s = ""; try { s = localStorage.getItem(SECRET_STORE) ?? ""; } catch {}
     let qc = 0; try { qc = (JSON.parse(localStorage.getItem(PRODUCTION_QUEUE) || "[]") as Media[]).length; } catch {}
-    const t = setTimeout(() => {
-      if (s) { setSecret(s); setAuthed(true); }
+    const t = setTimeout(async () => {
       setQueueCount(qc);
+      const s = await ensureAdminSecret(); // auto-login si hay sesión de SuperAdmin
+      if (s) { setSecret(s); setAuthed(true); }
     }, 0);
     return () => clearTimeout(t);
   }, []);

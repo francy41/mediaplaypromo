@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Image as ImageIcon, Sparkles, Download, Upload, Loader2, Lock, Wand2, RefreshCw } from "lucide-react";
+import { ensureAdminSecret } from "@/lib/admin-secret";
 
 const SECRET_STORE = "mpp_license_admin_secret";
 const W = 1280, H = 720;
@@ -48,10 +49,12 @@ export default function ThumbnailsPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    let s = ""; try { s = localStorage.getItem(SECRET_STORE) ?? ""; } catch {}
     let t0 = ""; try { t0 = new URLSearchParams(window.location.search).get("topic") ?? ""; } catch {}
-    if (!s && !t0) return;
-    const t = setTimeout(() => { if (s) { setSecret(s); setAuthed(true); } if (t0) setTopic(t0); }, 0);
+    const t = setTimeout(async () => {
+      if (t0) setTopic(t0);
+      const s = await ensureAdminSecret(); // auto-login si hay sesión de SuperAdmin
+      if (s) { setSecret(s); setAuthed(true); }
+    }, 0);
     return () => clearTimeout(t);
   }, []);
 
