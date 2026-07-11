@@ -58,8 +58,8 @@ export default function ContentPlannerPage() {
 
   // formulario de alta
   const [bulk, setBulk] = useState("");
-  const [caption, setCaption] = useState(CAPTION_TEMPLATES[0].text);
-  const [activeTemplate, setActiveTemplate] = useState(0);
+  const [caption, setCaption] = useState("");
+  const [activeTemplate, setActiveTemplate] = useState(-1);
 
   // generador de caption (plantilla + IA)
   const [brief, setBrief] = useState("");
@@ -156,7 +156,7 @@ export default function ContentPlannerPage() {
     if (urls.length === 0) return;
     const videos = urls.map((u) => ({ video_url: u, caption: caption || null }));
     await call(secret, "POST", { action: "add", videos, projectId: activeProject });
-    setBulk(""); setCaption(CAPTION_TEMPLATES[0].text); setActiveTemplate(0);
+    setBulk(""); setCaption(""); setActiveTemplate(-1);
     load(secret, activeProject);
   };
 
