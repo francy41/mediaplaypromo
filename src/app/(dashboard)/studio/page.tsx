@@ -4,8 +4,7 @@ import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Clapperboard, Wand2, Loader2, Download, RefreshCw, Plus, AlertCircle, CheckCircle2, Clock, FolderInput, Film } from "lucide-react";
 import { MUAPI_MODELS } from "@/lib/ai/muapi-models";
-
-const SECRET_STORE = "mpp_license_admin_secret";
+import { ensureAdminSecret } from "@/lib/admin-secret";
 const PRODUCTION_QUEUE = "mpp_production_queue";
 const STUDIO_META = "mpp_studio_meta";
 
@@ -44,8 +43,10 @@ export default function StudioPage() {
   const [flash, setFlash] = useState("");
 
   useEffect(() => {
-    let s = ""; try { s = localStorage.getItem(SECRET_STORE) ?? ""; } catch {}
-    const t = setTimeout(() => setSecret(s), 0);
+    const t = setTimeout(async () => {
+      const s = await ensureAdminSecret(); // acceso directo si hay sesión de admin
+      if (s) setSecret(s);
+    }, 0);
     return () => clearTimeout(t);
   }, []);
 

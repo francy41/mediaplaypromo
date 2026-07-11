@@ -6,6 +6,7 @@ import {
   Image as ImageIcon, Video as VideoIcon, Clapperboard, ExternalLink, Plus, ArrowRight,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { ensureAdminSecret } from "@/lib/admin-secret";
 
 const SECRET_STORE = "mpp_license_admin_secret";
 const PRODUCTION_QUEUE = "mpp_production_queue";
@@ -45,9 +46,13 @@ export default function StockPage() {
   const [queueCount, setQueueCount] = useState(0);
 
   useEffect(() => {
-    let s = ""; try { s = localStorage.getItem(SECRET_STORE) ?? ""; } catch {}
-    if (s) { setSecret(s); setAuthed(true); }
-    try { setQueueCount((JSON.parse(localStorage.getItem(PRODUCTION_QUEUE) || "[]") as ProdItem[]).length); } catch {}
+    let qc = 0; try { qc = (JSON.parse(localStorage.getItem(PRODUCTION_QUEUE) || "[]") as ProdItem[]).length; } catch {}
+    const t = setTimeout(async () => {
+      setQueueCount(qc);
+      const s = await ensureAdminSecret(); // acceso directo si hay sesión de admin
+      if (s) { setSecret(s); setAuthed(true); }
+    }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   const toProdItem = (it: StockItem): ProdItem =>

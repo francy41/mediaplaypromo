@@ -5,6 +5,7 @@ import { CalendarClock, Lock, Plus, Trash2, RefreshCw, Send, Film, Wand2, Upload
 import { AdminShell, KPIGrid } from "@/components/admin/AdminShell";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { generateCaptionTemplate, composeCaption } from "@/lib/caption-generator";
+import { ensureAdminSecret } from "@/lib/admin-secret";
 
 // Contacto para activar la Marca Blanca del Planificador (cliente). Cambiable.
 const WHITELABEL_CONTACT = "mailto:ventas@mediaplaypromo.com?subject=Quiero%20la%20Marca%20Blanca%20de%20MediaPlayPromo%20(100%E2%82%AC%2Fmes)";
@@ -101,9 +102,10 @@ export default function ContentPlannerPage() {
   }, []);
 
   useEffect(() => {
-    let s = ""; try { s = localStorage.getItem(SECRET_STORE) ?? ""; } catch {}
-    if (!s) return;
-    const t = setTimeout(() => load(s), 0);
+    const t = setTimeout(async () => {
+      const s = await ensureAdminSecret(); // acceso directo si hay sesión de admin
+      if (s) load(s);
+    }, 0);
     return () => clearTimeout(t);
   }, [load]);
 
