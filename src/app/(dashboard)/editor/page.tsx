@@ -280,18 +280,22 @@ export default function EditorPage() {
     if (enabled.length === 0) return [];
     const start = ((sceneIdx % enabled.length) + enabled.length) % enabled.length;
     const rotated = [...enabled.slice(start), ...enabled.slice(0, start)];
+    // Límite de tiempo por fuente: si una tarda, se salta a la siguiente (Pexels es
+    // instantáneo). Evita que Wikimedia/NVIDIA IA bloqueen la escena.
+    const withTimeout = <T,>(pf: () => Promise<T>, ms: number, fb: T): Promise<T> =>
+      Promise.race([pf().catch(() => fb), new Promise<T>((res) => setTimeout(() => res(fb), ms))]);
     for (const sid of rotated) {
-      if (sid === "muapi") { const v = await muapiVideo(visual || query); if (v) return [v]; continue; }
-      if (sid === "nvidia") { const m = await nvidiaImage(visual || query, refDesc); if (m) return [m]; continue; }
-      if (sid === "coverr") { const cv = await coverr(query); if (cv.length) return cv; continue; }
-      if (sid === "wikimedia") { const w = await wikimedia(query); if (w.length) return w; continue; }
-      if (sid === "archive") { const a = await archive(query); if (a.length) return a; continue; }
+      if (sid === "muapi") { const v = await withTimeout(() => muapiVideo(visual || query), 45000, undefined); if (v) return [v]; continue; }
+      if (sid === "nvidia") { const m = await withTimeout(() => nvidiaImage(visual || query, refDesc), 12000, undefined); if (m) return [m]; continue; }
+      if (sid === "coverr") { const cv = await withTimeout(() => coverr(query), 7000, [] as Media[]); if (cv.length) return cv; continue; }
+      if (sid === "wikimedia") { const w = await withTimeout(() => wikimedia(query), 6000, [] as Media[]); if (w.length) return w; continue; }
+      if (sid === "archive") { const a = await withTimeout(() => archive(query), 7000, [] as Media[]); if (a.length) return a; continue; }
       if (sid === "pixabay-video" || sid === "pixabay-photo") {
-        const px = await pixabay(query, sid === "pixabay-photo" ? "photo" : "video", orientation);
+        const px = await withTimeout(() => pixabay(query, sid === "pixabay-photo" ? "photo" : "video", orientation), 7000, [] as Media[]);
         if (px.length) return px; continue;
       }
       const type = sid === "pexels-photo" ? "photo" : "video";
-      const p = await pexels(query, type, orientation);
+      const p = await withTimeout(() => pexels(query, type, orientation), 7000, [] as Media[]);
       if (p.length) return p;
     }
     return [];
