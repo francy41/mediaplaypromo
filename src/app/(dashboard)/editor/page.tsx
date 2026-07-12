@@ -5,12 +5,13 @@ import {
   Clapperboard, Lock, Wand2, Loader2, Play, Square, Download, Trash2, RefreshCw,
   Volume2, VolumeX, Film, Plus,
   ChevronLeft, ChevronRight, FolderInput, Upload, X, Music, Subtitles, Mic,
-  Image as ImageIcon,
+  Image as ImageIcon, Send,
 } from "lucide-react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { MUAPI_MODELS } from "@/lib/ai/muapi-models";
 import { ensureAdminSecret } from "@/lib/admin-secret";
 import { folderPickerSupported, pickDownloadFolder, savedFolderName, saveToFolder } from "@/lib/save-folder";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -175,6 +176,10 @@ export default function EditorPage() {
   const [downloadFolder, setDownloadFolder] = useState<string | null>(null);
   const [batchRunning, setBatchRunning] = useState(false);
   const [batchMsg, setBatchMsg] = useState("");
+  const [lastRender, setLastRender] = useState<{ blob: Blob; name: string } | null>(null);
+  const [pubCaption, setPubCaption] = useState("");
+  const [publishing, setPublishing] = useState(false);
+  const [publishMsg, setPublishMsg] = useState("");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [rendering, setRendering] = useState(false);
   const [renderPct, setRenderPct] = useState(0);
@@ -385,6 +390,26 @@ export default function EditorPage() {
     }
     setBatchMsg(`✅ Lote listo: ${done}/${titles.length} videos ${downloadFolder ? `en la carpeta "${downloadFolder}"` : "descargados"}.`);
     setBatchRunning(false);
+  };
+
+  /* ── Enviar el video renderizado al Planificador (sube + encola para publicar) ── */
+  const sendToPlanner = async () => {
+    if (!lastRender) return;
+    setPublishing(true); setPublishMsg("Subiendo video…");
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const sr = await fetch("/api/content/upload-url", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-secret": secret }, body: JSON.stringify({ filename: lastRender.name }) });
+      const sd = await sr.json().catch(() => ({}));
+      if (!sr.ok) { setPublishMsg(`Error: ${sd.error ?? "subida"}`); setPublishing(false); return; }
+      const up = await supabase.storage.from("content-videos").uploadToSignedUrl(sd.path, sd.token, lastRender.blob);
+      if (up.error) { setPublishMsg(`Error subiendo: ${up.error.message}`); setPublishing(false); return; }
+      const caption = (pubCaption || parseTitles(prompt)[0] || "").trim();
+      const ar = await fetch("/api/content", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-secret": secret }, body: JSON.stringify({ action: "add", videos: [{ video_url: sd.publicUrl, title: lastRender.name, caption }] }) });
+      const ad = await ar.json().catch(() => ({}));
+      if (ad.ok) setPublishMsg("✅ Enviado al Planificador. Ábrelo para elegir la cuenta, las redes y programar/publicar.");
+      else setPublishMsg(`Error: ${ad.error ?? "no se pudo añadir"}`);
+    } catch (e) { setPublishMsg(`Error: ${e instanceof Error ? e.message : ""}`); }
+    finally { setPublishing(false); }
   };
 
   const addClip = (media: Media, narration = "", query = "") => {
@@ -788,6 +813,7 @@ export default function EditorPage() {
         opts,
       );
       const filename = `mpp-video-${Date.now()}.mp4`;
+      setLastRender({ blob, name: filename }); // para poder enviarlo al Planificador
       const saved = await saveToFolder(filename, blob); // guarda en la carpeta elegida (si hay)
       if (saved) { setFlash(`✅ Guardado en tu carpeta: ${downloadFolder}/${filename}`); setTimeout(() => setFlash(""), 5000); }
       else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); } // descarga normal
@@ -1062,6 +1088,17 @@ export default function EditorPage() {
                 <button onClick={chooseFolder} className="w-full inline-flex items-center justify-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg" title="Elegir la carpeta de tu PC donde se guardan los videos">
                   <FolderInput className="w-3.5 h-3.5" /> {downloadFolder ? `Carpeta: ${downloadFolder} · cambiar` : "Elegir carpeta de descarga"}
                 </button>
+              )}
+              {lastRender && (
+                <div className="mt-1 space-y-1.5 border-t border-white/10 pt-2">
+                  <p className="text-white/55 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"><Send className="w-3 h-3 text-pink-400" /> Publicar en tus redes</p>
+                  <textarea value={pubCaption} onChange={(e) => setPubCaption(e.target.value)} rows={2} placeholder="Caption / descripción del post (opcional)" className="w-full bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-[11px] text-white placeholder:text-white/30 focus:outline-none focus:border-pink-500/40 resize-y" />
+                  <button onClick={sendToPlanner} disabled={publishing} className="w-full inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-pink-500 to-violet-600 text-white text-xs font-bold px-3 py-2 rounded-lg shadow-lg shadow-pink-500/25 disabled:opacity-60">
+                    {publishing ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Enviando…</> : <><Send className="w-3.5 h-3.5" /> Enviar al Planificador</>}
+                  </button>
+                  {publishMsg && <p className="text-[10px] leading-snug text-emerald-300/90">{publishMsg}</p>}
+                  <Link href="/content" className="block text-center text-[10px] font-bold text-violet-300 hover:text-violet-200">Abrir Planificador para programar / publicar →</Link>
+                </div>
               )}
               {rendering && <><div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-600 transition-all" style={{ width: `${renderPct}%` }} /></div><p className="text-white/45 text-[10px]">{renderMsg}</p></>}
               <p className="text-white/35 text-[10px] pt-1">Render en navegador {customAudio ? "con TU audio" : voice ? "con voz (Google TTS gratis)" : "(sin audio)"}. Mejor ≤ ~90s.</p>
