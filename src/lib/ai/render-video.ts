@@ -268,7 +268,9 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
     await f.exec([...inputs, "-filter_complex", fc.replace(/;$/, ""), "-map", "[vout]", "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "out.mp4"]);
   } else {
     await f.writeFile("list.txt", new TextEncoder().encode(segs.map((s) => `file ${s}`).join("\n")));
-    await f.exec(["-f", "concat", "-safe", "0", "-i", "list.txt", "-c", "copy", "out.mp4"]);
+    // Re-encode al unir (no "-c copy"): elimina el frame NEGRO que aparece entre
+    // clips por los edit-lists de cada MP4. Cortes limpios, sin parpadeo oscuro.
+    await f.exec(["-f", "concat", "-safe", "0", "-i", "list.txt", "-fflags", "+genpts", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-r", "25", "-vsync", "cfr", "out.mp4"]);
   }
 
   // ── Audio: voz (TTS sincronizado o tu MP3) + música de fondo ──
