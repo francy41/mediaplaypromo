@@ -751,6 +751,7 @@ export default function EditorPage() {
   }
 
   const cur = previewIndex >= 0 ? clips[previewIndex] : null;
+  const prevCur = previewIndex > 0 ? clips[previewIndex - 1] : null; // clip anterior de fondo (para fundir encima, sin negro)
 
   return (
     <AdminShell title="Mega Editor de Video IA" description="Estilo CapCut: IA + Banco de Medios → timeline editable → preview → render MP4." icon={Clapperboard} iconGradient="from-violet-500 to-fuchsia-600" status="beta" breadcrumb={[{ label: "Mega Editor" }]}
@@ -996,7 +997,19 @@ export default function EditorPage() {
           <div className="glass-card rounded-2xl border border-white/10 p-3">
             <div className={`relative ${aspectCls} w-full ${aspect === "9:16" ? "max-w-[300px]" : "max-w-[560px]"} max-h-[56vh] mx-auto rounded-xl overflow-hidden bg-black border border-white/10`}>
               {cur ? (
-                <div key={cur.id} className="absolute inset-0 animate-in fade-in duration-200">
+                <>
+                {/* Capa de fondo: clip anterior, para que el nuevo funda ENCIMA (sin negro) */}
+                {prevCur?.media && (
+                  <div className="absolute inset-0">
+                    {prevCur.media.type === "video" ? (
+                      <video src={prevCur.media.url} autoPlay muted loop playsInline className="w-full h-full object-cover" style={{ filter: cssFilter(prevCur.effect) }} />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={prevCur.media.url} alt="" className="w-full h-full object-cover" style={{ filter: cssFilter(prevCur.effect) }} />
+                    )}
+                  </div>
+                )}
+                <div key={cur.id} className="absolute inset-0 animate-in fade-in duration-700">
                   {cur.media ? (cur.media.type === "video" ? (
                     <video src={cur.media.url} autoPlay muted loop playsInline className="w-full h-full object-cover" style={{ filter: cssFilter(cur.effect) }} />
                   ) : (
@@ -1007,6 +1020,7 @@ export default function EditorPage() {
                   <div className="absolute top-2 right-2 text-[10px] font-bold bg-black/50 text-white px-2 py-0.5 rounded backdrop-blur">Escena {previewIndex + 1}/{clips.length} · {(() => { const s = clips.slice(0, previewIndex).reduce((a, c) => a + c.seconds, 0); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; })()}</div>
                   <span className="absolute top-2 left-2 text-[9px] font-bold bg-emerald-500/80 text-white px-1.5 py-0.5 rounded">▶ {cur.seconds}s</span>
                 </div>
+                </>
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
                   <Film className="w-10 h-10 text-white/20 mb-3" />
