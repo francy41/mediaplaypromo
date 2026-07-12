@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { KeyRound, ShieldOff, ShieldCheck, RefreshCw, Lock, Copy, Check } from "lucide-react";
 import { AdminShell, KPIGrid } from "@/components/admin/AdminShell";
+import { ensureAdminSecret } from "@/lib/admin-secret";
 
 interface License {
   id: string;
@@ -61,9 +62,8 @@ export default function LicensesAdminPage() {
   }, [call]);
 
   useEffect(() => {
-    let s = "";
-    try { s = localStorage.getItem(SECRET_STORE) ?? ""; } catch {}
-    if (s) load(s);
+    const t = setTimeout(async () => { const s = await ensureAdminSecret(); if (s) load(s); }, 0);
+    return () => clearTimeout(t);
   }, [load]);
 
   const setStatus = async (key: string, action: "revoke" | "activate") => {

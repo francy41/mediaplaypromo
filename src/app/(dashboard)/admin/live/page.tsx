@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { ensureAdminSecret } from "@/lib/admin-secret";
 import {
   Radio, Upload, Trash2, ChevronUp, ChevronDown, Eye, EyeOff,
   Loader2, ExternalLink, Save, Clock, AlertCircle, KeyRound,
@@ -37,8 +38,8 @@ export default function AdminLivePage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    let s = ""; try { s = localStorage.getItem(SECRET_STORE) ?? ""; } catch {}
-    setSecret(s);
+    const t = setTimeout(async () => { const s = await ensureAdminSecret(); if (s) setSecret(s); }, 0);
+    return () => clearTimeout(t);
   }, []);
 
   const api = useCallback(

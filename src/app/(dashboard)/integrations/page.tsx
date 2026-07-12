@@ -5,6 +5,7 @@ import {
   Loader2, Zap, CheckCircle2, AlertCircle, ExternalLink, Pencil,
 } from "lucide-react";
 import { AdminShell, KPIGrid } from "@/components/admin/AdminShell";
+import { ensureAdminSecret } from "@/lib/admin-secret";
 import { PROVIDER_CATALOG, catalogByCategory, type ProviderSpec } from "@/lib/integration-providers";
 
 const SECRET_STORE = "mpp_license_admin_secret";
@@ -71,8 +72,8 @@ export default function IntegrationsPage() {
   }, []);
 
   useEffect(() => {
-    let s = ""; try { s = localStorage.getItem(SECRET_STORE) ?? ""; } catch {}
-    if (s) load(s);
+    const t = setTimeout(async () => { const s = await ensureAdminSecret(); if (s) load(s); }, 0);
+    return () => clearTimeout(t);
   }, [load]);
 
   const byProvider = Object.fromEntries(rows.map((r) => [r.provider, r])) as Record<string, Row>;

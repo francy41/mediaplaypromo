@@ -5,6 +5,7 @@ import {
   Link2, Copy, CheckCheck, AlertCircle, Zap, Info,
 } from "lucide-react";
 import { AdminShell, KPIGrid } from "@/components/admin/AdminShell";
+import { ensureAdminSecret } from "@/lib/admin-secret";
 
 interface Config {
   enabled: boolean;
@@ -92,10 +93,12 @@ export default function SocialRepliesPage() {
   }, []);
 
   useEffect(() => {
-    let s = ""; try { s = localStorage.getItem(SECRET_STORE) ?? ""; } catch {}
-    if (s) loadAll(s);
-    // Genera un webhook secret aleatorio si no hay uno en memoria
-    setWebhookSecret(Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
+    const t = setTimeout(async () => {
+      // Genera un webhook secret aleatorio si no hay uno en memoria
+      setWebhookSecret(Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
+      const s = await ensureAdminSecret(); if (s) loadAll(s);
+    }, 0);
+    return () => clearTimeout(t);
   }, [loadAll]);
 
   const save = async () => {

@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Users, Lock, Plus, Trash2, RefreshCw, Copy, Check } from "lucide-react";
 import { AdminShell, KPIGrid } from "@/components/admin/AdminShell";
+import { ensureAdminSecret } from "@/lib/admin-secret";
 
 const SECRET_STORE = "mpp_license_admin_secret";
 const SITE = "https://mediaplaypromo.com";
@@ -43,8 +44,8 @@ export default function AffiliatesPage() {
   }, []);
 
   useEffect(() => {
-    let s = ""; try { s = localStorage.getItem(SECRET_STORE) ?? ""; } catch {}
-    if (s) load(s);
+    const t = setTimeout(async () => { const s = await ensureAdminSecret(); if (s) load(s); }, 0);
+    return () => clearTimeout(t);
   }, [load]);
 
   const create = async () => {

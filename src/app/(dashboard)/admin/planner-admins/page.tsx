@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { KeyRound, Lock, Plus, Trash2, RefreshCw, UserPlus, CalendarClock, Power, Eye, EyeOff } from "lucide-react";
 import { AdminShell, KPIGrid } from "@/components/admin/AdminShell";
+import { ensureAdminSecret } from "@/lib/admin-secret";
 
 const SECRET_STORE = "mpp_license_admin_secret";
 
@@ -51,9 +52,7 @@ export default function PlannerAdminsPage() {
   }, [call]);
 
   useEffect(() => {
-    let s = ""; try { s = localStorage.getItem(SECRET_STORE) ?? ""; } catch {}
-    if (!s) return;
-    const t = setTimeout(() => load(s), 0);
+    const t = setTimeout(async () => { const s = await ensureAdminSecret(); if (s) load(s); }, 0);
     return () => clearTimeout(t);
   }, [load]);
 
