@@ -13,6 +13,18 @@ export interface RenderScene {
   effect?: string;
   startSec?: number;
   narration?: string;
+  transition?: string; // tipo de transición ENTRANTE: fade|slide|zoom|wipe|circle
+}
+
+/** Traduce el tipo de transición del editor al nombre de xfade de ffmpeg. */
+function xfadeName(t: string | undefined, i: number): string {
+  switch (t) {
+    case "slide": return i % 2 === 0 ? "slideleft" : "slideright";
+    case "zoom": return "zoomin";
+    case "wipe": return i % 2 === 0 ? "wipeleft" : "wiperight";
+    case "circle": return "circleopen";
+    default: return "fade"; // disolvencia suave
+  }
 }
 type Progress = (msg: string, pct: number) => void;
 interface RenderOpts {
@@ -185,13 +197,14 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
     await Promise.all(Array.from({ length: Math.min(CONCURRENCY, queue.length) }, work));
   }
 
-  // Crossfade real (xfade) solo si: lo piden, no hay audio propio, pocas escenas y video corto
-  // (decodifica varios clips a la vez → limitado por memoria del navegador).
+  // Transiciones reales (xfade: deslizar/disolver/zoom/barrido) ENTRE TODOS los clips.
+  // Se activan siempre que haya transiciones ON, no haya audio propio subido y el vídeo
+  // no sea enorme (límite alto por memoria del navegador; si se pasa, cae a cortes limpios).
   const totalEff = effDur.reduce((a, b) => a + b, 0);
   const minEff = effDur.length ? Math.min(...effDur) : 0;
-  const xfadeMode = opts.transitionStyle === "xfade" && !opts.customAudio
-    && usable.length >= 2 && usable.length <= 12 && totalEff <= 35 && minEff >= 1.2;
-  const XT = 0.3; // duración del crossfade (s) — rápido
+  const xfadeMode = fadeOn && !opts.customAudio
+    && usable.length >= 2 && usable.length <= 30 && totalEff <= 200 && minEff >= 0.8;
+  const XT = 0.4; // duración de la transición (s)
   const segFade = fadeOn && !xfadeMode; // si hay xfade, él gestiona la transición
 
   // ── Segmentos de video (duración = effDur, con efecto/Ken Burns/fundidos) ──
@@ -262,7 +275,8 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
     let fc = ""; let prev = "[0:v]"; let runLen = effDur[0];
     for (let i = 1; i < segs.length; i++) {
       const out = i === segs.length - 1 ? "vout" : `vx${i}`;
-      fc += `${prev}[${i}:v]xfade=transition=fade:duration=${XT}:offset=${(runLen - XT).toFixed(3)}[${out}];`;
+      const trans = xfadeName(usable[i].transition, i); // tipo de transición de ESTE clip
+      fc += `${prev}[${i}:v]xfade=transition=${trans}:duration=${XT}:offset=${(runLen - XT).toFixed(3)}[${out}];`;
       prev = `[${out}]`; runLen += effDur[i] - XT;
     }
     await f.exec([...inputs, "-filter_complex", fc.replace(/;$/, ""), "-map", "[vout]", "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "out.mp4"]);

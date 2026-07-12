@@ -15,7 +15,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const SECRET_STORE = "mpp_license_admin_secret";
 const PRODUCTION_QUEUE = "mpp_production_queue";
-type Transition = "fade" | "zoom" | "slide";
+type Transition = "fade" | "zoom" | "slide" | "wipe" | "circle";
 type Effect = "none" | "bw" | "blur" | "bright" | "zoom" | "warm" | "cold" | "vintage" | "vivid";
 
 interface Media { type: "video" | "photo"; thumb: string; url: string }
@@ -724,7 +724,7 @@ export default function EditorPage() {
         opts.musicVol = musicVol;
       }
       const blob = await renderVideo(
-        clips.map((c) => ({ seconds: c.seconds, media: c.media, effect: c.effect, startSec: c.startSec, narration: c.narration })),
+        clips.map((c) => ({ seconds: c.seconds, media: c.media, effect: c.effect, startSec: c.startSec, narration: c.narration, transition: c.transition })),
         aspect, secret, (msg, pct) => { setRenderMsg(msg); setRenderPct(pct); },
         opts,
       );
@@ -1027,7 +1027,7 @@ export default function EditorPage() {
                     {EFFECTS.map((e) => <option key={e.v} value={e.v} className="bg-[#0f1219]">{e.label}</option>)}
                   </select>
                   <select value={bulkTransition} onChange={(e) => setBulkTransition(e.target.value as Transition)} className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[11px] text-white focus:outline-none" title="Transición a todos">
-                    <option value="fade" className="bg-[#0f1219]">Fade</option><option value="zoom" className="bg-[#0f1219]">Zoom</option><option value="slide" className="bg-[#0f1219]">Slide</option>
+                    <option value="fade" className="bg-[#0f1219]">Disolver</option><option value="slide" className="bg-[#0f1219]">Deslizar</option><option value="zoom" className="bg-[#0f1219]">Zoom</option><option value="wipe" className="bg-[#0f1219]">Barrido</option><option value="circle" className="bg-[#0f1219]">Círculo</option>
                   </select>
                   <button onClick={applyToAll} className="inline-flex items-center bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow shadow-violet-500/30">Aplicar a todos</button>
                 </div>
@@ -1106,7 +1106,7 @@ export default function EditorPage() {
                 <div>
                   <label className="block text-white/45 text-[9px] font-bold uppercase mb-1">Transición</label>
                   <select value={selected.transition} onChange={(e) => updateClip(selected.id, { transition: e.target.value as Transition })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white focus:outline-none">
-                    <option value="fade" className="bg-[#0f1219]">Fade</option><option value="zoom" className="bg-[#0f1219]">Zoom</option><option value="slide" className="bg-[#0f1219]">Slide</option>
+                    <option value="fade" className="bg-[#0f1219]">Disolver</option><option value="slide" className="bg-[#0f1219]">Deslizar</option><option value="zoom" className="bg-[#0f1219]">Zoom</option><option value="wipe" className="bg-[#0f1219]">Barrido</option><option value="circle" className="bg-[#0f1219]">Círculo</option>
                   </select>
                 </div>
                 <div>
