@@ -10,6 +10,7 @@ import {
 import { AdminShell } from "@/components/admin/AdminShell";
 import { MUAPI_MODELS } from "@/lib/ai/muapi-models";
 import { ensureAdminSecret } from "@/lib/admin-secret";
+import { folderPickerSupported, pickDownloadFolder, savedFolderName, saveToFolder } from "@/lib/save-folder";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -170,6 +171,7 @@ export default function EditorPage() {
 
   // preview / render
   const [previewIndex, setPreviewIndex] = useState(-1);
+  const [downloadFolder, setDownloadFolder] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [rendering, setRendering] = useState(false);
   const [renderPct, setRenderPct] = useState(0);
@@ -181,9 +183,16 @@ export default function EditorPage() {
       setQueueCount(qc);
       const s = await ensureAdminSecret(); // auto-login si hay sesión de SuperAdmin
       if (s) { setSecret(s); setAuthed(true); }
+      const fn = await savedFolderName(); if (fn) setDownloadFolder(fn); // carpeta de descarga recordada
     }, 0);
     return () => clearTimeout(t);
   }, []);
+
+  // Elegir/cambiar la carpeta local donde se guardarán los videos.
+  const chooseFolder = async () => {
+    const name = await pickDownloadFolder();
+    if (name) { setDownloadFolder(name); setFlash(`📁 Los videos se guardarán en: ${name}`); setTimeout(() => setFlash(""), 3500); }
+  };
 
   const voiceBase = voiceCode.replace(/^(ms:|mx:)/, "");
   const lang: "es" | "en" = (/^es/i.test(voiceBase) || voiceBase.toLowerCase().includes("spanish")) ? "es" : "en";
@@ -728,7 +737,10 @@ export default function EditorPage() {
         aspect, secret, (msg, pct) => { setRenderMsg(msg); setRenderPct(pct); },
         opts,
       );
-      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `mpp-video-${Date.now()}.mp4`; a.click();
+      const filename = `mpp-video-${Date.now()}.mp4`;
+      const saved = await saveToFolder(filename, blob); // guarda en la carpeta elegida (si hay)
+      if (saved) { setFlash(`✅ Guardado en tu carpeta: ${downloadFolder}/${filename}`); setTimeout(() => setFlash(""), 5000); }
+      else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); } // descarga normal
     } catch (e) { setError(e instanceof Error ? e.message : "Error al renderizar"); }
     finally { setRendering(false); }
   };
@@ -984,6 +996,11 @@ export default function EditorPage() {
                   {rendering ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {renderPct}%</> : <><Download className="w-3.5 h-3.5" /> Render MP4</>}
                 </button>
               </div>
+              {folderPickerSupported() && (
+                <button onClick={chooseFolder} className="w-full inline-flex items-center justify-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg" title="Elegir la carpeta de tu PC donde se guardan los videos">
+                  <FolderInput className="w-3.5 h-3.5" /> {downloadFolder ? `Carpeta: ${downloadFolder} · cambiar` : "Elegir carpeta de descarga"}
+                </button>
+              )}
               {rendering && <><div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-600 transition-all" style={{ width: `${renderPct}%` }} /></div><p className="text-white/45 text-[10px]">{renderMsg}</p></>}
               <p className="text-white/35 text-[10px] pt-1">Render en navegador {customAudio ? "con TU audio" : voice ? "con voz (Google TTS gratis)" : "(sin audio)"}. Mejor ≤ ~90s.</p>
               {error && <p className="text-red-400 text-xs">{error}</p>}
