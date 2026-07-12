@@ -15,7 +15,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const SECRET_STORE = "mpp_license_admin_secret";
 const PRODUCTION_QUEUE = "mpp_production_queue";
-type Transition = "fade" | "zoom" | "slide" | "wipe" | "circle";
+type Transition = "fade" | "zoom" | "slide" | "wipe" | "circle" | "smooth";
 type Effect = "none" | "bw" | "blur" | "bright" | "zoom" | "warm" | "cold" | "vintage" | "vivid";
 
 interface Media { type: "video" | "photo"; thumb: string; url: string }
@@ -163,7 +163,7 @@ export default function EditorPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [queueCount, setQueueCount] = useState(0);
   const [bulkEffect, setBulkEffect] = useState<Effect>("none");
-  const [bulkTransition, setBulkTransition] = useState<Transition>("fade");
+  const [bulkTransition, setBulkTransition] = useState<Transition>("smooth");
   const [flash, setFlash] = useState("");
 
   // media browser
@@ -312,7 +312,7 @@ export default function EditorPage() {
       const d = await r.json();
       if (d.error) { setError(d.error); return; }
       const base: Clip[] = (d.scenes ?? []).map((s: { narration: string; query: string; visual?: string; seconds: number }) => ({
-        id: uid(), narration: s.narration, query: s.query, visual: s.visual || s.query, seconds: s.seconds, startSec: 0, transition: "fade" as Transition, effect: "none" as Effect, loadingMedia: true,
+        id: uid(), narration: s.narration, query: s.query, visual: s.visual || s.query, seconds: s.seconds, startSec: 0, transition: "smooth" as Transition, effect: "none" as Effect, loadingMedia: true,
       }));
       setClips(base);
       const ori = orientationFor(aspect);
@@ -330,7 +330,7 @@ export default function EditorPage() {
   };
 
   const addClip = (media: Media, narration = "", query = "") => {
-    const c: Clip = { id: uid(), media, narration, query, visual: query, seconds: 5, startSec: 0, transition: "fade", effect: media.type === "photo" ? "zoom" : "none" };
+    const c: Clip = { id: uid(), media, narration, query, visual: query, seconds: 5, startSec: 0, transition: "smooth", effect: media.type === "photo" ? "zoom" : "none" };
     setClips((p) => [...p, c]);
     setSelectedId(c.id);
   };
@@ -340,7 +340,7 @@ export default function EditorPage() {
     let q: QItem[] = [];
     try { q = JSON.parse(localStorage.getItem(PRODUCTION_QUEUE) || "[]"); } catch {}
     if (q.length === 0) return;
-    const add: Clip[] = q.filter((m) => m?.url).map((m) => ({ id: uid(), media: { type: m.type, thumb: m.thumb, url: m.url }, narration: m.narration || "", query: "", visual: "", seconds: m.seconds || 5, startSec: 0, transition: "fade", effect: m.type === "photo" ? "zoom" : "none" }));
+    const add: Clip[] = q.filter((m) => m?.url).map((m) => ({ id: uid(), media: { type: m.type, thumb: m.thumb, url: m.url }, narration: m.narration || "", query: "", visual: "", seconds: m.seconds || 5, startSec: 0, transition: "smooth", effect: m.type === "photo" ? "zoom" : "none" }));
     setClips((p) => [...p, ...add]);
     // Meta del Estudio: aplica la voz y el formato elegidos allí.
     try {
@@ -664,7 +664,7 @@ export default function EditorPage() {
         .map((l) => (l.includes(",") ? l.split(",")[0] : l).replace(/^["']|["']$/g, "").trim())
         .filter(Boolean);
       if (!lines.length) { setError("El archivo no tiene texto."); return; }
-      const mk = (t: string): Clip => ({ id: uid(), narration: t, query: t.split(/\s+/).slice(0, 4).join(" "), visual: t, seconds: 5, startSec: 0, transition: "fade", effect: "none" });
+      const mk = (t: string): Clip => ({ id: uid(), narration: t, query: t.split(/\s+/).slice(0, 4).join(" "), visual: t, seconds: 5, startSec: 0, transition: "smooth", effect: "none" });
       setClips((prev) => {
         if (prev.length === 0) return lines.map(mk);
         const out = prev.map((c, i) => (lines[i] != null ? { ...c, narration: lines[i] } : c));
@@ -1027,7 +1027,7 @@ export default function EditorPage() {
                     {EFFECTS.map((e) => <option key={e.v} value={e.v} className="bg-[#0f1219]">{e.label}</option>)}
                   </select>
                   <select value={bulkTransition} onChange={(e) => setBulkTransition(e.target.value as Transition)} className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[11px] text-white focus:outline-none" title="Transición a todos">
-                    <option value="fade" className="bg-[#0f1219]">Disolver</option><option value="slide" className="bg-[#0f1219]">Deslizar</option><option value="zoom" className="bg-[#0f1219]">Zoom</option><option value="wipe" className="bg-[#0f1219]">Barrido</option><option value="circle" className="bg-[#0f1219]">Círculo</option>
+                    <option value="smooth" className="bg-[#0f1219]">✨ Fundido suave (encima)</option><option value="fade" className="bg-[#0f1219]">Disolver</option><option value="slide" className="bg-[#0f1219]">Deslizar</option><option value="zoom" className="bg-[#0f1219]">Zoom</option><option value="wipe" className="bg-[#0f1219]">Barrido</option><option value="circle" className="bg-[#0f1219]">Círculo</option>
                   </select>
                   <button onClick={applyToAll} className="inline-flex items-center bg-gradient-to-r from-violet-500 to-fuchsia-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow shadow-violet-500/30">Aplicar a todos</button>
                 </div>
@@ -1106,7 +1106,7 @@ export default function EditorPage() {
                 <div>
                   <label className="block text-white/45 text-[9px] font-bold uppercase mb-1">Transición</label>
                   <select value={selected.transition} onChange={(e) => updateClip(selected.id, { transition: e.target.value as Transition })} className="w-full bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white focus:outline-none">
-                    <option value="fade" className="bg-[#0f1219]">Disolver</option><option value="slide" className="bg-[#0f1219]">Deslizar</option><option value="zoom" className="bg-[#0f1219]">Zoom</option><option value="wipe" className="bg-[#0f1219]">Barrido</option><option value="circle" className="bg-[#0f1219]">Círculo</option>
+                    <option value="smooth" className="bg-[#0f1219]">✨ Fundido suave (encima)</option><option value="fade" className="bg-[#0f1219]">Disolver</option><option value="slide" className="bg-[#0f1219]">Deslizar</option><option value="zoom" className="bg-[#0f1219]">Zoom</option><option value="wipe" className="bg-[#0f1219]">Barrido</option><option value="circle" className="bg-[#0f1219]">Círculo</option>
                   </select>
                 </div>
                 <div>

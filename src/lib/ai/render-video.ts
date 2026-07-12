@@ -23,8 +23,13 @@ function xfadeName(t: string | undefined, i: number): string {
     case "zoom": return "zoomin";
     case "wipe": return i % 2 === 0 ? "wipeleft" : "wiperight";
     case "circle": return "circleopen";
+    case "smooth": return "fade"; // disolvencia larga: un clip montado sobre el otro
     default: return "fade"; // disolvencia suave
   }
+}
+/** Duración base del solapamiento (s). "smooth" = más largo → transición muy suave. */
+function xfadeBaseDur(t: string | undefined): number {
+  return t === "smooth" ? 1.0 : 0.5;
 }
 type Progress = (msg: string, pct: number) => void;
 interface RenderOpts {
@@ -204,7 +209,12 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
   const minEff = effDur.length ? Math.min(...effDur) : 0;
   const xfadeMode = fadeOn && !opts.customAudio
     && usable.length >= 2 && usable.length <= 30 && totalEff <= 200 && minEff >= 0.8;
-  const XT = 0.4; // duración de la transición (s)
+  // Solapamiento por transición (nunca más de la mitad de los clips vecinos, para
+  // no comerse un clip corto). Índice i = transición ENTRANTE al clip i.
+  const xtArr: number[] = new Array(usable.length).fill(0);
+  for (let i = 1; i < usable.length; i++) {
+    xtArr[i] = Math.max(0.2, Math.min(xfadeBaseDur(usable[i].transition), effDur[i] * 0.5, effDur[i - 1] * 0.5));
+  }
   const segFade = fadeOn && !xfadeMode; // si hay xfade, él gestiona la transición
 
   // ── Segmentos de video (duración = effDur, con efecto/Ken Burns/fundidos) ──
@@ -276,8 +286,9 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
     for (let i = 1; i < segs.length; i++) {
       const out = i === segs.length - 1 ? "vout" : `vx${i}`;
       const trans = xfadeName(usable[i].transition, i); // tipo de transición de ESTE clip
-      fc += `${prev}[${i}:v]xfade=transition=${trans}:duration=${XT}:offset=${(runLen - XT).toFixed(3)}[${out}];`;
-      prev = `[${out}]`; runLen += effDur[i] - XT;
+      const xt = xtArr[i];
+      fc += `${prev}[${i}:v]xfade=transition=${trans}:duration=${xt.toFixed(2)}:offset=${(runLen - xt).toFixed(3)}[${out}];`;
+      prev = `[${out}]`; runLen += effDur[i] - xt;
     }
     await f.exec([...inputs, "-filter_complex", fc.replace(/;$/, ""), "-map", "[vout]", "-r", "25", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "out.mp4"]);
   } else {
@@ -316,7 +327,7 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
         let fc = ""; let prev = "[0:a]";
         for (let i = 1; i < aSegs.length; i++) {
           const out = i === aSegs.length - 1 ? "aout" : `ax${i}`;
-          fc += `${prev}[${i}:a]acrossfade=d=${XT}[${out}];`;
+          fc += `${prev}[${i}:a]acrossfade=d=${xtArr[i].toFixed(2)}[${out}];`;
           prev = `[${out}]`;
         }
         await f.exec([...inputs, "-filter_complex", fc.replace(/;$/, ""), "-map", "[aout]", "-c:a", "aac", "voiceaudio.m4a"]);
