@@ -137,6 +137,7 @@ export default function EditorPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [customAudio, setCustomAudio] = useState<{ name: string; file: File; url: string } | null>(null);
   const [customAudioDur, setCustomAudioDur] = useState(0);
+  const [customAudioVol, setCustomAudioVol] = useState(1); // volumen del audio subido
   const [measuringVoices, setMeasuringVoices] = useState(false);
   const [voiceMsg, setVoiceMsg] = useState("");
   const voiceUrlsRef = useRef<Record<string, string>>({});
@@ -172,6 +173,8 @@ export default function EditorPage() {
   // preview / render
   const [previewIndex, setPreviewIndex] = useState(-1);
   const [downloadFolder, setDownloadFolder] = useState<string | null>(null);
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [batchMsg, setBatchMsg] = useState("");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [rendering, setRendering] = useState(false);
   const [renderPct, setRenderPct] = useState(0);
@@ -336,6 +339,52 @@ export default function EditorPage() {
       if (sources.muapi && muapiErrRef.current) setError(`⚠️ MUAPI: ${muapiErrRef.current} Las escenas usaron las demás fuentes marcadas.`);
     } catch { setError("Error de conexión."); }
     finally { setGenerating(false); }
+  };
+
+  // Quita numeración de lista ("1) ", "2. ", "3 - ") y espacios; una línea = un título.
+  const parseTitles = (text: string) => text.split(/\r?\n/).map((l) => l.replace(/^\s*\d+[).:\-\s]+/, "").trim()).filter(Boolean);
+
+  /* ── Modo LOTE: crea N videos, uno por título, y los guarda en la carpeta ── */
+  const runBatch = async () => {
+    const titles = parseTitles(prompt);
+    if (titles.length < 1) { setError("Escribe los títulos, uno por línea."); return; }
+    if (!downloadFolder && folderPickerSupported()) {
+      if (confirm(`Vas a crear ${titles.length} videos. Se guardarán en una carpeta de tu PC. ¿Elegir la carpeta ahora? (Si cancelas, se descargarán uno a uno.)`)) await chooseFolder();
+    }
+    stopPreview();
+    setBatchRunning(true); setError(null);
+    const { renderVideo } = await import("@/lib/ai/render-video");
+    const ori = orientationFor(aspect);
+    let done = 0;
+    for (let ti = 0; ti < titles.length; ti++) {
+      const title = titles[ti];
+      const tag = `Video ${ti + 1}/${titles.length}`;
+      try {
+        setBatchMsg(`${tag}: generando guión…`);
+        const r = await fetch("/api/admin/editor/plan", { method: "POST", headers: { "Content-Type": "application/json", "x-admin-secret": secret }, body: JSON.stringify({ prompt: title, durationSec: duration, lang }) });
+        const d = await r.json().catch(() => ({}));
+        const scns = (d.scenes ?? []) as { narration: string; query: string; visual?: string; seconds: number }[];
+        if (!scns.length) { setBatchMsg(`${tag}: ⚠️ sin guión, saltado`); continue; }
+        setBatchMsg(`${tag}: buscando clips…`);
+        const lists = await Promise.all(scns.map((s, i) => sceneMedia(s.query, s.visual || s.query, ori, i)));
+        const used = new Set<string>();
+        const scenes = scns.map((s, i) => {
+          const pick = lists[i].find((m) => !used.has(m.url)) ?? lists[i][0];
+          if (pick) used.add(pick.url);
+          return { seconds: s.seconds, media: pick, effect: bulkEffect as string, startSec: 0, narration: s.narration, transition: bulkTransition as string };
+        }).filter((s) => s.media);
+        if (!scenes.length) { setBatchMsg(`${tag}: ⚠️ sin clips, saltado`); continue; }
+        const opts: { ttsLang?: string; subtitles?: boolean; transitions?: boolean; transitionStyle?: "fade" | "xfade" } = { subtitles, transitions, transitionStyle };
+        if (voice) opts.ttsLang = voiceCode;
+        const blob = await renderVideo(scenes, aspect, secret, (msg, pct) => setBatchMsg(`${tag} · ${title.slice(0, 38)} — ${msg} ${pct}%`), opts);
+        const fname = `${String(ti + 1).padStart(2, "0")}-${title.slice(0, 50).replace(/[^a-z0-9áéíóúñ ]+/gi, "").trim().replace(/\s+/g, "-").toLowerCase() || "video"}.mp4`;
+        const saved = await saveToFolder(fname, blob);
+        if (!saved) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = fname; a.click(); }
+        done++;
+      } catch { setBatchMsg(`${tag}: ⚠️ error, saltado`); }
+    }
+    setBatchMsg(`✅ Lote listo: ${done}/${titles.length} videos ${downloadFolder ? `en la carpeta "${downloadFolder}"` : "descargados"}.`);
+    setBatchRunning(false);
   };
 
   const addClip = (media: Media, narration = "", query = "") => {
@@ -720,10 +769,11 @@ export default function EditorPage() {
     setRendering(true); setRenderPct(0); setRenderMsg("Iniciando…"); setError(null);
     try {
       const { renderVideo } = await import("@/lib/ai/render-video");
-      const opts: { ttsLang?: string; customAudio?: Uint8Array; customAudioExt?: string; music?: Uint8Array; musicExt?: string; musicVol?: number; subtitles?: boolean; transitions?: boolean; transitionStyle?: "fade" | "xfade" } = { subtitles, transitions, transitionStyle };
+      const opts: { ttsLang?: string; customAudio?: Uint8Array; customAudioExt?: string; music?: Uint8Array; musicExt?: string; musicVol?: number; voiceVol?: number; subtitles?: boolean; transitions?: boolean; transitionStyle?: "fade" | "xfade" } = { subtitles, transitions, transitionStyle };
       if (customAudio) {
         opts.customAudio = new Uint8Array(await customAudio.file.arrayBuffer());
         opts.customAudioExt = (customAudio.name.split(".").pop() || "mp3").toLowerCase();
+        opts.voiceVol = customAudioVol;
       } else if (voice) {
         opts.ttsLang = voiceCode;
       }
@@ -892,6 +942,11 @@ export default function EditorPage() {
                       <button type="button" onClick={clearCustomAudio} className="text-white/60 hover:text-red-300" title="Quitar"><X className="w-3.5 h-3.5" /></button>
                     </div>
                     <p className="text-emerald-300/70 text-[10px] mt-1">✓ Se usará TU audio en el video (en vez de la voz TTS).</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-white/50 text-[10px] font-bold w-14">Volumen</span>
+                      <input type="range" min={0} max={3} step={0.05} value={customAudioVol} onChange={(e) => setCustomAudioVol(Number(e.target.value))} className="flex-1 accent-emerald-500" />
+                      <span className="text-white/70 text-[10px] font-mono w-9 text-right">{Math.round(customAudioVol * 100)}%</span>
+                    </div>
                     {customAudioDur > 0 && (
                       <div className="flex items-center justify-between mt-1.5 gap-2">
                         <span className="text-white/45 text-[10px]">Audio: {Math.floor(customAudioDur / 60)}:{String(customAudioDur % 60).padStart(2, "0")} · Clips: {totalSec}s</span>
@@ -951,9 +1006,16 @@ export default function EditorPage() {
                   )}
                 </div>
               </div>
-              <button onClick={generate} disabled={generating || !prompt.trim()} className="shine-btn w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:opacity-95 text-white font-bold text-sm px-5 py-3 rounded-xl shadow-lg shadow-violet-500/30 disabled:opacity-50">
+              <button onClick={generate} disabled={generating || batchRunning || !prompt.trim()} className="shine-btn w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-600 hover:opacity-95 text-white font-bold text-sm px-5 py-3 rounded-xl shadow-lg shadow-violet-500/30 disabled:opacity-50">
                 {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generando…</> : <><Wand2 className="w-4 h-4" /> Generar storyboard</>}
               </button>
+              {parseTitles(prompt).length > 1 && (
+                <button onClick={runBatch} disabled={batchRunning || generating} className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:opacity-95 text-white font-bold text-sm px-5 py-2.5 rounded-xl shadow-lg shadow-orange-500/25 disabled:opacity-60">
+                  {batchRunning ? <><Loader2 className="w-4 h-4 animate-spin" /> Creando lote…</> : <><Film className="w-4 h-4" /> Crear {parseTitles(prompt).length} videos en lote</>}
+                </button>
+              )}
+              {batchMsg && <p className="text-amber-300/90 text-[11px] leading-snug">{batchMsg}</p>}
+              <p className="text-white/35 text-[10px]">💡 Escribe varios títulos (uno por línea) y usa <b>&quot;Crear N videos en lote&quot;</b>: genera y guarda cada uno solo. Elige antes la carpeta de descarga.</p>
               {error && <p className="text-red-400 text-xs">{error}</p>}
           </div>
 

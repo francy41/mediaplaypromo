@@ -36,6 +36,7 @@ interface RenderOpts {
   ttsLang?: string;
   customAudio?: Uint8Array; customAudioExt?: string;
   music?: Uint8Array; musicExt?: string; musicVol?: number;
+  voiceVol?: number; // volumen de la voz/audio subido (1 = normal)
   subtitles?: boolean;
   transitions?: boolean; // fundido entrada/salida entre clips (default: true)
   transitionStyle?: "fade" | "xfade"; // "xfade" = crossfade real (solo videos cortos)
@@ -162,6 +163,7 @@ async function ttsBytes(text: string, lang: string, secret: string): Promise<Uin
 }
 
 const VOL = (v?: number) => (typeof v === "number" && v >= 0 && v <= 1 ? v : 0.22);
+const AV = (v?: number) => (typeof v === "number" && v >= 0 && v <= 4 ? v : 1); // volumen voz/audio
 
 export async function renderVideo(scenes: RenderScene[], aspect: string, secret: string, onProgress: Progress, opts: RenderOpts = {}): Promise<Blob> {
   const [W, H] = DIMS[aspect] ?? DIMS["16:9"];
@@ -348,10 +350,10 @@ export async function renderVideo(scenes: RenderScene[], aspect: string, secret:
       onProgress("Mezclando audio…", 95);
       if (voiceFile && musicFile) {
         await f.exec(["-i", "out.mp4", "-i", voiceFile, "-stream_loop", "-1", "-i", musicFile,
-          "-filter_complex", `[2:a]volume=${VOL(opts.musicVol)}[m];[1:a][m]amix=inputs=2:duration=first:dropout_transition=2[a]`,
+          "-filter_complex", `[1:a]volume=${AV(opts.voiceVol)}[v];[2:a]volume=${VOL(opts.musicVol)}[m];[v][m]amix=inputs=2:duration=first:dropout_transition=2[a]`,
           "-map", "0:v:0", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-shortest", "final.mp4"]);
       } else if (voiceFile) {
-        await f.exec(["-i", "out.mp4", "-i", voiceFile, "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac", "-shortest", "final.mp4"]);
+        await f.exec(["-i", "out.mp4", "-i", voiceFile, "-filter_complex", `[1:a]volume=${AV(opts.voiceVol)}[a]`, "-map", "0:v:0", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-shortest", "final.mp4"]);
       } else if (musicFile) {
         await f.exec(["-i", "out.mp4", "-stream_loop", "-1", "-i", musicFile, "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac", "-shortest", "final.mp4"]);
       }
